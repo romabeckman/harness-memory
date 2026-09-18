@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: harness_memory
+      POSTGRES_USER: harness_memory
+      POSTGRES_PASSWORD: harness_memory
+    ports:
+      - "5432:5432"
+    volumes:
+      - harness_memory_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harness_memory -d harness_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - harness_memory_network
+
+  migrate:
+    build:
+      context: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - harness_memory_network
+
+  mcp:
+    build:
+      context: .
+    command: ["python", "-m", "mcp.server.app"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - harness_memory_network
+
+  # api:
+  #   build:
+  #     context: .
+  #   command:
+  #     [
+  #       "uvicorn",
+  #       "api.server.app:app",
+  #       "--host",
+  #       "0.0.0.0",
+  #       "--port",
+  #       "8080"
+  #     ]
+  #   environment:
+  #     DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+  #     API_HOST: 0.0.0.0
+  #     API_PORT: "8080"
+  #     AUTH_ENABLED: "false"
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     migrate:
+  #       condition: service_completed_successfully
+  #   networks:
+  #     - harness_memory_network
+
+volumes:
+  harness_memory_postgres:
+
+networks:
+  harness_memory_network:
+    driver: bridge
