@@ -1,3 +1,5 @@
+![Harness Memory](docs/assets/harness-memory-banner.png)
+
 # Harness Memory
 
 **Harness Memory** is an open-source MCP server for sharing structured engineering knowledge across software projects.

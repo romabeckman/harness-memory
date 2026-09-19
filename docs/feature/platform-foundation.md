@@ -13,6 +13,9 @@ edges:
     target: "adr:mcp"
 updated: 2026-09-19
 ---
+# Platform Foundation
+Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
+
 ```graph
 {
   "node_id": "feature:platform-foundation",
@@ -65,51 +68,54 @@ updated: 2026-09-19
 }
 ```
 
-# Platform Foundation
-Provide the runnable backend structure, persistence schema, migration boundary, and verification base for Harness Memory.
-
 ## OVERVIEW
 
-Use **pragmatic DDD** with domain-grouped application code. Keep **FastMCP** at the transport edge, **PostgreSQL** and **Alembic** in infrastructure, and dependencies pointed inward.
+Use **pragmatic DDD organized by business domain**. Keep FastMCP at the adapter edge, PostgreSQL and Alembic in infrastructure, and dependencies pointed inward.
 
 ## FOLDER STRUCTURE
 
 ```text
-mcp/                         # Runtime, CLI, and transport adapters
+mcp/                          # Runtime, CLI, and transport adapters
 core/application/             # Feature use cases and ports
 core/domain/                  # Business invariants and value objects
 core/infrastructure/postgres/ # Database configuration and adapters
 migrations/                   # Versioned schema revisions
-tests/{unit,integration,e2e}/  # Mirrored verification tiers
+tests/{unit,integration,e2e}/ # Mirrored verification tiers
 ```
 
-## BOUNDARIES
+## MAIN CONCEPTS / COMPONENTS
 
-- REQUIRED: Build the FastMCP server without connecting to PostgreSQL or running migrations.
-- REQUIRED: **Run schema changes** through `harness-memory migrate`; use `--status` for read-only revision inspection.
-- PROHIBITED: Put business rules or SQL in MCP tools, or make server startup create schema.
-- REQUIRED: Keep the initial schema tenant-scoped across `projects`, `snapshots`, `entities`, `relations`, and `evidence`.
+- **Runtime boundary**: Build the FastMCP server without database connections, migrations, or transport startup.
+- **Persistence boundary**: Keep five tenant-scoped foundation tables: projects, snapshots, entities, relations, and evidence.
+- **Migration boundary**: Use explicit Alembic revisions through the CLI; keep startup schema creation disabled.
+- **Dependency boundary**: Let `mcp` call application code, application code use domain rules and ports, and infrastructure implement ports.
+
+## HOW TO OPERATE
+
+1. Set `MCP_HOST` and `MCP_PORT`; keep `DATABASE_URL` optional until database work starts.
+2. Run `harness-memory migrate` to upgrade the PostgreSQL schema through Alembic head.
+3. Run `harness-memory migrate --status` to inspect current and head revisions without mutation.
+4. Add each feature under its domain packages and mirror its tests under `unit`, `integration`, and `e2e`.
 
 ## PARAMETERS / CONFIGURATIONS
 
-| Setting | Type | Default | Rule |
-|---|---|---|---|
-| `MCP_HOST` | string | `127.0.0.1` | REQUIRED: Trim and reject empty values. |
-| `MCP_PORT` | integer | `8000` | REQUIRED: Accept `1`–`65535`. |
-| `DATABASE_URL` | secret URL | unset | REQUIRED: Supply PostgreSQL `psycopg2` URL before database operations. |
+| Name | Type | Required | Description | Default |
+|------|------|----------|-------------|---------|
+| `MCP_HOST` | string | No | Non-empty MCP bind host. | `127.0.0.1` |
+| `MCP_PORT` | integer | No | Port from 1 through 65535. | `8000` |
+| `DATABASE_URL` | secret URL | Database commands only | PostgreSQL `psycopg2` connection URL. | unset |
 
-## HOW TO EXTEND
+## BEST PRACTICES
 
-1. Add domain behavior and application ports under the feature's domain package.
-2. Implement PostgreSQL adapters without importing them into domain code.
-3. Register each MCP feature through `mcp/server/factory.py`; add owned schema changes as reversible Alembic revisions.
-4. Add tests under matching `tests/unit/`, `tests/integration/`, and `tests/e2e/` paths.
+REQUIRED: Keep tenant, project, and snapshot ownership in composite PostgreSQL constraints.
+REQUIRED: Keep ORM models in infrastructure and map future domain objects explicitly.
+REQUIRED: Redact credentials and connection details from migration diagnostics.
+FORBIDDEN: Run migrations or create schema during MCP server construction.
+FORBIDDEN: Import FastMCP, SQLAlchemy, or PostgreSQL drivers into domain code.
 
-## KNOWN GAPS
+## TIPS
 
-- REQUIRED: Harden migration error redaction; quoted database usernames can leave part of the name in output.
-- REQUIRED: Extend architecture checks to resolve relative imports; current validation can miss prohibited relative dependencies.
-- REQUIRED: Correct the composite active-snapshot foreign-key delete action; its `SET NULL` may target non-null Project identity columns.
+Use `--status` before an upgrade when diagnosing a deployment database; it performs read-only revision inspection.
 
 ## DOCUMENT MAP
 
@@ -126,5 +132,5 @@ graph TD
 ## REFERENCES
 
 - [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines layer ownership and dependency direction.
-- [**TESTS.md**](../adr/TESTS.md): Defines the project test strategy and coverage policy.
-- [**MCP.md**](../adr/MCP.md): Defines server, tool, and context boundaries.
+- [**TESTS.md**](../adr/TESTS.md): Defines test tiers and coverage policy.
+- [**MCP.md**](../adr/MCP.md): Defines server and adapter boundaries.

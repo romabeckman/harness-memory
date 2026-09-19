@@ -40,14 +40,14 @@
 | F004 | T09 | harness-memory | Expose Get Dependencies Tool | relationship_context | - | COMPLETED |
 | F004 | T10 | harness-memory | Register Relationship Query Tools | relationship_context | - | COMPLETED |
 | F004 | T11 | harness-memory | Verify Relationship MCP Contracts | relationship_context | - | COMPLETED |
-| F005 | T01 | harness-memory | Define Integration Path Bounds and Types | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T02 | harness-memory | Define Integration Path Projections | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T03 | harness-memory | Implement Path Traversal Policy | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T04 | harness-memory | Define Integration Path Port and Failures | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T05 | harness-memory | Implement Find Integration Paths Use Case | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T06 | harness-memory | Implement Recursive Integration Path Query | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T07 | harness-memory | Hydrate Path Ownership and Evidence | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T08 | harness-memory | Verify Integration Path Bounds and Plans | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T09 | harness-memory | Expose Find Integration Paths Tool | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T10 | harness-memory | Register Integration Path Query | integration_paths | IMPLEMENTATION | IN_PROGRESS |
-| F005 | T11 | harness-memory | Verify Integration Path MCP Contracts | integration_paths | IMPLEMENTATION | IN_PROGRESS |
+| F005 | T01 | harness-memory | Define Integration Path Bounds and Types | integration_paths | - | BLOCKED |
+| F005 | T02 | harness-memory | Define Integration Path Projections | integration_paths | - | BLOCKED |
+| F005 | T03 | harness-memory | Implement Path Traversal Policy | integration_paths | - | BLOCKED |
+| F005 | T04 | harness-memory | Define Integration Path Port and Failures | integration_paths | - | BLOCKED |
+| F005 | T05 | harness-memory | Implement Find Integration Paths Use Case | integration_paths | - | BLOCKED |
+| F005 | T06 | harness-memory | Implement Recursive Integration Path Query | integration_paths | - | BLOCKED |
+| F005 | T07 | harness-memory | Hydrate Path Ownership and Evidence | integration_paths | - | BLOCKED |
+| F005 | T08 | harness-memory | Verify Integration Path Bounds and Plans | integration_paths | - | BLOCKED |
+| F005 | T09 | harness-memory | Expose Find Integration Paths Tool | integration_paths | - | BLOCKED |
+| F005 | T10 | harness-memory | Register Integration Path Query | integration_paths | - | BLOCKED |
+| F005 | T11 | harness-memory | Verify Integration Path MCP Contracts | integration_paths | - | BLOCKED |

@@ -16,6 +16,9 @@ edges:
     read: must
 updated: 2026-09-19
 ---
+# Entity Discovery
+Find bounded Entity identities from each tenant's active Project snapshots through `search_entities`.
+
 ```graph
 {
   "node_id": "feature:entity-discovery",
@@ -65,57 +68,55 @@ updated: 2026-09-19
 }
 ```
 
-# Entity Discovery
-Find bounded Entity identities from each tenant's active Project snapshots through `search_entities`.
-
 ## OVERVIEW
 
-`search_entities` is a **read-only query** over persisted Entities. It joins each Project's **active snapshot**, scopes every query by trusted tenant identity, and returns scalar identity and version fields without graph context.
+`search_entities` is a read-only, tenant-scoped query over Entity rows joined to each Project's current `active_snapshot_id`. It returns identity and active-version fields, not graph context.
 
 ## FOLDER STRUCTURE
 
 ```text
-core/application/entity_discovery/  # Contracts, cursor policy, and use case
-core/infrastructure/postgres/       # Active-snapshot query and search indexes
+core/application/entity_discovery/   # Contracts, cursor policy, and use case
+core/infrastructure/postgres/        # Active-snapshot query and indexes
 mcp/tools/                           # Public search adapter
-tests/{unit,integration,e2e}/        # Contract, repository, and MCP verification
+tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ```
 
-## FILTERS AND OUTPUT
+## MAIN CONCEPTS / COMPONENTS
 
-| Input | Match |
-|---|---|
-| `key` | Exact, case-sensitive Entity key. |
-| `name` | Case-insensitive literal prefix; `%`, `_`, and `\` are escaped. |
-| `type` | Exact supported Entity type. |
-| `project` | Exact, case-sensitive Project key. |
-| `limit` | Strict integer from 1–100; default 25. |
-| `cursor` | Opaque versioned token; maximum 1,024 characters. |
+- **Active snapshot**: Exclude historical Entity rows and Projects without an active snapshot.
+- **Conjunctive filters**: Apply every supplied key, name, type, and project filter together.
+- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last Entity key/UUID tuple.
+- **Bounded result**: Return scalar identity, Project, active Snapshot, and revision fields; omit metadata, relations, evidence, and total count.
 
-REQUIRED: Return Entity ID, key, optional name, type, Project key/name, active snapshot ID, and revision.
-PROHIBITED: Return metadata, relations, evidence, provenance, snapshot payload, or a total count.
+## HOW TO SEARCH
 
-## SEARCH GUARANTEES
+1. Supply at least one filter: `key`, `name`, `type`, or `project`.
+2. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
+3. Use a case-insensitive literal prefix for `name`; wildcard characters remain literal data.
+4. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
 
-- REQUIRED: Supply at least one filter; combine all supplied filters with AND semantics.
-- REQUIRED: Read only Entity rows whose snapshot equals the Project's current `active_snapshot_id`.
-- REQUIRED: Use **keyset pagination** ordered by Entity key and UUID; fetch one extra row to decide whether to issue a next cursor.
-- REQUIRED: Bind a cursor to normalized filters; exclude tenant identity from cursor contents and request filters.
-- ALLOWED: Treat traversal across a concurrent snapshot activation as best-effort; each page reads current active state.
-- PROHIBITED: Add authentication or `memory:read` authorization here; the production authorization boundary belongs to a later security feature.
+## PARAMETERS / CONFIGURATIONS
 
-## HOW TO EXTEND
+| Name | Type | Required | Description | Default |
+|------|------|----------|-------------|---------|
+| `key` | string | No | Exact Entity key, trimmed. | unset |
+| `name` | string | No | Case-insensitive literal prefix, trimmed. | unset |
+| `type` | EntityType | No | Exact supported Entity type. | unset |
+| `project` | string | No | Exact Project key, trimmed. | unset |
+| `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
+| `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
 
-1. Add filters to the strict inbound contract and immutable criteria together.
-2. Apply new predicates in the repository with bound values and preserve tenant and active-snapshot predicates.
-3. Add unit, repository, pagination, and MCP contract tests for the new filter.
-4. Add or revise PostgreSQL indexes only with a reversible migration and matching model declaration.
+## BEST PRACTICES
 
-## KNOWN GAPS
+REQUIRED: Read only active-snapshot rows and apply trusted tenant predicates to every repository query.
+REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
+REQUIRED: Keep cursor contents free of tenant identity and contextual data.
+FORBIDDEN: Return metadata, relations, evidence, payloads, or a total count from this tool.
+FORBIDDEN: Add fuzzy, infix, ranked, or full-text search behavior to this bounded capability.
 
-- REQUIRED: Validate maximum text lengths after trimming; current inbound field limits run before normalization.
-- REQUIRED: Verify query plans and migration behavior on PostgreSQL; current repository integration tests use SQLite.
-- PROHIBITED: Treat the current suite as proof of production authorization; tenant scoping exists, but authorization remains out of scope.
+## TIPS
+
+Treat an empty item list as a successful no-match response; no cursor means pagination is complete.
 
 ## DOCUMENT MAP
 
@@ -133,7 +134,7 @@ graph TD
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines layer boundaries and inward dependencies.
-- [**TESTS.md**](../adr/TESTS.md): Defines query and MCP test strategy.
-- [**MCP.md**](../adr/MCP.md): Defines tool and tenant-context boundaries.
-- [**snapshot-publication.md**](./snapshot-publication.md): Defines the active snapshot data this query reads.
+- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines application ports and infrastructure boundaries.
+- [**TESTS.md**](../adr/TESTS.md): Defines query, persistence, and MCP test tiers.
+- [**MCP.md**](../adr/MCP.md): Defines the `search_entities` adapter contract.
+- [**snapshot-publication.md**](./snapshot-publication.md): Owns active snapshot publication and tenant-scoped facts.

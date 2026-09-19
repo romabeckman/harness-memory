@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import String, and_, case, cast, func, literal, or_, select
+from sqlalchemy import String, and_, case, cast, func, literal, or_, select, union_all
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -188,12 +188,55 @@ class PostgresIntegrationPathRepository:
         max_path_segments = 8
         start_snapshot = aliased(Snapshot, name="walk_start_snapshot")
         start_project = aliased(Project, name="walk_start_project")
+        degree_snapshot = aliased(Snapshot, name="walk_degree_snapshot")
+        degree_project = aliased(Project, name="walk_degree_project")
+        active_edges = (
+            select(
+                Relation.source_entity_id.label("source_entity_id"),
+                Relation.target_entity_id.label("target_entity_id"),
+            )
+            .join(
+                degree_snapshot,
+                and_(
+                    degree_snapshot.id == Relation.snapshot_id,
+                    degree_snapshot.tenant_id == Relation.tenant_id,
+                ),
+            )
+            .join(
+                degree_project,
+                and_(
+                    degree_project.id == degree_snapshot.project_id,
+                    degree_project.tenant_id == degree_snapshot.tenant_id,
+                    degree_project.active_snapshot_id == degree_snapshot.id,
+                ),
+            )
+            .where(
+                Relation.tenant_id == scope.tenant_id,
+                Relation.relation_type.in_(
+                    tuple(item.value for item in self._policy.eligible_types)
+                ),
+            )
+            .cte("integration_path_edges")
+        )
+        edge_nodes = union_all(
+            select(active_edges.c.source_entity_id.label("node_id")),
+            select(active_edges.c.target_entity_id.label("node_id")),
+        ).cte("integration_path_edge_nodes")
+        edge_degrees = (
+            select(
+                edge_nodes.c.node_id,
+                func.count().label("degree"),
+            )
+            .group_by(edge_nodes.c.node_id)
+            .subquery("integration_path_edge_degrees")
+        )
         walk = (
             select(
                 Entity.id.label("current_entity_id"),
                 cast(Entity.id, String).label("entity_path"),
                 literal("", type_=String).label("relation_path"),
                 literal(0).label("depth"),
+                literal(1).label("expansion_count"),
                 cast(Entity.entity_key, String).label("key_1"),
                 *(
                     literal(None, type_=String).label(f"key_{index}")
@@ -254,6 +297,7 @@ class PostgresIntegrationPathRepository:
                     "relation_path"
                 ),
                 (current.c.depth + 1).label("depth"),
+                (current.c.expansion_count * edge_degrees.c.degree).label("expansion_count"),
                 *(
                     case(
                         (current.c.depth == index - 1, next_entity_key),
@@ -270,6 +314,7 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .select_from(current)
+            .join(edge_degrees, edge_degrees.c.node_id == current.c.current_entity_id)
             .join(
                 Relation,
                 and_(
@@ -317,23 +362,38 @@ class PostgresIntegrationPathRepository:
                 ),
                 current.c.current_entity_id != target_id,
                 current.c.depth < max_depth,
+                or_(
+                    next_entity_id == target_id,
+                    current.c.expansion_count * edge_degrees.c.degree
+                    <= self._policy.max_expansions,
+                ),
                 ~visited_entities.like(next_entity_token),
             )
         )
         walk = walk.union_all(recursive_step)
+        bounded_walk = select(walk).limit(self._policy.max_expansions + 1).cte(
+            "integration_path_bounded_walk"
+        )
+        walk_order = (
+            bounded_walk.c.depth.asc(),
+            *(
+                bounded_walk.c[f"key_{index}"].asc()
+                for index in range(1, max_path_segments + 1)
+            ),
+            *(
+                bounded_walk.c[f"relation_{index}"].asc()
+                for index in range(1, max_path_segments + 1)
+            ),
+        )
         walk_rows = session.execute(
-            select(
-                walk.c.current_entity_id,
-                walk.c.entity_path,
-                walk.c.relation_path,
-                walk.c.depth,
-                *(walk.c[f"key_{index}"] for index in range(1, max_path_segments + 1)),
-                *(
-                    walk.c[f"relation_{index}"]
-                    for index in range(1, max_path_segments + 1)
-                ),
+            select(bounded_walk)
+            .order_by(
+                *walk_order,
             )
-            .select_from(walk)
+        ).all()
+        path_rows = session.execute(
+            select(walk)
+            .where(walk.c.current_entity_id == target_id)
             .order_by(
                 walk.c.depth.asc(),
                 *(walk.c[f"key_{index}"].asc() for index in range(1, max_path_segments + 1)),
@@ -342,22 +402,8 @@ class PostgresIntegrationPathRepository:
                     for index in range(1, max_path_segments + 1)
                 ),
             )
-            .limit(self._policy.max_expansions + 1)
+            .limit(max_paths + 1)
         ).all()
-        path_rows = sorted(
-            (row for row in walk_rows if row.current_entity_id == target_id),
-            key=lambda row: (
-                row.depth,
-                tuple(
-                    getattr(row, f"key_{index}") or ""
-                    for index in range(1, max_path_segments + 1)
-                ),
-                tuple(
-                    str(getattr(row, f"relation_{index}") or "")
-                    for index in range(1, max_path_segments + 1)
-                ),
-            ),
-        )[: max_paths + 1]
         raw_paths = tuple(
             (
                 tuple(UUID(part) for part in row.entity_path.split(",") if part),

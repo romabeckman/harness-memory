@@ -1,7 +1,7 @@
 from unittest.mock import patch
 from uuid import UUID, uuid4
 
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.orm import sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -53,6 +53,82 @@ def test_recursive_path_query_orders_bounded_rows_before_global_expansion_limit(
     assert statements
     assert "ORDER BY" in statements[0].upper()
     assert "LIMIT" in statements[0].upper()
+
+
+def test_recursive_term_enforces_expansion_ceiling_inside_database_query():
+    session_factory = _repository()
+    ids = _seed(session_factory)
+    engine = session_factory.kw["bind"]
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if "integration_path_walk" in statement:
+            statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        repository = PostgresIntegrationPathRepository(session_factory)
+        repository.find_paths(
+            TenantScope("tenant-a"),
+            _query(ids["source"], ids["middle"], max_depth=4, max_paths=1),
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", record_statement)
+
+    assert statements
+    assert "EXPANSION_COUNT" in statements[0].upper()
+    assert "INTEGRATION_PATH_BOUNDED_WALK" in statements[0].upper()
+
+
+def test_target_filter_precedes_global_expansion_limit():
+    session_factory = _repository()
+    ids = _seed(session_factory)
+    with session_factory() as session:
+        snapshot_id = session.scalar(
+            select(Project.active_snapshot_id).where(Project.tenant_id == "tenant-a")
+        )
+        dead_entities = [
+            Entity(
+                id=uuid4(),
+                tenant_id="tenant-a",
+                project_id=session.scalar(
+                    select(Project.id).where(Project.tenant_id == "tenant-a")
+                ),
+                snapshot_id=snapshot_id,
+                entity_key=f"a-dead-{index}",
+                entity_type="service",
+                name=f"Dead {index}",
+                metadata_json={},
+            )
+            for index in range(3)
+        ]
+        session.add_all(dead_entities)
+        session.flush()
+        session.add_all(
+            [
+                Relation(
+                    id=uuid4(),
+                    tenant_id="tenant-a",
+                    snapshot_id=snapshot_id,
+                    source_entity_id=ids["source"],
+                    target_entity_id=dead.id,
+                    relation_type=RelationType.DEPENDS_ON.value,
+                    provenance_kind="declared",
+                    metadata_json={},
+                )
+                for dead in dead_entities
+            ]
+        )
+        session.commit()
+
+    repository = PostgresIntegrationPathRepository(session_factory)
+    repository._policy.MAX_EXPANSIONS = 2
+    result = repository.find_paths(
+        TenantScope("tenant-a"), _query(ids["source"], ids["middle"], max_depth=1)
+    )
+
+    assert len(result.paths) == 1
+    assert result.paths[0].hops[0].target.id == ids["middle"]
 
 
 def test_owner_hydration_applies_owner_limit_inside_database_query():

@@ -2,7 +2,7 @@ from typing import Callable
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.snapshot_publication.types.publication_record import PublicationRecord
@@ -40,10 +40,12 @@ class PostgresSnapshotPublicationRepository:
             session = session_factory
             session_factory = None
         if session is not None and session_factory is None:
+
             def session_factory():
                 return session
         if session_factory is None and engine is not None:
-            session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+            write_engine = engine.execution_options(isolation_level="READ COMMITTED")
+            session_factory = sessionmaker(bind=write_engine, expire_on_commit=False)
         if session_factory is None:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
@@ -58,7 +60,11 @@ class PostgresSnapshotPublicationRepository:
         for attempt in range(2):
             try:
                 return self._publish_once(tenant_id, snapshot, payload_hash)
-            except IntegrityError:
+            except (IntegrityError, OperationalError) as error:
+                if isinstance(error, OperationalError) and not self._is_serialization_failure(
+                    error
+                ):
+                    raise PersistenceFailure(str(error)) from None
                 if attempt == 1:
                     raise PersistenceFailure() from None
         raise PersistenceFailure()
@@ -143,8 +149,19 @@ class PostgresSnapshotPublicationRepository:
                     return self._record("ACTIVATED", rows.snapshot, rows.snapshot.id)
         except (RevisionConflict, StaleRevision, PersistenceFailure, IntegrityError):
             raise
+        except OperationalError as error:
+            if self._is_serialization_failure(error):
+                raise
+            raise PersistenceFailure(str(error)) from None
         except Exception as error:
             raise PersistenceFailure(str(error)) from None
+
+    @staticmethod
+    def _is_serialization_failure(error: OperationalError) -> bool:
+        original = getattr(error, "orig", None)
+        return getattr(original, "pgcode", None) == "40001" or getattr(
+            original, "sqlstate", None
+        ) == "40001"
 
     @staticmethod
     def _record(

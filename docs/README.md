@@ -14,6 +14,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**platform-foundation.md**](./feature/platform-foundation.md) | Feature documentation for the backend platform foundation. | Optional |
 | [**snapshot-publication.md**](./feature/snapshot-publication.md) | Feature documentation for project snapshot publication. | Optional |
 | [**entity-discovery.md**](./feature/entity-discovery.md) | Feature documentation for entity discovery. | Optional |
+| [**relationship-context.md**](./feature/relationship-context.md) | Feature documentation for bounded relationship context and dependency queries. | Optional |
 
 ## Recommended Reading Order
 

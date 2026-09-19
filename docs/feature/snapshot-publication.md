@@ -16,6 +16,9 @@ edges:
     read: must
 updated: 2026-09-19
 ---
+# Snapshot Publication
+Publish a complete immutable project snapshot and switch its active pointer atomically.
+
 ```graph
 {
   "node_id": "feature:snapshot-publication",
@@ -87,54 +90,56 @@ updated: 2026-09-19
 }
 ```
 
-# Snapshot Publication
-Publish a complete immutable project snapshot and switch its active pointer atomically.
-
 ## OVERVIEW
 
-The application validates a complete `schema_version` 1.0 payload, builds an immutable domain aggregate, and hashes canonical content. Persist through one **tenant-scoped transaction**; retain old snapshots and change only the Project's active pointer.
+Validate a complete schema `1.0` payload, build an immutable domain aggregate, calculate a canonical hash, and persist the graph through a tenant-scoped transaction.
 
 ## FOLDER STRUCTURE
 
 ```text
-core/domain/snapshot_publication/       # Snapshot invariants and revision policy
+core/domain/snapshot_publication/        # Snapshot invariants and revision policy
 core/application/snapshot_publication/  # Contracts, hashing, and publication use case
-core/infrastructure/postgres/           # Graph mapping and atomic persistence
-mcp/tools/                              # Public publication adapter
-tests/{unit,integration,e2e}/           # Domain, persistence, and MCP contracts
+core/infrastructure/postgres/            # Graph mapping and atomic persistence
+mcp/tools/                               # Public publication adapter
+tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contracts
 ```
 
-## PUBLICATION CONTRACT
+## MAIN CONCEPTS / COMPONENTS
 
-| Field | Contract |
-|---|---|
-| Version and revision | REQUIRED: Use schema `1.0` and positive integer revisions. |
-| Time | REQUIRED: Supply offset-aware `generated_at`; normalize to UTC. |
-| Fact limits | ALLOWED: Up to 10,000 entities, 50,000 relations, and 50,000 evidence items. |
-| Metadata and payload | REQUIRED: Use JSON object metadata up to 64 KiB each; reject canonical payloads over 10 MiB. |
-| References | REQUIRED: Resolve relation endpoints and evidence references within the same snapshot. |
+- **Complete snapshot**: Validate entity, relation, and evidence references within one immutable publication.
+- **Revision policy**: Activate higher revisions; return `ALREADY_PUBLISHED` for identical revision/hash; reject conflicts and stale revisions.
+- **Active pointer**: Replace active facts by switching `projects.active_snapshot_id`; retain historical snapshots and facts.
+- **Trusted tenant**: Obtain tenant identity from `PublicationContext`, never from payload fields.
 
-## REVISION POLICY
+## HOW TO PUBLISH
 
-- REQUIRED: **Hash validated content** with deterministic JSON; include revision and normalized timestamp, exclude trusted tenant context.
-- REQUIRED: Return `ALREADY_PUBLISHED` for identical stored revision and hash without reactivation.
-- PROHIBITED: Reuse a revision with different content or accept a new revision lower than the active revision.
-- REQUIRED: Insert the snapshot and facts, then update `active_snapshot_id` in one **atomic transaction**; roll back all writes on failure.
-- REQUIRED: Obtain tenant identity from trusted `PublicationContext`; never accept `tenant_id` in the payload.
+1. Submit schema `1.0` with positive revision, offset-aware timestamp, bounded metadata, and supported fact types.
+2. Supply tenant context through the adapter boundary; exclude `tenant_id` from the snapshot payload.
+3. Resolve relation endpoints and evidence references within the same snapshot.
+4. Treat `ACTIVATED` as a new active snapshot and `ALREADY_PUBLISHED` as an idempotent retry.
 
-## HOW TO EXTEND
+## PARAMETERS / CONFIGURATIONS
 
-1. Add each new contract or domain type in its own file; keep Pydantic shape checks separate from domain invariants.
-2. Extend the aggregate builder and persistence mapper for any new snapshot fact.
-3. Test revision outcomes, tenant isolation, rollback, and retry behavior at their owning unit or persistence boundary.
-4. Map stable error categories in the MCP adapter; keep SQL, credentials, and payload contents private.
+| Name | Type | Required | Description | Default |
+|------|------|----------|-------------|---------|
+| `schema_version` | string | Yes | Supported publication schema. | `1.0` |
+| `revision` | positive integer | Yes | Project publication revision. | — |
+| `generated_at` | datetime | Yes | Offset-aware timestamp normalized to UTC. | — |
+| `entities` | array | Yes | Maximum 10,000 entity facts. | `[]` |
+| `relations` | array | Yes | Maximum 50,000 relation facts. | `[]` |
+| `evidence` | array | Yes | Maximum 50,000 evidence facts. | `[]` |
 
-## KNOWN GAPS
+## BEST PRACTICES
 
-- PROHIBITED: Assume frozen inbound models deeply freeze nested metadata dictionaries; current input metadata remains mutable.
-- REQUIRED: Validate text bounds after trimming; current Pydantic limits may reject padded boundary values.
-- REQUIRED: Reject revisions above PostgreSQL `Integer` range and non-finite JSON numbers before persistence.
-- REQUIRED: Prove locks, rollback, and concurrent publication against PostgreSQL; current repository integration tests use SQLite.
+REQUIRED: Hash validated canonical content, including revision and normalized timestamp, while excluding tenant context.
+REQUIRED: Keep Pydantic shape validation separate from domain graph invariants.
+REQUIRED: Map persistence failures to stable MCP-safe errors without SQL, credentials, or payload contents.
+FORBIDDEN: Delete historical snapshots when activating a newer revision.
+FORBIDDEN: Allow arbitrary graph mutations outside complete snapshot publication.
+
+## TIPS
+
+Retry the exact payload and revision to verify idempotency; a changed field at the same revision is a conflict.
 
 ## DOCUMENT MAP
 
@@ -153,6 +158,6 @@ graph TD
 ## REFERENCES
 
 - [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines dependency direction and persistence ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines the test strategy for domain and persistence behavior.
+- [**TESTS.md**](../adr/TESTS.md): Defines domain, persistence, and MCP test boundaries.
 - [**MCP.md**](../adr/MCP.md): Defines the tool and trusted-context boundary.
-- [**platform-foundation.md**](./platform-foundation.md): Supplies the PostgreSQL schema, engine, and migration base.
+- [**platform-foundation.md**](./platform-foundation.md): Supplies schema, engine, and migration foundations.
