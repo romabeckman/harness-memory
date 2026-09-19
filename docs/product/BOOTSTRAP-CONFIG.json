@@ -8,10 +8,10 @@
     "maxReworks": 2
   },
   "cycleCounter": {
-    "completedCycles": 5
+    "completedCycles": 6
   },
-  "currentPhase": "DEPLOY",
-  "activeFeatureId": null,
+  "currentPhase": "REFINEMENT",
+  "activeFeatureId": "F007",
   "steeringRules": {
     "user": [
       "CRITICAL: Do not narrate progress or emit interim status updates. Use tools and internal reasoning normally. After completing all required work, return only the final output explicitly required by the current prompt. If no final output is required, return exactly {}."

@@ -14,4 +14,5 @@ class SnapshotGraphRows:
     relations: tuple[Relation, ...]
     evidence: tuple[Evidence, ...]
     entity_ids: dict[str, UUID]
+    identity_ids: dict[str, UUID]
     relation_ids: dict[str, UUID]

@@ -93,6 +93,24 @@ def test_builder_creates_empty_and_populated_immutable_snapshots():
     "change",
     [
         {"entities": facts()[0] + (facts()[0][0],)},
+        {
+            "entities": (
+                EntityFact(
+                    EntityKey("service-a"),
+                    EntityType("service"),
+                    "Service A",
+                    MetadataObject({}),
+                    "shared-service",
+                ),
+                EntityFact(
+                    EntityKey("service-b"),
+                    EntityType("service"),
+                    "Service B",
+                    MetadataObject({}),
+                    "shared-service",
+                ),
+            )
+        },
         {"relations": facts()[1] + (facts()[1][0],)},
         {
             "relations": (

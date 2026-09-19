@@ -44,6 +44,7 @@ class Entity(Base):
         ),
         Index("ix_entities_snapshot_key", "tenant_id", "snapshot_id", "entity_key"),
         Index("ix_entities_project", "tenant_id", "project_id"),
+        Index("ix_entities_tenant_identity", "tenant_id", "identity_id", "snapshot_id"),
         Index(
             "ix_entities_tenant_key_active_search",
             "tenant_id",
@@ -73,6 +74,7 @@ class Entity(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    identity_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     project_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     entity_key: Mapped[str] = mapped_column(String(255), nullable=False)

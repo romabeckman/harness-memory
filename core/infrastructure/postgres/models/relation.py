@@ -53,6 +53,8 @@ class Relation(Base):
         Index("ix_relations_snapshot", "tenant_id", "snapshot_id"),
         Index("ix_relations_source", "tenant_id", "snapshot_id", "source_entity_id"),
         Index("ix_relations_target", "tenant_id", "snapshot_id", "target_entity_id"),
+        Index("ix_relations_source_identity", "tenant_id", "source_identity_id"),
+        Index("ix_relations_target_identity", "tenant_id", "target_identity_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -60,6 +62,8 @@ class Relation(Base):
     snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     source_entity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     target_entity_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    source_identity_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    target_identity_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     relation_type: Mapped[str] = mapped_column(String(64), nullable=False)
     provenance_kind: Mapped[str] = mapped_column(String(32), nullable=False)
     metadata_json: Mapped[dict[str, Any]] = mapped_column(

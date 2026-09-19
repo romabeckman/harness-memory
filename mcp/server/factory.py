@@ -8,6 +8,9 @@ from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
 from core.infrastructure.postgres.repositories.entity_search_repository import (
     PostgresEntitySearchRepository,
 )
+from core.infrastructure.postgres.repositories.impact_analysis_repository import (
+    PostgresImpactAnalysisRepository,
+)
 from core.infrastructure.postgres.repositories.integration_path_repository import (
     PostgresIntegrationPathRepository,
 )
@@ -19,6 +22,7 @@ from core.infrastructure.postgres.repositories.snapshot_publication_repository i
 )
 from mcp.config import RuntimeSettings
 from mcp.services.tenant_context import TenantContextProvider
+from mcp.tools.analyze_impact import register_analyze_impact
 from mcp.tools.find_integration_paths import register_find_integration_paths
 from mcp.tools.get_context import register_get_context
 from mcp.tools.get_dependencies import register_get_dependencies
@@ -43,6 +47,11 @@ def create_mcp_server(
     integration_repository=None,
     integration_path_query_repository=None,
     find_integration_paths_handler=None,
+    impact_repository=None,
+    impact_analysis_repository=None,
+    impact_query_repository=None,
+    impact_handler=None,
+    analyze_impact_handler=None,
 ) -> FastMCP:
     if settings is not None:
         settings.model_validate(settings.model_dump())
@@ -68,6 +77,12 @@ def create_mcp_server(
             and integration_path_query_repository is None
         ):
             integration_path_repository = PostgresIntegrationPathRepository(engine=engine)
+        if (
+            impact_repository is None
+            and impact_analysis_repository is None
+            and impact_query_repository is None
+        ):
+            impact_repository = PostgresImpactAnalysisRepository(engine=engine)
     context = tenant_context or TenantContextProvider()
     integration_path_repository = (
         integration_path_repository
@@ -111,6 +126,16 @@ def create_mcp_server(
         find_integration_paths_handler = FindIntegrationPathsHandler(integration_path_repository)
     if find_integration_paths_handler is not None:
         register_find_integration_paths(server, find_integration_paths_handler, context)
+    impact_repository = impact_repository or impact_analysis_repository or impact_query_repository
+    impact_handler = impact_handler or analyze_impact_handler
+    if impact_handler is None and impact_repository is not None:
+        from core.application.impact_analysis.use_cases.analyze_impact.handler import (
+            AnalyzeImpactHandler,
+        )
+
+        impact_handler = AnalyzeImpactHandler(impact_repository)
+    if impact_handler is not None:
+        register_analyze_impact(server, impact_handler, context)
     return server
 
 

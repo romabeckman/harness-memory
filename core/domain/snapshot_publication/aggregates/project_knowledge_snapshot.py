@@ -63,6 +63,11 @@ class ProjectKnowledgeSnapshot:
         entity_keys = [fact.key.value for fact in self.entities]
         if len(entity_keys) != len(set(entity_keys)):
             raise SnapshotInvariantViolation("duplicate entity key")
+        canonical_keys = [
+            (fact.type.value, fact.canonical_key or fact.key.value) for fact in self.entities
+        ]
+        if len(canonical_keys) != len(set(canonical_keys)):
+            raise SnapshotInvariantViolation("duplicate canonical entity identity")
         relation_refs = [fact.reference.value for fact in self.relations]
         if len(relation_refs) != len(set(relation_refs)):
             raise SnapshotInvariantViolation("duplicate relation reference")

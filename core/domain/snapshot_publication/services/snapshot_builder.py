@@ -30,7 +30,11 @@ class SnapshotBuilder:
             )
             entities = tuple(
                 EntityFact(
-                    EntityKey(item.key), EntityType(item.type), item.name, _metadata(item.metadata)
+                    EntityKey(item.key),
+                    EntityType(item.type),
+                    item.name,
+                    _metadata(item.metadata),
+                    item.canonical_key,
                 )
                 for item in request.entities
             )

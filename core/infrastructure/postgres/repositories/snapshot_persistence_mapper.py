@@ -1,6 +1,6 @@
 from datetime import timezone
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
     ProjectKnowledgeSnapshot,
@@ -30,6 +30,7 @@ def _payload(snapshot: ProjectKnowledgeSnapshot) -> dict[str, Any]:
                 "key": item.key.value,
                 "type": item.type.value,
                 "name": item.name,
+                "canonical_key": item.canonical_key,
                 "metadata": item.metadata.to_dict(),
             }
             for item in snapshot.entities
@@ -57,6 +58,17 @@ def _payload(snapshot: ProjectKnowledgeSnapshot) -> dict[str, Any]:
     }
 
 
+def _canonical_entity_id(
+    tenant_id: str,
+    project_key: str,
+    entity_type: str,
+    entity_key: str,
+    canonical_key: str | None = None,
+) -> UUID:
+    identity_key = canonical_key or f"project:{project_key}:{entity_key}"
+    return uuid5(NAMESPACE_URL, f"harness-memory:{tenant_id}:{entity_type}:{identity_key}")
+
+
 class SnapshotPersistenceMapper:
     def map(
         self,
@@ -68,6 +80,16 @@ class SnapshotPersistenceMapper:
         project_id = project_id or uuid4()
         snapshot_id = uuid4()
         entity_ids = {item.key.value: uuid4() for item in snapshot.entities}
+        identity_ids = {
+            item.key.value: _canonical_entity_id(
+                tenant_id,
+                snapshot.project.key.value,
+                item.type.value,
+                item.key.value,
+                item.canonical_key,
+            )
+            for item in snapshot.entities
+        }
         relation_ids = {item.reference.value: uuid4() for item in snapshot.relations}
         hash_value = payload_hash.value if hasattr(payload_hash, "value") else payload_hash
         snapshot_row = Snapshot(
@@ -84,6 +106,7 @@ class SnapshotPersistenceMapper:
             Entity(
                 id=entity_ids[item.key.value],
                 tenant_id=tenant_id,
+                identity_id=identity_ids[item.key.value],
                 project_id=project_id,
                 snapshot_id=snapshot_id,
                 entity_key=item.key.value,
@@ -100,6 +123,8 @@ class SnapshotPersistenceMapper:
                 snapshot_id=snapshot_id,
                 source_entity_id=entity_ids[item.source_entity_key.value],
                 target_entity_id=entity_ids[item.target_entity_key.value],
+                source_identity_id=identity_ids[item.source_entity_key.value],
+                target_identity_id=identity_ids[item.target_entity_key.value],
                 relation_type=item.type.value,
                 provenance_kind=item.provenance.value,
                 metadata_json=item.metadata.to_dict(),
@@ -121,5 +146,5 @@ class SnapshotPersistenceMapper:
             for item in snapshot.evidence
         )
         return SnapshotGraphRows(
-            snapshot_row, entities, relations, evidence, entity_ids, relation_ids
+            snapshot_row, entities, relations, evidence, entity_ids, identity_ids, relation_ids
         )

@@ -1,0 +1,4 @@
+from core.application.integration_paths.contracts.integration_path_view import IntegrationPathView
+
+DependencyPathView = IntegrationPathView
+ImpactPathView = IntegrationPathView

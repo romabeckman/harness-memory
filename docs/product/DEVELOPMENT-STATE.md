@@ -51,3 +51,8 @@
 | F005 | T09 | harness-memory | Expose Find Integration Paths Tool | integration_paths | - | BLOCKED |
 | F005 | T10 | harness-memory | Register Integration Path Query | integration_paths | - | BLOCKED |
 | F005 | T11 | harness-memory | Verify Integration Path MCP Contracts | integration_paths | - | BLOCKED |
+| F006 | T01 | harness-memory | Define Impact Analysis Contracts | impact_analysis | - | COMPLETED |
+| F006 | T02 | harness-memory | Implement Analyze Impact Use Case | impact_analysis | - | COMPLETED |
+| F006 | T03 | harness-memory | Implement Bounded Consumer Traversal | impact_analysis | - | COMPLETED |
+| F006 | T04 | harness-memory | Assemble Impact Context | impact_analysis | - | COMPLETED |
+| F006 | T05 | harness-memory | Expose Analyze Impact Tool | impact_analysis | - | COMPLETED |
