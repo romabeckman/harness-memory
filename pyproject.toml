@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harness-memory"
+version = "0.1.0"
+description = "Shared engineering memory MCP server"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20,<2",
+    "fastmcp>=4,<5",
+    "psycopg2-binary>=2,<3",
+    "pydantic>=2,<3",
+    "pydantic-settings>=2,<3",
+    "SQLAlchemy>=2,<3",
+]
+
+[project.optional-dependencies]
+test = [
+    "coverage>=7,<8",
+    "pytest>=9,<10",
+    "pytest-asyncio>=1,<2",
+    "pytest-cov>=7,<8",
+    "ruff>=0.16,<1",
+]
+
+[project.scripts]
+harness-memory = "mcp.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["mcp*", "core*", "migrations*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
+pythonpath = ["."]
+addopts = "--strict-markers --import-mode=importlib"
+markers = ["asyncio: run an asynchronous test"]
+
+[tool.coverage.run]
+branch = true
+source = ["mcp", "core"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_also = ["if __name__ == .__main__.:"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

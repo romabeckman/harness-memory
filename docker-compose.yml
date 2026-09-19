@@ -22,7 +22,7 @@ services:
       context: .
     command: ["alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+      DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,7 +35,7 @@ services:
       context: .
     command: ["python", "-m", "mcp.server.app"]
     environment:
-      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+      DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       MCP_HOST: 0.0.0.0
       MCP_PORT: "8000"
     ports:

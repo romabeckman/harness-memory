@@ -1,46 +1,41 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, FastMCP 4.x, PostgreSQL, Alembic]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
-updated: 2026-09-18
+updated: 2026-09-19
 ---
 # Testing Protocol
 
 ## OVERVIEW
 
-Use separate **unit**, **integration**, **end-to-end**, and **MCP contract** tests.
-Cover domain entities/value objects, application handlers/contracts, PostgreSQL models/repositories, migrations, tenant isolation, and MCP schemas.
-REQUIRED: Enforce **80% minimum coverage** for each listed layer and globally.
+Use **pytest 9.x** for unit, integration, end-to-end, and MCP contract tests. The configured **80% coverage gate** applies globally to `core` and `mcp`; no per-layer threshold is configured.
 
 ## COMMANDS
 
-No `pyproject.toml`, test runner, coverage tool, CI file, or test command exists.
-Add commands only when project tooling exists.
-
 | Type | Command | Description |
 |------|---------|-------------|
-| Unit | Not configured | Test entities, value objects, domain services, application handlers, and Pydantic inbound/outbound contracts. |
-| Integration | Not configured | Test PostgreSQL models/repositories, snapshot activation, transactions, tenant isolation, and migrations. |
-| E2E / MCP | Not configured | Test public MCP tools, resources, prompts, and adapter-to-application mapping through FastMCP. |
-| Coverage | Not configured | Add a coverage command that enforces 80% domain, application, infrastructure, and global coverage. |
+| Unit | `pytest tests/unit` | Test domain entities, application handlers, contracts, and adapters. |
+| Integration | `pytest tests/integration` | Test repository behavior and migrations; repository integration fixtures currently use SQLite. |
+| E2E / MCP | `pytest tests/e2e` | Test public MCP registration, schemas, and adapter-to-application behavior. |
+| Coverage | `pytest --cov=core --cov=mcp` | Run configured branch coverage with the global 80% threshold. |
 
 Verified migration commands from project scope: `harness-memory migrate` and `harness-memory migrate --status`.
 
 ## MINIMUM COVERAGE
 
-REQUIRED: Maintain the following minimum coverage levels:
+REQUIRED: Maintain the configured global coverage threshold. Per-layer thresholds remain unconfigured.
 
 | Layer | Coverage | Description |
 |-------|----------|-------------|
-| Domain / Core | 80% | Entities, value objects, domain services, invariants, and impact rules. |
-| Application / Use Cases | 80% | Handlers, inbound/outbound contracts, ports, and orchestration. |
-| Infrastructure / Adapters | 80% | PostgreSQL models, repositories, transactions, migrations, and MCP adapters. |
-| Global | 80% | Total measured project coverage. |
+| Domain / Core | Report only | `core` contributes to the global threshold; no independent gate exists. |
+| Application / Use Cases | Report only | `core` contributes to the global threshold; no independent gate exists. |
+| Infrastructure / Adapters | Report only | `core` and `mcp` contribute to the global threshold; no independent gate exists. |
+| Global | 80% | Enforced by `coverage.fail_under` across configured source packages. |
 
-No CI gate exists in the repository yet. Add a CI gate before treating 80% as release-enforced.
+No CI gate exists in the repository yet. REQUIRED: Add a CI gate before treating 80% as release-enforced.
 
 ## PATTERNS & BEST PRACTICES
 
@@ -55,16 +50,16 @@ PROHIBITED: Depend on test execution order or shared tenant data.
 
 ## TOOLING
 
-- **Framework:** Python 3.12+ and FastMCP 4.x; test framework not configured.
-- **Assertions:** Not configured; select with the project test runner.
-- **Mocks/Stubs:** Not specified; mock external boundaries only after tooling is added.
-- **Coverage:** Coverage tool and report format not configured; enforce 80% minimum.
+- **Framework:** Python 3.12+, pytest 9.x, pytest-asyncio, and FastMCP 4.x.
+- **Assertions:** pytest built-in assertions.
+- **Mocks/Stubs:** No mocking library configured; keep substitutes at external boundaries.
+- **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line text report.
 - **CI Integration:** No CI configuration exists in the repository.
 
 ## TROUBLESHOOTING
 
-- **Flaky tests:** Isolate the failing tier, record database state and tenant identity, then report the failure after the runner exists.
-- **Debug mode:** No debug command is configured. Add the runner's verbose mode with the test tooling.
+- **Flaky tests:** Isolate the failing tier, record database state and tenant identity, then rerun the focused test.
+- **Debug mode:** Run `pytest -vv -s` to show verbose test output and captured standard output.
 
 ## REFERENCES
 

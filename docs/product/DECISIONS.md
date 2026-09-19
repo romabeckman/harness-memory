@@ -1,0 +1,27 @@
+# Autonomous Decision Audit Trail
+
+| Timestamp | Feature | Decision | Scores | Rationale |
+| --- | --- | --- | --- | --- |
+| 2026-09-19T15:46:27.694Z | GLOBAL | Bootstrap: 9 feature(s) created | - | Breakdown by agent — 8 backend, 1 devops. IDs: F001, F002, F003, F004, F005, F006, F007, F008, F009. |
+| 2026-09-19T15:53:31.964Z | F001 | Planning: specs generated for domain 'platform_foundation' (9 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-19T16:08:27.678Z | F001 | Development: TDD execution for domain 'platform_foundation' — SUCCESS | - | tests: 35 total, 32 passed, 0 failed, coverage: 87.42. modified: alembic.ini, docker-compose.yml, pyproject.toml, mcp/__init__.py, mcp/config.py (+53 more). Reworks: 0. |
+| 2026-09-19T16:10:58.080Z | F001 | Review: validation verdict RETRY for domain 'platform_foundation' | TL:0.62, Adv:0.85 | RETRY: TL score 0.62 below threshold 0.7; 2 open point(s) flagged by tech lead; Vulnerabilities: mcp/migration_cli.py:47-54 only redacts credentials embedded in URLs or password-style key/value pairs.... |
+| 2026-09-19T16:19:20.907Z | F001 | Development: TDD execution for domain 'platform_foundation' — SUCCESS | - | tests: 42 total, 39 passed, 0 failed, coverage: 87.92. modified: alembic.ini, docker-compose.yml, pyproject.toml, mcp/__init__.py, mcp/config.py (+57 more). Reworks: 1. |
+| 2026-09-19T16:20:41.329Z | F001 | Review: validation verdict PASS for domain 'platform_foundation' | TL:0.82, Adv:0.95 | Scores pass thresholds (TL: 0.82 >= 0.7, Adv: 0.95 >= 0.7) with no high/critical vulnerabilities. |
+| 2026-09-19T16:20:41.332Z | GLOBAL | TRANSITION (state check): 1/9 features completed. | - | - |
+| 2026-09-19T16:27:31.007Z | F002 | Planning: specs generated for domain 'snapshot_publication' (11 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-19T16:44:27.914Z | F002 | Development: TDD execution for domain 'snapshot_publication' — SUCCESS | - | tests: 82 total, 79 passed, 0 failed, coverage: 87.81. modified: core/application/snapshot_publication/contracts/base.py, core/application/snapshot_publication/contracts/entity_input.py, core/applicat... |
+| 2026-09-19T16:46:42.276Z | F002 | Review: validation verdict PASS for domain 'snapshot_publication' | TL:0.74, Adv:0.8 | Scores pass thresholds (TL: 0.74 >= 0.7, Adv: 0.8 >= 0.7) with no high/critical vulnerabilities. |
+| 2026-09-19T16:46:42.279Z | GLOBAL | TRANSITION (state check): 2/9 features completed. | - | - |
+| 2026-09-19T16:52:34.684Z | F003 | Planning: specs generated for domain 'entity_discovery' (9 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-19T17:07:52.196Z | F003 | Development: TDD execution for domain 'entity_discovery' — SUCCESS | - | tests: 122 total, 118 passed, 0 failed, coverage: 87.71. modified: core/application/entity_discovery/contracts/entity_search_criteria.py, core/application/entity_discovery/contracts/entity_search_item... |
+| 2026-09-19T17:26:39.550Z | F003 | Review: validation verdict PASS for domain 'entity_discovery' | TL:0.77, Adv:0.9 | Scores pass thresholds (TL: 0.77 >= 0.7, Adv: 0.9 >= 0.7) with no high/critical vulnerabilities. |
+| 2026-09-19T17:26:39.561Z | GLOBAL | TRANSITION (state check): 3/9 features completed. | - | - |
+| 2026-09-19T17:32:49.364Z | F004 | Planning: specs generated for domain 'relationship_context' (11 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-19T17:48:34.231Z | F004 | Development: TDD execution for domain 'relationship_context' — SUCCESS | - | tests: 151 total, 151 passed, 0 failed, coverage: 87.31. modified: core/application/relationship_context/__init__.py, core/application/relationship_context/contracts/__init__.py, core/application/rela... |
+| 2026-09-19T17:53:28.881Z | F004 | Review: validation verdict PASS for domain 'relationship_context' | TL:0.77, Adv:0.95 | Scores pass thresholds (TL: 0.77 >= 0.7, Adv: 0.95 >= 0.7) with no high/critical vulnerabilities. |
+| 2026-09-19T17:53:28.889Z | GLOBAL | TRANSITION (state check): 4/9 features completed. | - | - |
+| 2026-09-19T17:59:25.785Z | F005 | Planning: specs generated for domain 'integration_paths' (11 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-19T18:25:29.692Z | F005 | Development: TDD execution for domain 'integration_paths' — SUCCESS | - | tests: 190 total, 190 passed, 0 failed, coverage: 88.04. modified: core/application/integration_paths/__init__.py, core/application/integration_paths/contracts/__init__.py, core/application/integratio... |
+| 2026-09-19T18:34:43.861Z | F005 | Review: validation verdict RETRY for domain 'integration_paths' | TL:0.55, Adv:0.85 | RETRY: TL score 0.55 below threshold 0.7; 4 open point(s) flagged by tech lead; Vulnerabilities: PostgresIntegrationPathRepository.find_paths opens a normal READ COMMITTED transaction at integration_p... |
+| 2026-09-19T18:45:38.650Z | F005 | Development: TDD execution for domain 'integration_paths' — SUCCESS | - | tests: 196 total, 196 passed, 0 failed, coverage: 88.13. modified: core/infrastructure/postgres/repositories/integration_path_repository.py, core/infrastructure/postgres/repositories/__init__.py, core... |

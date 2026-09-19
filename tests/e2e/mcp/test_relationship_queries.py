@@ -1,0 +1,73 @@
+from unittest.mock import Mock
+from uuid import uuid4
+
+import pytest
+from fastmcp import Client
+
+from mcp.server.factory import create_mcp_server
+from mcp.services.tenant_context import TenantContextProvider
+
+
+def _result(entity_id):
+    entity = {
+        "id": entity_id,
+        "key": "payments",
+        "name": "Payments",
+        "type": "service",
+        "metadata": {},
+    }
+    return entity
+
+
+@pytest.mark.asyncio
+async def test_relationship_tools_are_catalogued_with_strict_input_fields():
+    repository = Mock()
+    server = create_mcp_server(
+        relationship_repository=repository, tenant_context=TenantContextProvider("tenant-a")
+    )
+
+    async with Client(server) as client:
+        tools = await client.list_tools()
+
+    names = [tool.name for tool in tools]
+    assert names == ["get_context", "get_dependencies"]
+    for tool in tools:
+        assert "entity_id" in tool.input_schema["properties"]
+        assert "tenant_id" not in tool.input_schema["properties"]
+
+
+@pytest.mark.asyncio
+async def test_relationship_tools_return_safe_success_and_validation_results():
+    repository = Mock()
+    entity_id = uuid4()
+    repository.load_context.return_value = {
+        "entity": _result(str(entity_id)),
+        "project": {
+            "key": "payments",
+            "name": "Payments",
+            "snapshot_id": str(uuid4()),
+            "revision": 1,
+        },
+        "owners": [],
+        "relations": [],
+        "dependencies": [],
+        "relations_truncated": False,
+        "dependencies_truncated": False,
+    }
+    repository.load_dependencies.return_value = {
+        "entity": _result(str(entity_id)),
+        "items": [],
+        "truncated": False,
+    }
+    server = create_mcp_server(
+        relationship_repository=repository, tenant_context=TenantContextProvider("tenant-a")
+    )
+
+    async with Client(server) as client:
+        context = await client.call_tool("get_context", {"entity_id": str(entity_id)})
+        invalid = await client.call_tool(
+            "get_dependencies", {"entity_id": "bad"}, raise_on_error=False
+        )
+
+    assert context.data["entity"]["id"] == str(entity_id)
+    assert invalid.is_error is True
