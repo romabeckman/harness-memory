@@ -19,6 +19,7 @@ python3 -m venv venv
 Rules: 
 
 - CRITICAL: Do not narrate progress or emit interim status updates. Use tools and internal reasoning normally. After completing all required work, return only the final output explicitly required by the current prompt. If a final result is not required, return the summary exactly, limited to 1000 characters.
+- Read `docs\BUSINESS.md` document.
 - If is a development task read `docs/.digest.md` and `docs/.graph.json`
 - Be rigorous in your development, adhering to SOLID principles and Clean Code principles.
 - The structure of the test folders should follow this order: unit, integration, e2e. Each folder should contain test files corresponding to the test types.
