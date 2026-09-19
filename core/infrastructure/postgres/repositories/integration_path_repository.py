@@ -1,8 +1,7 @@
 from collections import defaultdict
 from collections.abc import Callable
-from uuid import UUID
 
-from sqlalchemy import String, and_, case, cast, func, literal, or_, select, union_all
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -185,146 +184,107 @@ class PostgresIntegrationPathRepository:
         max_depth: int,
         max_paths: int,
     ):
-        max_path_segments = 8
-        start_snapshot = aliased(Snapshot, name="walk_start_snapshot")
-        start_project = aliased(Project, name="walk_start_project")
-        degree_snapshot = aliased(Snapshot, name="walk_degree_snapshot")
-        degree_project = aliased(Project, name="walk_degree_project")
-        active_edges = (
-            select(
-                Relation.source_entity_id.label("source_entity_id"),
-                Relation.target_entity_id.label("target_entity_id"),
+        frontier = [((source_id,), (), ())]
+        completed = []
+        expansions = 0
+        expansion_limited = False
+
+        for _depth in range(max_depth):
+            frontier.sort(key=lambda path: (path[2], tuple(str(item) for item in path[1])))
+            current_ids = tuple(dict.fromkeys(path[0][-1] for path in frontier))
+            if not current_ids:
+                break
+            remaining = self._policy.max_expansions - expansions
+            rows = session.execute(
+                self._build_adjacent_relations_statement(
+                    scope,
+                    current_ids,
+                    remaining + 1,
+                    target_id,
+                )
+            ).all()
+            rows_limited = len(rows) > remaining
+            adjacency = defaultdict(list)
+            for relation, relation_source, relation_target in rows:
+                if relation.source_entity_id in current_ids:
+                    adjacency[relation.source_entity_id].append(
+                        (relation_target.entity_key, relation.id, relation_target.id)
+                    )
+                if relation.target_entity_id in current_ids:
+                    adjacency[relation.target_entity_id].append(
+                        (relation_source.entity_key, relation.id, relation_source.id)
+                    )
+            for candidates in adjacency.values():
+                candidates.sort(
+                    key=lambda item: (
+                        item[2] != target_id,
+                        item[0],
+                        str(item[1]),
+                    )
+                )
+
+            next_frontier = []
+            stop = False
+            for entity_ids, relation_ids, entity_keys in frontier:
+                for next_key, relation_id, next_id in adjacency.get(entity_ids[-1], ()):
+                    if next_id in entity_ids:
+                        continue
+                    if expansions >= self._policy.max_expansions:
+                        expansion_limited = True
+                        stop = True
+                        break
+                    expansions += 1
+                    next_path = (
+                        (*entity_ids, next_id),
+                        (*relation_ids, relation_id),
+                        (*entity_keys, next_key),
+                    )
+                    if next_id == target_id:
+                        completed.append(next_path)
+                        if len(completed) > max_paths:
+                            stop = True
+                            break
+                    else:
+                        next_frontier.append(next_path)
+                if stop:
+                    break
+            if rows_limited and not stop:
+                expansion_limited = True
+                stop = True
+            if stop or not next_frontier:
+                break
+            frontier = next_frontier
+
+        completed.sort(
+            key=lambda path: (
+                len(path[1]),
+                path[2],
+                tuple(str(item) for item in path[1]),
             )
-            .join(
-                degree_snapshot,
-                and_(
-                    degree_snapshot.id == Relation.snapshot_id,
-                    degree_snapshot.tenant_id == Relation.tenant_id,
-                ),
-            )
-            .join(
-                degree_project,
-                and_(
-                    degree_project.id == degree_snapshot.project_id,
-                    degree_project.tenant_id == degree_snapshot.tenant_id,
-                    degree_project.active_snapshot_id == degree_snapshot.id,
-                ),
-            )
-            .where(
-                Relation.tenant_id == scope.tenant_id,
-                Relation.relation_type.in_(
-                    tuple(item.value for item in self._policy.eligible_types)
-                ),
-            )
-            .cte("integration_path_edges")
         )
-        edge_nodes = union_all(
-            select(active_edges.c.source_entity_id.label("node_id")),
-            select(active_edges.c.target_entity_id.label("node_id")),
-        ).cte("integration_path_edge_nodes")
-        edge_degrees = (
-            select(
-                edge_nodes.c.node_id,
-                func.count().label("degree"),
-            )
-            .group_by(edge_nodes.c.node_id)
-            .subquery("integration_path_edge_degrees")
-        )
-        walk = (
-            select(
-                Entity.id.label("current_entity_id"),
-                cast(Entity.id, String).label("entity_path"),
-                literal("", type_=String).label("relation_path"),
-                literal(0).label("depth"),
-                literal(1).label("expansion_count"),
-                cast(Entity.entity_key, String).label("key_1"),
-                *(
-                    literal(None, type_=String).label(f"key_{index}")
-                    for index in range(2, max_path_segments + 1)
-                ),
-                *(
-                    literal(None, type_=Relation.id.type).label(f"relation_{index}")
-                    for index in range(1, max_path_segments + 1)
-                ),
-            )
-            .join(
-                start_project,
-                and_(
-                    start_project.id == Entity.project_id,
-                    start_project.tenant_id == scope.tenant_id,
-                ),
-            )
-            .join(
-                start_snapshot,
-                and_(
-                    start_snapshot.id == Entity.snapshot_id,
-                    start_snapshot.project_id == Entity.project_id,
-                    start_snapshot.tenant_id == scope.tenant_id,
-                ),
-            )
-            .where(
-                Entity.id == source_id,
-                Entity.tenant_id == scope.tenant_id,
-                start_project.active_snapshot_id == Entity.snapshot_id,
-            )
-            .cte("integration_path_walk", recursive=True)
-        )
-        current = walk.alias("current_walk")
+        raw_paths = tuple((path[0], path[1]) for path in completed[: max_paths + 1])
+        return raw_paths, expansion_limited, len(completed) > max_paths
+
+    @staticmethod
+    def _build_adjacent_relations_statement(scope, current_ids, row_limit, target_id):
         relation_source = aliased(Entity, name="walk_source")
         relation_target = aliased(Entity, name="walk_target")
         relation_snapshot = aliased(Snapshot, name="walk_snapshot")
         relation_project = aliased(Project, name="walk_project")
-        next_entity_id = case(
-            (Relation.source_entity_id == current.c.current_entity_id, relation_target.id),
-            else_=relation_source.id,
-        )
         next_entity_key = case(
-            (
-                Relation.source_entity_id == current.c.current_entity_id,
-                relation_target.entity_key,
-            ),
+            (Relation.source_entity_id.in_(current_ids), relation_target.entity_key),
             else_=relation_source.entity_key,
         )
-        visited_entities = literal(",") + current.c.entity_path + literal(",")
-        next_entity_token = literal("%,") + cast(next_entity_id, String) + literal(",%")
-        recursive_step = (
-            select(
-                next_entity_id.label("current_entity_id"),
-                (current.c.entity_path + literal(",") + cast(next_entity_id, String)).label(
-                    "entity_path"
-                ),
-                (current.c.relation_path + literal(",") + cast(Relation.id, String)).label(
-                    "relation_path"
-                ),
-                (current.c.depth + 1).label("depth"),
-                (current.c.expansion_count * edge_degrees.c.degree).label("expansion_count"),
-                *(
-                    case(
-                        (current.c.depth == index - 1, next_entity_key),
-                        else_=current.c[f"key_{index}"],
-                    ).label(f"key_{index}")
-                    for index in range(1, max_path_segments + 1)
-                ),
-                *(
-                    case(
-                        (current.c.depth == index - 1, Relation.id),
-                        else_=current.c[f"relation_{index}"],
-                    ).label(f"relation_{index}")
-                    for index in range(1, max_path_segments + 1)
-                ),
-            )
-            .select_from(current)
-            .join(edge_degrees, edge_degrees.c.node_id == current.c.current_entity_id)
-            .join(
-                Relation,
-                and_(
-                    Relation.tenant_id == scope.tenant_id,
-                    or_(
-                        Relation.source_entity_id == current.c.current_entity_id,
-                        Relation.target_entity_id == current.c.current_entity_id,
-                    ),
-                ),
-            )
+        next_entity_id = case(
+            (Relation.source_entity_id.in_(current_ids), relation_target.id),
+            else_=relation_source.id,
+        )
+        target_rank = case((next_entity_id == target_id, 0), else_=1)
+        eligible_types = tuple(
+            item.value for item in PathTraversalPolicy().eligible_types
+        )
+        return (
+            select(Relation, relation_source, relation_target)
             .join(
                 relation_snapshot,
                 and_(
@@ -357,64 +317,15 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .where(
-                Relation.relation_type.in_(
-                    tuple(item.value for item in self._policy.eligible_types)
-                ),
-                current.c.current_entity_id != target_id,
-                current.c.depth < max_depth,
+                Relation.tenant_id == scope.tenant_id,
+                Relation.relation_type.in_(eligible_types),
                 or_(
-                    next_entity_id == target_id,
-                    current.c.expansion_count * edge_degrees.c.degree
-                    <= self._policy.max_expansions,
-                ),
-                ~visited_entities.like(next_entity_token),
-            )
-        )
-        walk = walk.union_all(recursive_step)
-        bounded_walk = select(walk).limit(self._policy.max_expansions + 1).cte(
-            "integration_path_bounded_walk"
-        )
-        walk_order = (
-            bounded_walk.c.depth.asc(),
-            *(
-                bounded_walk.c[f"key_{index}"].asc()
-                for index in range(1, max_path_segments + 1)
-            ),
-            *(
-                bounded_walk.c[f"relation_{index}"].asc()
-                for index in range(1, max_path_segments + 1)
-            ),
-        )
-        walk_rows = session.execute(
-            select(bounded_walk)
-            .order_by(
-                *walk_order,
-            )
-        ).all()
-        path_rows = session.execute(
-            select(walk)
-            .where(walk.c.current_entity_id == target_id)
-            .order_by(
-                walk.c.depth.asc(),
-                *(walk.c[f"key_{index}"].asc() for index in range(1, max_path_segments + 1)),
-                *(
-                    walk.c[f"relation_{index}"].asc()
-                    for index in range(1, max_path_segments + 1)
+                    Relation.source_entity_id.in_(current_ids),
+                    Relation.target_entity_id.in_(current_ids),
                 ),
             )
-            .limit(max_paths + 1)
-        ).all()
-        raw_paths = tuple(
-            (
-                tuple(UUID(part) for part in row.entity_path.split(",") if part),
-                tuple(UUID(part) for part in row.relation_path.split(",") if part),
-            )
-            for row in path_rows
-        )
-        return (
-            raw_paths,
-            len(walk_rows) >= self._policy.max_expansions + 1,
-            len(raw_paths) > max_paths,
+            .order_by(target_rank.asc(), next_entity_key.asc(), Relation.id.asc())
+            .limit(row_limit)
         )
 
     @staticmethod

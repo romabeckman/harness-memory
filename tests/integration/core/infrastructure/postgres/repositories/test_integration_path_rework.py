@@ -2,6 +2,7 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 from sqlalchemy import event, select
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -37,7 +38,7 @@ def test_recursive_path_query_orders_bounded_rows_before_global_expansion_limit(
     statements = []
 
     def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
-        if "integration_path_walk" in statement:
+        if "walk_source" in statement:
             statements.append(statement)
 
     event.listen(engine, "before_cursor_execute", record_statement)
@@ -62,7 +63,7 @@ def test_recursive_term_enforces_expansion_ceiling_inside_database_query():
     statements = []
 
     def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
-        if "integration_path_walk" in statement:
+        if "walk_source" in statement:
             statements.append(statement)
 
     event.listen(engine, "before_cursor_execute", record_statement)
@@ -76,8 +77,8 @@ def test_recursive_term_enforces_expansion_ceiling_inside_database_query():
         event.remove(engine, "before_cursor_execute", record_statement)
 
     assert statements
-    assert "EXPANSION_COUNT" in statements[0].upper()
-    assert "INTEGRATION_PATH_BOUNDED_WALK" in statements[0].upper()
+    assert "WITH RECURSIVE" not in statements[0].upper()
+    assert "EXPANSION_COUNT" not in statements[0].upper()
 
 
 def test_target_filter_precedes_global_expansion_limit():
@@ -129,6 +130,57 @@ def test_target_filter_precedes_global_expansion_limit():
 
     assert len(result.paths) == 1
     assert result.paths[0].hops[0].target.id == ids["middle"]
+
+
+def test_neighbor_query_is_endpoint_scoped_and_postgresql_safe():
+    statement = PostgresIntegrationPathRepository._build_adjacent_relations_statement(
+        TenantScope("tenant-a"),
+        (uuid4(),),
+        101,
+        uuid4(),
+    )
+
+    sql = str(statement.compile(dialect=postgresql.dialect())).upper()
+
+    assert "INTEGRATION_PATH_EDGE_DEGREES" not in sql
+    assert "RELATIONS.SOURCE_ENTITY_ID IN" in sql
+    assert "RELATIONS.TARGET_ENTITY_ID IN" in sql
+    assert "LIMIT" in sql
+
+
+def test_parallel_target_edges_cannot_bypass_expansion_ceiling():
+    session_factory = _repository()
+    ids = _seed(session_factory)
+    with session_factory() as session:
+        snapshot_id = session.scalar(
+            select(Project.active_snapshot_id).where(Project.tenant_id == "tenant-a")
+        )
+        session.add_all(
+            [
+                Relation(
+                    id=UUID(int=index),
+                    tenant_id="tenant-a",
+                    snapshot_id=snapshot_id,
+                    source_entity_id=ids["source"],
+                    target_entity_id=ids["middle"],
+                    relation_type=RelationType.DEPENDS_ON.value,
+                    provenance_kind="declared",
+                    metadata_json={},
+                )
+                for index in range(1, 5)
+            ]
+        )
+        session.commit()
+
+    repository = PostgresIntegrationPathRepository(session_factory)
+    repository._policy.MAX_EXPANSIONS = 2
+    result = repository.find_paths(
+        TenantScope("tenant-a"),
+        _query(ids["source"], ids["middle"], max_depth=1, max_paths=25),
+    )
+
+    assert 1 <= len(result.paths) <= 2
+    assert result.termination_reason is PathTerminationReason.EXPANSION_LIMIT
 
 
 def test_owner_hydration_applies_owner_limit_inside_database_query():
