@@ -58,3 +58,4 @@
 | 2026-09-20T02:39:07.032Z | F009 | Review: validation verdict PASS for domain 'production_delivery' | TL:0.7, Adv:0.9 | Scores pass thresholds (TL: 0.7 >= 0.7, Adv: 0.9 >= 0.7) with no high/critical vulnerabilities. |
 | 2026-09-20T02:39:07.043Z | GLOBAL | TRANSITION (state check): 9/9 features completed. | - | - |
 | 2026-09-20T02:59:13.938Z | GLOBAL | Memory: project memory written | - | Documents created or updated: C:/Users/romab/Codigo/harness-memory/docs/feature/entity-discovery.md, C:/Users/romab/Codigo/harness-memory/docs/feature/impact-analysis.md, C:/Users/romab/Codigo/harness... |
+| 2026-09-20T03:00:09.210Z | GLOBAL | Deploy: 0/1 projects deployed | - | Failed paths: C:\Users\romab\Codigo\harness-memory |

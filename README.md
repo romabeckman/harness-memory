@@ -243,6 +243,97 @@ After startup, an MCP client can discover the catalog with `tools/list`, then ca
 }
 ```
 
+## Connect MCP Clients
+
+Harness Memory exposes MCP over Streamable HTTP at `http://localhost:8000/mcp` when
+running with Docker Compose. It does not currently expose a local `stdio` command.
+For a remote deployment, use its publicly reachable HTTPS URL, such as
+`https://mcp.example.com/mcp`.
+
+### Authentication
+
+The Compose configuration enables production authentication. Before starting the
+services, replace the example `MCP_ISSUER`, `MCP_JWKS_URI`, and `MCP_AUDIENCE`
+values in `docker-compose.yml` with values from your JWT issuer. The default tenant
+claim is `tenant_id`; change `MCP_TENANT_CLAIM` only when your tokens use another
+claim name.
+
+Obtain a signed RS256 JWT from that issuer. The token must include `sub`, the
+configured tenant claim, and a `scope` claim. Grant the scopes needed by the client:
+`memory:read`, `memory:publish`, and `memory:impact`. Clients send the token in the
+`Authorization: Bearer <token>` HTTP header. Harness Memory does not provide a
+login flow or issue these tokens; use credentials from your configured identity
+provider.
+
+### Claude Code
+
+Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_TOKEN` in the
+environment before starting Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "harness-memory": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer ${HARNESS_MEMORY_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Start Claude Code in the project, approve the project MCP server if prompted, then
+run `/mcp` to check its connection. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+
+### OpenAI Codex
+
+Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_TOKEN` in the
+environment before starting Codex:
+
+```toml
+[mcp_servers.harness-memory]
+url = "http://localhost:8000/mcp"
+bearer_token_env_var = "HARNESS_MEMORY_TOKEN"
+```
+
+The Codex CLI, desktop app, and IDE extension share this configuration. Run
+`codex mcp list` or enter `/mcp` in the Codex TUI to check the connection. See the
+[Codex MCP documentation](https://developers.openai.com/codex/mcp).
+
+### Google Antigravity
+
+In Antigravity IDE, open **MCP Servers > Manage MCP Servers > View raw config**.
+Add this server to the `mcpServers` object in the global
+`~/.gemini/config/mcp_config.json` file:
+
+```json
+{
+  "mcpServers": {
+    "harness-memory": {
+      "serverUrl": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer <YOUR_JWT>"
+      }
+    }
+  }
+}
+```
+
+Replace `<YOUR_JWT>` with a token from your identity provider. Keep this global
+configuration private because it contains the token. Antigravity CLI also supports
+workspace configuration in `.agents/mcp_config.json`; do not commit a real token
+there. Open the MCP Servers panel in the IDE, or run `/mcp` in Antigravity CLI, to
+check or reload the server. See the [Antigravity MCP documentation](https://antigravity.google/docs/mcp).
+
+### Other MCP clients
+
+Use a client that supports remote Streamable HTTP servers. Set its server URL to
+`http://localhost:8000/mcp` (or your deployed HTTPS URL) and configure the
+`Authorization` header with a valid bearer token. See the client's MCP settings for
+the exact configuration format.
+
 ## Design Principles
 
 - Keep business logic out of MCP adapters.
