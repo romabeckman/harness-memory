@@ -8,6 +8,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
+COPY api ./api
 COPY core ./core
 COPY mcp ./mcp
 COPY migrations ./migrations
@@ -29,6 +30,7 @@ COPY --from=builder /install /usr/local
 COPY alembic.ini .
 COPY pyproject.toml .
 COPY migrations ./migrations
+COPY api ./api
 COPY core ./core
 COPY mcp ./mcp
 
@@ -37,9 +39,9 @@ RUN chown -R appuser:appuser /app
 
 USER 10001
 
-EXPOSE 8000
+EXPOSE 8000 8080
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-    CMD python -c "import socket; s = socket.create_connection(('127.0.0.1', 8000), timeout=2); s.close()" || exit 1
+    CMD python -c "import os,socket; s=socket.create_connection(('127.0.0.1',int(os.getenv('APP_PORT','8000'))),timeout=2); s.close()" || exit 1
 
 CMD ["python", "-m", "mcp.server.app"]

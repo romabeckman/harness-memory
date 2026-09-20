@@ -1,7 +1,7 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastMCP 4.x, PostgreSQL]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastAPI, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
@@ -11,7 +11,7 @@ updated: 2026-09-20
 
 ## OVERVIEW
 
-Use **pytest 9.x** across unit, PostgreSQL integration, MCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `core` and `mcp`.
+Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `api`, `core`, and `mcp`.
 
 ## COMMANDS
 
@@ -20,7 +20,7 @@ Use **pytest 9.x** across unit, PostgreSQL integration, MCP contract, and HTTP/D
 | Unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
 | Integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
 | E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
-| Coverage | `./venv/bin/python -m pytest --cov=core --cov=mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
+| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
 | Migration | `harness-memory migrate` / `harness-memory migrate --status` | Upgrade or inspect Alembic schema state. |
 
 ## MINIMUM COVERAGE
@@ -32,7 +32,7 @@ REQUIRED: Maintain the configured global threshold. No independent per-layer gat
 | Domain / Core | Report only | Included in global `core` measurement. |
 | Application / Use Cases | Report only | Included in global `core` measurement. |
 | Infrastructure / Adapters | Report only | Included in `core` and `mcp` measurement. |
-| Global | 80% | Enforced by `coverage.fail_under` and CI. |
+| Global | 80% | Enforced across `api`, `core`, and `mcp`. |
 
 ## PATTERNS & BEST PRACTICES
 

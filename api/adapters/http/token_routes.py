@@ -1,0 +1,88 @@
+from uuid import UUID
+
+from fastapi import APIRouter, HTTPException, Response, status
+
+from api.adapters.http.schemas.token_create import TokenCreate
+from api.adapters.http.schemas.token_created_response import TokenCreatedResponse
+from api.adapters.http.schemas.token_response import TokenResponse
+from api.adapters.http.schemas.token_update import TokenUpdate
+from api.application.services.token_service import TokenService
+
+
+def create_token_router(service: TokenService) -> APIRouter:
+    router = APIRouter(prefix="/tokens", tags=["tokens"])
+
+    @router.post("", response_model=TokenCreatedResponse, status_code=status.HTTP_201_CREATED)
+    def create_token(payload: TokenCreate) -> TokenCreatedResponse:
+        try:
+            issued = service.create(
+                user_id=payload.user_id,
+                name=payload.name,
+                expires_at=payload.expires_at,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        token = issued.token
+        return TokenCreatedResponse(
+            id=token.id,
+            user_id=token.user_id,
+            name=token.name,
+            expires_at=token.expires_at,
+            token=issued.plaintext,
+        )
+
+    @router.get("", response_model=list[TokenResponse])
+    def list_tokens(user_id: UUID | None = None) -> list[TokenResponse]:
+        return [
+            TokenResponse(
+                id=item.id,
+                user_id=item.user_id,
+                name=item.name,
+                expires_at=item.expires_at,
+            )
+            for item in service.list(user_id)
+        ]
+
+    @router.get("/{token_id}", response_model=TokenResponse)
+    def get_token(token_id: UUID) -> TokenResponse:
+        try:
+            token = service.get(token_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        return TokenResponse(
+            id=token.id,
+            user_id=token.user_id,
+            name=token.name,
+            expires_at=token.expires_at,
+        )
+
+    @router.patch("/{token_id}", response_model=TokenResponse)
+    def update_token(token_id: UUID, payload: TokenUpdate) -> TokenResponse:
+        try:
+            token = service.update(
+                token_id,
+                name=payload.name,
+                expires_at=payload.expires_at,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+        return TokenResponse(
+            id=token.id,
+            user_id=token.user_id,
+            name=token.name,
+            expires_at=token.expires_at,
+        )
+
+    @router.delete("/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
+    def delete_token(token_id: UUID) -> Response:
+        try:
+            service.delete(token_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    return router

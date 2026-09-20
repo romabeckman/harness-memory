@@ -1,7 +1,7 @@
 ---
 doc_type: adr
 domain: architecture
-stack: [Python 3.12+, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
+stack: [Python 3.12+, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
 node_id: "adr:architecture"
 tags: [architecture, design-patterns, folder-structure]
 edges:
@@ -13,15 +13,20 @@ updated: 2026-09-20
 
 ## OVERVIEW
 
-Use **pragmatic DDD organized by business domain**. FastMCP is the adapter boundary; application use cases coordinate ports; domain code owns invariants; infrastructure implements persistence and runtime integrations.
+Use **hexagonal architecture with pragmatic DDD**. FastAPI and FastMCP are inbound adapters; application services coordinate ports; domain code owns invariants; shared `core` infrastructure implements persistence.
 
-Keep dependencies inward: `mcp` calls `core/application`, application calls `core/domain`, and infrastructure implements application or domain ports.
+Keep dependencies inward: `api` and `mcp` call application ports; domain code stays framework-free; `core/infrastructure` implements persistence ports.
 
 ## FOLDER STRUCTURE
 
 <folder_structure>
 ```text
 harness-memory/
+├── api/                         # FastAPI domain, application ports, HTTP adapter
+│   ├── adapters/http/           # User and token routes plus schemas
+│   ├── application/             # CRUD services and repository ports
+│   ├── domain/                  # User, token, and expiration invariants
+│   └── server/                  # FastAPI composition root
 ├── mcp/                         # HTTP/MCP adapters, security, resources, prompts
 │   ├── server/                  # FastMCP composition and lifespan
 │   ├── tools/                   # One public tool per file
@@ -42,7 +47,7 @@ harness-memory/
 
 ## LAYERS
 
-- **MCP adapter**: Authenticate, authorize, validate boundary input, call one application use case, map safe output. Keep SQL and business rules out.
+- **API/MCP adapters**: Validate boundary input, call application services, map safe output. Keep SQL and business rules out.
 - **Application**: Coordinate handlers, contracts, trusted tenant scope, ports, bounded results, and typed failures.
 - **Domain**: Enforce invariants independently of FastMCP, HTTP, SQLAlchemy, PostgreSQL, and Alembic.
 - **Infrastructure**: Implement PostgreSQL repositories, migrations inspection and startup verification, telemetry, and external technical adapters.
@@ -51,6 +56,7 @@ harness-memory/
 
 | Module | Responsibility | Location |
 |--------|----------------|----------|
+| REST API | FastAPI CRUD for users and access tokens with 90-day expiry. | [users-and-tokens.md](../feature/api/users-and-tokens.md) |
 | Platform foundation | Runtime configuration, schema, migrations, dependency checks. | [platform-foundation.md](../feature/platform-foundation.md) |
 | Snapshot publication | Immutable versioned graph publication and active-snapshot switching. | [snapshot-publication.md](../feature/snapshot-publication.md) |
 | Entity and relationship reads | Bounded active-snapshot discovery and context queries. | [entity-discovery.md](../feature/entity-discovery.md), [relationship-context.md](../feature/relationship-context.md) |
@@ -63,6 +69,7 @@ harness-memory/
 
 REQUIRED: Put one use case in one `use_cases/<use_case>/` package with `handler.py`, `inbound.py`, and `outbound.py` where applicable.
 REQUIRED: Inject repository ports and boundary services through constructors or explicit handler arguments.
+REQUIRED: Implement API PostgreSQL adapters in `core/infrastructure/postgres`; keep SQLAlchemy out of `api/domain` and `api/application`.
 REQUIRED: Keep every PostgreSQL query tenant-scoped and active-snapshot bounded when reading graph facts.
 PROHIBITED: Import FastMCP, SQLAlchemy, PostgreSQL drivers, or infrastructure implementations into domain code.
 PROHIBITED: Let tools mutate graph facts outside complete snapshot publication or let prompts execute business logic.
@@ -80,10 +87,11 @@ handler = AnalyzeImpactHandler(repository=PostgresImpactRepository())
 | External Service / Component | Purpose | Connection / Authentication Method |
 |------------------------------|---------|-------------------------------------|
 | FastMCP 4.x | Tools, resources, prompts, HTTP transport. | In-process client for tests; bearer authentication in production. |
+| FastAPI | REST CRUD and generated OpenAPI schema. | Uvicorn on port 8080; shared PostgreSQL infrastructure. |
 | Pydantic 2.x | Application and MCP boundary contracts. | Frozen, bounded models; trusted context supplied separately. |
 | PostgreSQL | Tenant-scoped graph and audit persistence. | SQLAlchemy/psycopg2; explicit transactions and Alembic schema. |
 | Alembic | Versioned schema and startup compatibility checks. | CLI migration; runtime checks current revision against head. |
-| Docker Compose | Local production-like PostgreSQL, migration, and MCP services. | Environment-configured database and HTTP settings. |
+| Docker Compose | Local production-like PostgreSQL, migration, API, and MCP services. | Environment-configured database and HTTP settings. |
 | OpenTelemetry | Bounded tool tracing and request correlation. | API tracer with NoOp fallback; sensitive attributes removed. |
 
 ## REFERENCES
@@ -91,3 +99,4 @@ handler = AnalyzeImpactHandler(repository=PostgresImpactRepository())
 - [**README.md**](../README.md): Documentation navigation index.
 - [**TESTS.md**](./TESTS.md): Test tiers, commands, and coverage policy.
 - [**MCP.md**](./MCP.md): External interface and security boundary.
+- [**users-and-tokens.md**](../feature/api/users-and-tokens.md): REST API contract and routing map.

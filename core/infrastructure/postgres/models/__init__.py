@@ -1,3 +1,5 @@
+from .api_access_token import ApiAccessToken
+from .api_user import ApiUser
 from .base import Base
 from .entity import Entity
 from .evidence import Evidence
@@ -8,6 +10,8 @@ from .relation import Relation
 from .snapshot import Snapshot
 
 __all__ = [
+    "ApiAccessToken",
+    "ApiUser",
     "Base",
     "Entity",
     "Evidence",

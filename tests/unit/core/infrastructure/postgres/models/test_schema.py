@@ -8,13 +8,15 @@ from core.infrastructure.postgres.models.relation import Relation
 from core.infrastructure.postgres.models.snapshot import Snapshot
 
 
-def test_foundation_metadata_contains_exactly_five_tables():
+def test_metadata_contains_all_registered_tables():
     assert set(Base.metadata.tables) == {
         "projects",
         "snapshots",
         "entities",
         "relations",
         "evidence",
+        "users",
+        "tokens",
     }
 
 

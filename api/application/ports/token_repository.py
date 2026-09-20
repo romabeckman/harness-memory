@@ -1,0 +1,16 @@
+from typing import Protocol
+from uuid import UUID
+
+from api.domain.entities.access_token import AccessToken
+
+
+class TokenRepository(Protocol):
+    def add(self, token: AccessToken) -> AccessToken: ...
+
+    def get(self, token_id: UUID) -> AccessToken | None: ...
+
+    def list(self, user_id: UUID | None = None) -> list[AccessToken]: ...
+
+    def update(self, token: AccessToken) -> AccessToken: ...
+
+    def delete(self, token_id: UUID) -> None: ...
