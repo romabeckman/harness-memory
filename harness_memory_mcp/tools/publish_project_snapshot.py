@@ -1,4 +1,7 @@
+from typing import Annotated
+
 from fastmcp import FastMCP
+from pydantic import Field
 
 from core.application.snapshot_publication.use_cases.publish_project_snapshot.handler import (
     PublishProjectSnapshotHandler,
@@ -22,8 +25,25 @@ def register_publish_project_snapshot(
 ):
     mapper = response_mapper or PublicationResponseMapper()
 
-    @server.tool(name="publish_project_snapshot")
-    def publish_project_snapshot(request: PublishProjectSnapshotInput):
+    @server.tool(
+        name="publish_project_snapshot",
+        description=(
+            "Publish a complete, validated project knowledge snapshot. "
+            "Activates a newer revision for the authenticated tenant and treats identical "
+            "revisions idempotently. Requires memory:publish."
+        ),
+    )
+    def publish_project_snapshot(
+        request: Annotated[
+            PublishProjectSnapshotInput,
+            Field(
+                description=(
+                    "Complete project snapshot containing metadata, entities, relations, "
+                    "and evidence."
+                )
+            ),
+        ],
+    ):
         try:
             context = tenant_context.require_scope("memory:publish")
             if audited_operation is None:

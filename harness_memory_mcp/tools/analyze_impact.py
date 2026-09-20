@@ -25,22 +25,93 @@ def register_analyze_impact(
 ):
     mapper = response_mapper or ImpactResponseMapper()
 
-    @server.tool(name="analyze_impact")
+    @server.tool(
+        name="analyze_impact",
+        description=(
+            "Analyze downstream consumers and affected projects for a proposed entity change. "
+            "Returns bounded paths, evidence, and unknowns; it does not guess missing impacts. "
+            "Requires memory:impact."
+        ),
+    )
     def analyze_impact(
-        entity_id: UUID | None = None,
-        changed_entity_id: UUID | None = None,
-        target_entity_id: UUID | None = None,
-        change: ChangeDescription | None = None,
-        change_type: Annotated[StrictStr, Field(min_length=1, max_length=64)] = "contract",
-        description: Annotated[StrictStr, Field(max_length=4096)] = "",
-        changed_fields: tuple[StrictStr, ...] = (),
-        max_depth: Annotated[StrictInt, Field(ge=1, le=8)] = 4,
-        max_consumers: Annotated[StrictInt, Field(ge=1, le=500)] = 100,
-        max_paths: Annotated[StrictInt, Field(ge=1, le=100)] = 25,
-        evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
-        owner_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
+        entity_id: Annotated[
+            UUID | None,
+            Field(
+                description="Legacy identifier of the changed entity; retained for compatibility."
+            ),
+        ] = None,
+        changed_entity_id: Annotated[
+            UUID | None,
+            Field(description="Identifier of the entity being changed."),
+        ] = None,
+        target_entity_id: Annotated[
+            UUID | None,
+            Field(description="Alternative identifier for the entity being changed."),
+        ] = None,
+        change: Annotated[
+            ChangeDescription | None,
+            Field(
+                description=(
+                    "Structured change details: target entity, change type, summary, "
+                    "and affected fields."
+                )
+            ),
+        ] = None,
+        change_type: Annotated[
+            StrictStr,
+            Field(
+                min_length=1,
+                max_length=64,
+                description="Change category, such as contract or implementation.",
+            ),
+        ] = "contract",
+        description: Annotated[
+            StrictStr,
+            Field(max_length=4096, description="Human-readable summary of the proposed change."),
+        ] = "",
+        changed_fields: Annotated[
+            tuple[StrictStr, ...],
+            Field(description="Names of the entity fields affected by the change."),
+        ] = (),
+        max_depth: Annotated[
+            StrictInt,
+            Field(
+                ge=1,
+                le=8,
+                description="Maximum relationship hops when tracing impact, from 1 to 8.",
+            ),
+        ] = 4,
+        max_consumers: Annotated[
+            StrictInt,
+            Field(
+                ge=1,
+                le=500,
+                description="Maximum downstream consumers to evaluate, from 1 to 500.",
+            ),
+        ] = 100,
+        max_paths: Annotated[
+            StrictInt,
+            Field(ge=1, le=100, description="Maximum dependency paths to return, from 1 to 100."),
+        ] = 25,
+        evidence_limit: Annotated[
+            StrictInt,
+            Field(
+                ge=0,
+                le=20,
+                description="Maximum evidence items per relationship, from 0 to 20.",
+            ),
+        ] = 5,
+        owner_limit: Annotated[
+            StrictInt,
+            Field(ge=0, le=20, description="Maximum owner records per entity, from 0 to 20."),
+        ] = 5,
         max_result_bytes: Annotated[
-            StrictInt, Field(ge=64 * 1024, le=16 * 1024 * 1024)
+            StrictInt,
+            Field(
+                ge=64 * 1024,
+                le=16 * 1024 * 1024,
+                description="Maximum serialized result size in bytes, from 64 KiB to 16 MiB.",
+            ),
         ] = 1024 * 1024,
     ):
         try:

@@ -1,4 +1,7 @@
+from typing import Annotated
+
 from fastmcp import FastMCP
+from pydantic import Field
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.entity_discovery.use_cases.search_entities.handler import (
@@ -17,8 +20,19 @@ def register_search_entities(
 ):
     mapper = response_mapper or EntitySearchResponseMapper()
 
-    @server.tool(name="search_entities")
-    def search_entities(request: SearchEntitiesInput):
+    @server.tool(
+        name="search_entities",
+        description=(
+            "Find tenant-visible entities by key, name, type, or project. "
+            "Results are paginated and bounded. Requires memory:read."
+        ),
+    )
+    def search_entities(
+        request: Annotated[
+            SearchEntitiesInput,
+            Field(description="Entity filters, page size, and optional continuation cursor."),
+        ],
+    ):
         try:
             context = tenant_context.require_scope("memory:read")
             result = handler.execute(request, TenantScope(context.tenant_id))

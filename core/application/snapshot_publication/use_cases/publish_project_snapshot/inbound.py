@@ -11,13 +11,34 @@ from ...contracts.relation_input import RelationInput
 
 
 class PublishProjectSnapshotInput(BaseModel):
-    schema_version: Literal["1.0"]
-    project: ProjectInput
-    revision: StrictInt = Field(ge=1)
-    generated_at: datetime
-    entities: tuple[EntityInput, ...] = Field(default_factory=tuple, max_length=10_000)
-    relations: tuple[RelationInput, ...] = Field(default_factory=tuple, max_length=50_000)
-    evidence: tuple[EvidenceInput, ...] = Field(default_factory=tuple, max_length=50_000)
+    schema_version: Literal["1.0"] = Field(
+        description="Snapshot payload schema version; currently 1.0."
+    )
+    project: ProjectInput = Field(
+        description="Project identity and metadata for this snapshot."
+    )
+    revision: StrictInt = Field(
+        ge=1,
+        description="Positive revision used to order and deduplicate project snapshots.",
+    )
+    generated_at: datetime = Field(
+        description="Snapshot generation timestamp with an explicit UTC offset."
+    )
+    entities: tuple[EntityInput, ...] = Field(
+        default_factory=tuple,
+        max_length=10_000,
+        description="Entities owned by this project snapshot.",
+    )
+    relations: tuple[RelationInput, ...] = Field(
+        default_factory=tuple,
+        max_length=50_000,
+        description="Relationships between entities, with provenance and optional metadata.",
+    )
+    evidence: tuple[EvidenceInput, ...] = Field(
+        default_factory=tuple,
+        max_length=50_000,
+        description="Source records that support snapshot facts or relation references.",
+    )
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

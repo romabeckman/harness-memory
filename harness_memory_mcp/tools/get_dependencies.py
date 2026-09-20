@@ -24,12 +24,34 @@ def register_get_dependencies(
 ):
     mapper = response_mapper or RelationshipResponseMapper()
 
-    @server.tool(name="get_dependencies")
+    @server.tool(
+        name="get_dependencies",
+        description=(
+            "Read an entity's inbound, outbound, or both dependency relationships "
+            "with provenance and bounded evidence. Requires memory:read."
+        ),
+    )
     def get_dependencies(
-        entity_id: UUID,
-        direction: RelationshipDirection = RelationshipDirection.BOTH,
-        limit: Annotated[StrictInt, Field(ge=1, le=100)] = 25,
-        evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
+        entity_id: Annotated[
+            UUID,
+            Field(description="Identifier of the entity whose dependencies to read."),
+        ],
+        direction: Annotated[
+            RelationshipDirection,
+            Field(description="Select inbound dependencies, outbound dependencies, or both."),
+        ] = RelationshipDirection.BOTH,
+        limit: Annotated[
+            StrictInt,
+            Field(ge=1, le=100, description="Maximum relationships to return, from 1 to 100."),
+        ] = 25,
+        evidence_limit: Annotated[
+            StrictInt,
+            Field(
+                ge=0,
+                le=20,
+                description="Maximum evidence items per relationship, from 0 to 20.",
+            ),
+        ] = 5,
     ):
         try:
             context = tenant_context.require_scope("memory:read")

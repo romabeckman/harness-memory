@@ -6,8 +6,16 @@ from .base import trim_bounded, validate_metadata
 
 
 class RelationInput(BaseModel):
-    ref: str = Field(min_length=1, max_length=255)
-    source_entity_key: str = Field(min_length=1, max_length=255)
+    ref: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Snapshot-local relation reference used to attach supporting evidence.",
+    )
+    source_entity_key: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Key of the entity where this relationship starts.",
+    )
     type: Literal[
         "part_of",
         "owned_by",
@@ -17,10 +25,23 @@ class RelationInput(BaseModel):
         "publishes",
         "subscribes_to",
         "implements",
-    ]
-    target_entity_key: str = Field(min_length=1, max_length=255)
-    provenance: Literal["declared", "inferred", "observed", "manual"]
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    ] = Field(
+        description="Relationship type that defines how the source entity relates to the target."
+    )
+    target_entity_key: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Key of the entity where this relationship ends.",
+    )
+    provenance: Literal["declared", "inferred", "observed", "manual"] = Field(
+        description=(
+            "How this relationship was established: declared, inferred, observed, or manual."
+        )
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional bounded JSON metadata for the relationship.",
+    )
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

@@ -19,11 +19,31 @@ def register_get_context(
 ):
     mapper = response_mapper or RelationshipResponseMapper()
 
-    @server.tool(name="get_context")
+    @server.tool(
+        name="get_context",
+        description=(
+            "Read bounded context for one tenant-visible entity, including its project, "
+            "ownership, relationships, dependencies, and evidence. Requires memory:read."
+        ),
+    )
     def get_context(
-        entity_id: UUID,
-        limit: Annotated[StrictInt, Field(ge=1, le=100)] = 25,
-        evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
+        entity_id: Annotated[UUID, Field(description="Identifier of the entity to inspect.")],
+        limit: Annotated[
+            StrictInt,
+            Field(
+                ge=1,
+                le=100,
+                description="Maximum related items to return, from 1 to 100.",
+            ),
+        ] = 25,
+        evidence_limit: Annotated[
+            StrictInt,
+            Field(
+                ge=0,
+                le=20,
+                description="Maximum evidence items per relationship, from 0 to 20.",
+            ),
+        ] = 5,
     ):
         try:
             context = tenant_context.require_scope("memory:read")

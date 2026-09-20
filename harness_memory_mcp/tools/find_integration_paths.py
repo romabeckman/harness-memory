@@ -12,7 +12,9 @@ from core.application.integration_paths.use_cases.find_integration_paths.handler
 from core.application.integration_paths.use_cases.find_integration_paths.inbound import (
     FindIntegrationPathsInput,
 )
-from harness_memory_mcp.services.integration_path_response_mapper import IntegrationPathResponseMapper
+from harness_memory_mcp.services.integration_path_response_mapper import (
+    IntegrationPathResponseMapper,
+)
 from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
@@ -24,14 +26,42 @@ def register_find_integration_paths(
 ):
     mapper = response_mapper or IntegrationPathResponseMapper()
 
-    @server.tool(name="find_integration_paths")
+    @server.tool(
+        name="find_integration_paths",
+        description=(
+            "Find bounded, evidence-backed dependency paths between two tenant-visible "
+            "entities, including ownership data. Requires memory:read."
+        ),
+    )
     def find_integration_paths(
-        source_entity_id: UUID,
-        target_entity_id: UUID,
-        max_depth: Annotated[StrictInt, Field(ge=1, le=8)] = 4,
-        max_paths: Annotated[StrictInt, Field(ge=1, le=25)] = 10,
-        evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
-        owner_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
+        source_entity_id: Annotated[
+            UUID,
+            Field(description="Identifier of the starting entity."),
+        ],
+        target_entity_id: Annotated[
+            UUID,
+            Field(description="Identifier of the destination entity."),
+        ],
+        max_depth: Annotated[
+            StrictInt,
+            Field(ge=1, le=8, description="Maximum relationship hops per path, from 1 to 8."),
+        ] = 4,
+        max_paths: Annotated[
+            StrictInt,
+            Field(ge=1, le=25, description="Maximum paths to return, from 1 to 25."),
+        ] = 10,
+        evidence_limit: Annotated[
+            StrictInt,
+            Field(
+                ge=0,
+                le=20,
+                description="Maximum evidence items per relationship, from 0 to 20.",
+            ),
+        ] = 5,
+        owner_limit: Annotated[
+            StrictInt,
+            Field(ge=0, le=20, description="Maximum owner records per entity, from 0 to 20."),
+        ] = 5,
     ):
         try:
             context = tenant_context.require_scope("memory:read")

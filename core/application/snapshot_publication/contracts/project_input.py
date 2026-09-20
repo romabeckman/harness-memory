@@ -6,9 +6,21 @@ from .base import trim_bounded, validate_metadata
 
 
 class ProjectInput(BaseModel):
-    key: str = Field(min_length=1, max_length=255)
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    key: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Stable key that identifies this project.",
+    )
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+        description="Human-readable project name.",
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional bounded JSON metadata for the project.",
+    )
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 

@@ -58,15 +58,17 @@ For production Streamable HTTP, use stateless mode so each tool request can run 
 
 Keep one public tool per file under `harness_memory_mcp/tools/`. Register modules through `harness_memory_mcp/server/`; delegate each handler to one domain-grouped application use case.
 
-| Tool | Scope | Input | Output |
-|------|-------|-------|--------|
-| `publish_project_snapshot` | `memory:publish` | Complete `ProjectKnowledgeSnapshot`. | Validation result, revision, activation status, and publication facts. |
-| `search_entities` | `memory:read` | Key, name, type, or project filters. | Bounded matching corporate entities. |
-| `get_context` | `memory:read` | Entity identifier. | Entity, project, owner, relations, dependencies, and evidence. |
-| `get_dependencies` | `memory:read` | Entity identifier and inbound/outbound query. | Known dependency relationships and provenance. |
-| `find_integration_paths` | `memory:read` | Source and target corporate entities. | Known paths, ownership, provenance, and evidence. |
-| `analyze_impact` | `memory:impact` | Structured change description. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
+| Tool | Scope | Purpose | Input | Output |
+|------|-------|---------|-------|--------|
+| `publish_project_snapshot` | `memory:publish` | Publish a complete project snapshot and activate a newer revision idempotently. | Complete `ProjectKnowledgeSnapshot`. | Validation result, revision, activation status, and publication facts. |
+| `search_entities` | `memory:read` | Find tenant-visible entities with filters and pagination. | Key, name, type, or project filters. | Bounded matching corporate entities. |
+| `get_context` | `memory:read` | Read bounded context and evidence for one entity. | Entity identifier and result limits. | Entity, project, owner, relations, dependencies, and evidence. |
+| `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |
+| `find_integration_paths` | `memory:read` | Find bounded dependency paths between two entities. | Source and target entity identifiers and result limits. | Known paths, ownership, provenance, and evidence. |
+| `analyze_impact` | `memory:impact` | Analyze downstream consumers of a proposed change. | Structured change description and analysis limits. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
 
+REQUIRED: Give every public tool a clear purpose, required scope, and result boundaries in its FastMCP description.
+REQUIRED: Describe every tool argument and nested Pydantic input field in the generated MCP schema.
 REQUIRED: Keep each tool a thin adapter over one application use case.
 REQUIRED: Keep `harness_memory_mcp/services/` focused on MCP boundary concerns.
 REQUIRED: Bound results by query scope; include evidence for important relationships.
