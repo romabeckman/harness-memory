@@ -1,7 +1,7 @@
 import pytest
 
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
 
 pytestmark = pytest.mark.asyncio
 

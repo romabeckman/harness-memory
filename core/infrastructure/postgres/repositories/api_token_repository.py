@@ -2,12 +2,14 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from api.domain.entities.access_token import AccessToken
+from api.domain.entities.service_account import ServiceAccount
 from api.domain.entities.user import User
 from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
+from core.infrastructure.postgres.models.api_service_account import ApiServiceAccount
 from core.infrastructure.postgres.models.api_user import ApiUser
 
 
@@ -30,6 +32,7 @@ class ApiTokenRepository:
                 ApiAccessToken(
                     id=token.id,
                     user_id=token.user_id,
+                    service_account_id=token.service_account_id,
                     name=token.name,
                     token_hash=token.token_hash,
                     expires_at=token.expires_at,
@@ -43,10 +46,16 @@ class ApiTokenRepository:
         with self._session_factory() as session:
             return self._to_domain(session.get(ApiAccessToken, token_id))
 
-    def list(self, user_id: UUID | None = None) -> list[AccessToken]:
+    def list(
+        self,
+        user_id: UUID | None = None,
+        service_account_id: UUID | None = None,
+    ) -> list[AccessToken]:
         statement = select(ApiAccessToken).order_by(ApiAccessToken.created_at)
         if user_id is not None:
             statement = statement.where(ApiAccessToken.user_id == user_id)
+        if service_account_id is not None:
+            statement = statement.where(ApiAccessToken.service_account_id == service_account_id)
         with self._session_factory() as session:
             rows = session.scalars(statement).all()
             return [self._to_domain(row) for row in rows]
@@ -70,24 +79,35 @@ class ApiTokenRepository:
 
     def find_active_by_hash(
         self, token_hash: str, *, now: datetime
-    ) -> tuple[AccessToken, User] | None:
+    ) -> tuple[AccessToken, User | ServiceAccount] | None:
         statement = (
-            select(ApiAccessToken, ApiUser)
-            .join(ApiUser, ApiUser.id == ApiAccessToken.user_id)
+            select(ApiAccessToken, ApiUser, ApiServiceAccount)
+            .outerjoin(ApiUser, ApiUser.id == ApiAccessToken.user_id)
+            .outerjoin(
+                ApiServiceAccount,
+                ApiServiceAccount.id == ApiAccessToken.service_account_id,
+            )
             .where(
                 ApiAccessToken.token_hash == token_hash,
-                ApiAccessToken.expires_at > now,
+                or_(ApiAccessToken.expires_at.is_(None), ApiAccessToken.expires_at > now),
             )
         )
         with self._session_factory() as session:
             row = session.execute(statement).one_or_none()
             if row is None:
                 return None
-            stored, user = row
-            return (
-                self._to_domain(stored),
-                User(id=user.id, name=user.name, email=user.email),
-            )
+            stored, user, account = row
+            if user is not None:
+                owner = User(id=user.id, name=user.name, email=user.email)
+            elif account is not None:
+                owner = ServiceAccount(
+                    id=account.id,
+                    tenant_id=account.tenant_id,
+                    name=account.name,
+                )
+            else:
+                return None
+            return self._to_domain(stored), owner
 
     @staticmethod
     def _to_domain(row: ApiAccessToken | None) -> AccessToken | None:
@@ -96,9 +116,12 @@ class ApiTokenRepository:
         return AccessToken(
             id=row.id,
             user_id=row.user_id,
+            service_account_id=row.service_account_id,
             name=row.name,
             token_hash=row.token_hash,
-            expires_at=ApiTokenRepository._as_utc(row.expires_at),
+            expires_at=(
+                ApiTokenRepository._as_utc(row.expires_at) if row.expires_at is not None else None
+            ),
             created_at=ApiTokenRepository._as_utc(row.created_at),
         )
 

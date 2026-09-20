@@ -5,17 +5,25 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.domain.entities.access_token import AccessToken
+from api.domain.entities.service_account import ServiceAccount
 from api.domain.entities.user import User
 from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
+from core.infrastructure.postgres.models.api_service_account import ApiServiceAccount
 from core.infrastructure.postgres.models.api_user import ApiUser
 from core.infrastructure.postgres.models.base import Base
+from core.infrastructure.postgres.repositories.api_service_account_repository import (
+    ApiServiceAccountRepository,
+)
 from core.infrastructure.postgres.repositories.api_token_repository import ApiTokenRepository
 from core.infrastructure.postgres.repositories.api_user_repository import ApiUserRepository
 
 
 def test_user_and_token_repositories_persist_crud():
     engine = create_engine("sqlite://")
-    Base.metadata.create_all(engine, tables=[ApiUser.__table__, ApiAccessToken.__table__])
+    Base.metadata.create_all(
+        engine,
+        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
+    )
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     users = ApiUserRepository(factory)
     tokens = ApiTokenRepository(factory)
@@ -42,7 +50,10 @@ def test_user_and_token_repositories_persist_crud():
 
 def test_token_repository_authenticates_only_unexpired_hashes():
     engine = create_engine("sqlite://")
-    Base.metadata.create_all(engine, tables=[ApiUser.__table__, ApiAccessToken.__table__])
+    Base.metadata.create_all(
+        engine,
+        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
+    )
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     users = ApiUserRepository(factory)
     tokens = ApiTokenRepository(factory)
@@ -57,3 +68,35 @@ def test_token_repository_authenticates_only_unexpired_hashes():
 
     assert authenticated == (active, user)
     assert tokens.find_active_by_hash("b" * 64, now=now) is None
+
+
+def test_service_account_repository_and_non_expiring_token():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(
+        engine,
+        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
+    )
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    accounts = ApiServiceAccountRepository(factory)
+    tokens = ApiTokenRepository(factory)
+    account = accounts.add(ServiceAccount(uuid4(), uuid4(), "Build agent"))
+    now = datetime.now(UTC)
+    token = AccessToken(
+        id=uuid4(),
+        user_id=None,
+        name="automation",
+        token_hash="c" * 64,
+        expires_at=None,
+        created_at=now,
+        service_account_id=account.id,
+    )
+
+    tokens.add(token)
+
+    assert accounts.get(account.id) == account
+    assert accounts.list(account.tenant_id) == [account]
+    assert tokens.find_active_by_hash(token.token_hash, now=now) == (token, account)
+
+    accounts.delete(account.id)
+
+    assert tokens.get(token.id) is None

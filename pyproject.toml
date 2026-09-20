@@ -28,10 +28,10 @@ test = [
 ]
 
 [project.scripts]
-harness-memory = "mcp.cli:main"
+harness-memory = "harness_memory_mcp.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["api*", "mcp*", "core*", "migrations*"]
+include = ["api*", "harness_memory_mcp*", "core*", "migrations*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration", "tests/e2e"]
@@ -41,7 +41,7 @@ markers = ["asyncio: run an asynchronous test"]
 
 [tool.coverage.run]
 branch = true
-source = ["api", "mcp", "core"]
+source = ["api", "harness_memory_mcp", "core"]
 
 [tool.coverage.report]
 fail_under = 80

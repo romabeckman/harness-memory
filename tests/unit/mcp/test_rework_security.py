@@ -14,11 +14,11 @@ from core.application.tenant_security.use_cases.record_security_audit.handler im
 from core.domain.tenant_security.value_objects.authenticated_principal import (
     AuthenticatedPrincipal,
 )
-from mcp.config import RuntimeSettings, SecuritySettings
-from mcp.server.factory import create_mcp_server
-from mcp.server.http_security import install_http_security_error_mapping
-from mcp.services.audited_operation import ExecuteAuditedOperation
-from mcp.services.security_audit_middleware import AuditingTokenVerifier
+from harness_memory_mcp.config import RuntimeSettings, SecuritySettings
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.server.http_security import install_http_security_error_mapping
+from harness_memory_mcp.services.audited_operation import ExecuteAuditedOperation
+from harness_memory_mcp.services.security_audit_middleware import AuditingTokenVerifier
 
 
 class RecordingRepository:
@@ -189,7 +189,7 @@ def test_http_security_mapping_preserves_streaming_chunks():
 
 
 def test_imported_asgi_server_fails_closed_without_production_configuration():
-    import mcp.server.app as app
+    import harness_memory_mcp.server.app as app
 
     with TestClient(app.server) as client:
         response = client.post(

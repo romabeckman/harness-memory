@@ -43,3 +43,9 @@ class EntitySearchCriteria:
         if self.name is None:
             return None
         return self.name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    @property
+    def project_like(self) -> str | None:
+        if self.project is None:
+            return None
+        return self.project.lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

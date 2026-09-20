@@ -25,13 +25,13 @@ Return bounded active-snapshot context and direct dependency views for an entity
   "domain": "relationship_context",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/get_context.py", "mcp/tools/get_dependencies.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/get_context.py", "harness_memory_mcp/tools/get_dependencies.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
   ],
   "code_files": [
-    "mcp/services/tenant_context.py",
-    "mcp/services/relationship_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py",
+    "harness_memory_mcp/services/relationship_response_mapper.py",
     "core/application/entity_discovery/contracts/tenant_scope.py",
     "core/application/relationship_context/contracts/entity_context_item.py",
     "core/application/relationship_context/contracts/project_context_item.py",
@@ -75,8 +75,8 @@ Return bounded active-snapshot context and direct dependency views for an entity
 ## FOLDER STRUCTURE
 
 ```text
-mcp/tools/                                  # Thin context and dependency adapters
-mcp/services/                               # Tenant and safe response mapping
+harness_memory_mcp/tools/                                  # Thin context and dependency adapters
+harness_memory_mcp/services/                               # Tenant and safe response mapping
 core/application/relationship_context/      # Contracts, ports, and handlers
 core/infrastructure/postgres/repositories/  # Active-snapshot relationship reads
 tests/{unit,integration,e2e}/               # Contract, repository, and MCP tests
@@ -84,14 +84,14 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Active context**: Resolve the requested UUID only when it belongs to the trusted tenant and its Project's active snapshot.
+- **Active context**: Resolve a stable identity or legacy row UUID only within the trusted tenant's active snapshot; reject malformed trusted context before repository access.
 - **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
 - **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
 - **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
 
 ## HOW TO QUERY
 
-1. Discover an active entity UUID with `search_entities`.
+1. Discover a stable active entity identity with `search_entities`.
 2. Call `get_context` for project, owners, direct relations, dependency subset, provenance, and linked evidence.
 3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
 4. Treat not-found responses for unknown, stale, and other-tenant UUIDs as the same non-disclosing result.
@@ -100,7 +100,7 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `entity_id` | UUID | Yes | Active entity identity from discovery. | — |
+| `entity_id` | UUID | Yes | Stable active entity identity from discovery; legacy row UUIDs remain accepted. | — |
 | `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
 | `limit` | strict integer | No | Relation bound from 1 through 100. | `25` |
 | `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
@@ -110,6 +110,7 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 REQUIRED: Apply tenant and active-snapshot predicates to every entity, project, snapshot, relation, and evidence join.
 REQUIRED: Use one read transaction per query so returned facts come from one active snapshot.
 REQUIRED: Preserve relation direction, provenance, peer identity, and linked evidence in output projections.
+REQUIRED: Authorize `memory:read` before repository access and map authorization failures to stable MCP errors.
 PROHIBITED: Recurse through dependency paths; reserve transitive traversal for integration-path or impact features.
 PROHIBITED: Accept tenant identity from tool payloads or disclose whether another tenant owns a UUID.
 

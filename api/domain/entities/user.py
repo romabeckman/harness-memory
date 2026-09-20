@@ -7,3 +7,7 @@ class User:
     id: UUID
     name: str
     email: str
+
+    @property
+    def tenant_id(self) -> UUID:
+        return self.id

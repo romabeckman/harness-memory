@@ -25,11 +25,13 @@ class GetContextHandler:
     ):
         if tenant_scope is None:
             raise MissingTenantContext("trusted tenant context is required")
-        scope = (
-            tenant_scope
-            if isinstance(tenant_scope, TenantScope)
-            else TenantScope(getattr(tenant_scope, "tenant_id", ""))
-        )
+        if isinstance(tenant_scope, TenantScope):
+            scope = tenant_scope
+        else:
+            try:
+                scope = TenantScope(getattr(tenant_scope, "tenant_id", ""))
+            except (TypeError, ValueError, AttributeError):
+                raise MissingTenantContext("trusted tenant context is required") from None
         input_model = (
             request
             if isinstance(request, GetContextInput)

@@ -17,6 +17,7 @@ from core.application.relationship_context.use_cases.get_dependencies.handler im
 from core.application.relationship_context.use_cases.get_dependencies.inbound import (
     GetDependenciesInput,
 )
+from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
 
 
 def test_get_dependencies_delegates_direction_and_bounds_once():
@@ -32,6 +33,16 @@ def test_get_dependencies_delegates_direction_and_bounds_once():
 
     assert result is expected
     repository.load_dependencies.assert_called_once_with(scope, request)
+
+
+def test_get_dependencies_maps_invalid_trusted_context_to_missing_context():
+    repository = Mock()
+
+    with pytest.raises(MissingTenantContext):
+        GetDependenciesHandler(repository).execute(
+            GetDependenciesInput(entity_id=uuid4()), object()
+        )
+    repository.load_dependencies.assert_not_called()
 
 
 @pytest.mark.parametrize("failure", [EntityContextNotFound(), RelationshipQueryFailure()])

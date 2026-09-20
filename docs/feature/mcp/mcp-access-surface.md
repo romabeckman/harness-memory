@@ -26,14 +26,14 @@ Expose bounded memory resources and deterministic workflow prompts through the F
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
   "entrypoints": [
-    "mcp/resources/entity_resource.py",
-    "mcp/resources/project_resource.py",
-    "mcp/resources/snapshot_resource.py",
-    "mcp/prompts/load_corporate_context.py",
-    "mcp/prompts/analyze_integration.py",
-    "mcp/prompts/review_change_impact.py"
+    "harness_memory_mcp/resources/entity_resource.py",
+    "harness_memory_mcp/resources/project_resource.py",
+    "harness_memory_mcp/resources/snapshot_resource.py",
+    "harness_memory_mcp/prompts/load_corporate_context.py",
+    "harness_memory_mcp/prompts/analyze_integration.py",
+    "harness_memory_mcp/prompts/review_change_impact.py"
   ],
-  "registration_files": ["mcp/server/factory.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/mcp_access_surface/use_cases/get_project_resource/handler.py",
     "core/infrastructure/postgres/repositories/memory_resource_repository.py"
@@ -54,8 +54,8 @@ Expose bounded memory resources and deterministic workflow prompts through the F
     "core/application/mcp_access_surface/use_cases/get_snapshot_resource/handler.py",
     "core/application/mcp_access_surface/use_cases/get_snapshot_resource/inbound.py",
     "core/application/mcp_access_surface/use_cases/get_snapshot_resource/outbound.py",
-    "mcp/prompts/_guidance.py",
-    "mcp/services/resource_error_mapper.py"
+    "harness_memory_mcp/prompts/_guidance.py",
+    "harness_memory_mcp/services/resource_error_mapper.py"
   ],
   "test_files": [
     "tests/unit/core/application/mcp_access_surface/contracts/test_contracts.py",
@@ -82,8 +82,8 @@ Register three read-only resources and three prompts. Resources delegate to appl
 ## FOLDER STRUCTURE
 
 ```text
-mcp/resources/                           # Entity, project, and snapshot URI adapters
-mcp/prompts/                              # Three deterministic workflow renderers
+harness_memory_mcp/resources/                           # Entity, project, and snapshot URI adapters
+harness_memory_mcp/prompts/                              # Three deterministic workflow renderers
 core/application/mcp_access_surface/     # Resource contracts, bounds, handlers, port
 core/infrastructure/postgres/repositories/ # Bounded tenant-filtered resource reads
 tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and read tests

@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
-from uuid import uuid4
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -13,12 +13,14 @@ from core.domain.tenant_security.types import AuditEventType, AuditOutcome, Audi
 from core.domain.tenant_security.value_objects.authenticated_principal import (
     AuthenticatedPrincipal,
 )
-from mcp.services.authorization_failure import AuthorizationFailure
-from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
-from mcp.services.component_scope_policy import ComponentScopePolicy
-from mcp.services.request_security_context import RequestSecurityContext
-from mcp.services.security_failure_mapper import SecurityFailureMapper
-from mcp.server.http_security import install_http_security_error_mapping
+from harness_memory_mcp.server.http_security import install_http_security_error_mapping
+from harness_memory_mcp.services.authenticated_principal_factory import (
+    AuthenticatedPrincipalFactory,
+)
+from harness_memory_mcp.services.authorization_failure import AuthorizationFailure
+from harness_memory_mcp.services.component_scope_policy import ComponentScopePolicy
+from harness_memory_mcp.services.request_security_context import RequestSecurityContext
+from harness_memory_mcp.services.security_failure_mapper import SecurityFailureMapper
 
 
 def test_domain_record_normalizes_identifiers_and_accepts_command_mapping():
@@ -79,6 +81,15 @@ def test_policy_uri_matching_and_failure_mapping():
     assert not policy.can_access(principal, "resource", "memory://entities/abc/extra")
     mapped = SecurityFailureMapper().map(AuthorizationFailure(required_scope="memory:read"))
     assert mapped.status_code == 403
+
+
+def test_authentication_failure_mapping_always_uses_stable_invalid_token_code():
+    mapped = SecurityFailureMapper().authentication("database connection failed")
+
+    assert mapped.status_code == 401
+    assert mapped.code == "invalid_token"
+    assert mapped.message == "authentication required"
+    assert mapped.headers == {"WWW-Authenticate": 'Bearer error="invalid_token"'}
 
 
 def test_http_security_mapping_changes_only_authorization_errors():

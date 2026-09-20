@@ -66,6 +66,7 @@ class PostgresEntitySearchRepository:
         cursor: SearchCursor | None,
         limit: int,
     ):
+        stable_entity_id = func.coalesce(Entity.identity_id, Entity.id)
         predicates = [
             Project.tenant_id == scope.tenant_id,
             Entity.tenant_id == scope.tenant_id,
@@ -79,23 +80,33 @@ class PostgresEntitySearchRepository:
         if criteria.key is not None:
             predicates.append(Entity.entity_key == criteria.key)
         if criteria.project is not None:
-            predicates.append(Project.key == criteria.project)
+            predicates.append(
+                func.lower(Project.key).like(f"{criteria.project_like}%", escape="\\")
+            )
         if criteria.type is not None:
             predicates.append(Entity.entity_type == criteria.type.value)
         if criteria.name_like is not None:
             predicates.append(
-                func.lower(Entity.name).like(f"{criteria.name_like}%", escape="\\")
+                or_(
+                    func.lower(Entity.name).like(f"{criteria.name_like}%", escape="\\"),
+                    func.lower(Entity.entity_key).like(
+                        f"{criteria.name_like}%", escape="\\"
+                    ),
+                )
             )
         if cursor is not None:
             predicates.append(
                 or_(
                     Entity.entity_key > cursor.last_key,
-                    and_(Entity.entity_key == cursor.last_key, Entity.id > cursor.last_id),
+                    and_(
+                        Entity.entity_key == cursor.last_key,
+                        stable_entity_id > cursor.last_id,
+                    ),
                 )
             )
         return (
             select(
-                Entity.id,
+                stable_entity_id.label("entity_id"),
                 Entity.entity_key,
                 Entity.name,
                 Entity.entity_type,
@@ -115,7 +126,7 @@ class PostgresEntitySearchRepository:
                 ),
             )
             .where(*predicates)
-            .order_by(Entity.entity_key.asc(), Entity.id.asc())
+            .order_by(Entity.entity_key.asc(), stable_entity_id.asc())
             .limit(limit + 1)
         )
 
@@ -123,7 +134,7 @@ class PostgresEntitySearchRepository:
     def _map_row(row) -> EntitySearchItem:
         values = row._mapping
         return EntitySearchItem(
-            entity_id=values[Entity.id],
+            entity_id=values["entity_id"],
             key=values[Entity.entity_key],
             name=values[Entity.name],
             type=values[Entity.entity_type],

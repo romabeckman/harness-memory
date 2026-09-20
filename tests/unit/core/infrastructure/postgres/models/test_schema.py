@@ -17,6 +17,7 @@ def test_metadata_contains_all_registered_tables():
         "evidence",
         "users",
         "tokens",
+        "service_accounts",
     }
 
 

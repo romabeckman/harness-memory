@@ -1,4 +1,5 @@
 from .api_access_token import ApiAccessToken
+from .api_service_account import ApiServiceAccount
 from .api_user import ApiUser
 from .base import Base
 from .entity import Entity
@@ -11,6 +12,7 @@ from .snapshot import Snapshot
 
 __all__ = [
     "ApiAccessToken",
+    "ApiServiceAccount",
     "ApiUser",
     "Base",
     "Entity",

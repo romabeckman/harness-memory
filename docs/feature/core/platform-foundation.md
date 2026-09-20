@@ -22,13 +22,13 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
   "domain": "platform_foundation",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/cli.py", "mcp/server/app.py"],
-  "registration_files": ["mcp/server/factory.py", "pyproject.toml"],
+  "entrypoints": ["harness_memory_mcp/cli.py", "harness_memory_mcp/server/app.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py", "pyproject.toml"],
   "reference_files": ["core/infrastructure/postgres/engine_factory.py", "core/infrastructure/architecture/validator.py"],
   "code_files": [
-    "mcp/config.py",
-    "mcp/migration_cli.py",
-    "mcp/migration_mode.py",
+    "harness_memory_mcp/config.py",
+    "harness_memory_mcp/migration_cli.py",
+    "harness_memory_mcp/migration_mode.py",
     "core/infrastructure/architecture/rules.py",
     "core/infrastructure/architecture/violation.py",
     "core/infrastructure/postgres/alembic_runtime.py",
@@ -49,7 +49,9 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
     "core/infrastructure/postgres/models/snapshot.py",
     "core/infrastructure/postgres/models/types.py",
     "migrations/env.py",
-    "migrations/versions/001_foundation.py"
+    "migrations/versions/001_foundation.py",
+    "migrations/versions/006_default_workspace.py",
+    "migrations/versions/007_service_accounts.py"
   ],
   "test_files": [
     "tests/unit/architecture/test_rules.py",
@@ -61,7 +63,10 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
     "tests/unit/mcp/test_cli.py",
     "tests/unit/mcp/test_config.py",
     "tests/unit/mcp/server/test_factory.py",
+    "tests/unit/core/infrastructure/postgres/migrations/test_default_workspace.py",
     "tests/integration/migrations/test_initial_foundation.py",
+    "tests/integration/migrations/test_default_workspace.py",
+    "tests/integration/migrations/test_service_accounts.py",
     "tests/e2e/mcp/test_catalog.py",
     "tests/e2e/mcp/test_import.py"
   ]
@@ -75,7 +80,7 @@ Use **pragmatic DDD organized by business domain**. Keep FastMCP at the adapter 
 ## FOLDER STRUCTURE
 
 ```text
-mcp/                          # Runtime, CLI, and transport adapters
+harness_memory_mcp/                          # Runtime, CLI, and transport adapters
 core/application/             # Feature use cases and ports
 core/domain/                  # Business invariants and value objects
 core/infrastructure/postgres/ # Database configuration and adapters
@@ -88,12 +93,14 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 - **Runtime boundary**: Build the FastMCP server without database connections, migrations, or transport startup.
 - **Persistence boundary**: Keep five tenant-scoped foundation tables: projects, snapshots, entities, relations, and evidence.
 - **Migration boundary**: Use explicit Alembic revisions through the CLI; keep startup schema creation disabled.
+- **Default workspace seed**: Revision 006 inserts an `Admin` API user and a `Default Project`; `tenant_id` is the user UUID because token verification derives tenant identity from user ownership. Tenant is an identity value rather than a separate table; the seed creates no API token or admin role.
+- **Service accounts**: Revision 007 adds tenant-bound API service accounts and permits tokens without expiration for those accounts.
 - **Dependency boundary**: Let `mcp` call application code, application code use domain rules and ports, and infrastructure implement ports.
 
 ## HOW TO OPERATE
 
 1. Set `MCP_HOST` and `MCP_PORT`; keep `DATABASE_URL` optional until database work starts.
-2. Run `harness-memory migrate` to upgrade the PostgreSQL schema through Alembic head.
+2. Run `harness-memory migrate` to upgrade the PostgreSQL schema through Alembic head and apply the default workspace seed.
 3. Run `harness-memory migrate --status` to inspect current and head revisions without mutation.
 4. Add each feature under its domain packages and mirror its tests under `unit`, `integration`, and `e2e`.
 
@@ -109,8 +116,10 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 
 REQUIRED: Keep tenant, project, and snapshot ownership in composite PostgreSQL constraints.
 REQUIRED: Keep ORM models in infrastructure and map future domain objects explicitly.
+REQUIRED: Use the seeded user's UUID as the default project's tenant identity.
 REQUIRED: Redact credentials and connection details from migration diagnostics.
 PROHIBITED: Run migrations or create schema during MCP server construction.
+PROHIBITED: Treat the seeded `Admin` identity as a privileged role or assume it has an API token.
 PROHIBITED: Import FastMCP, SQLAlchemy, or PostgreSQL drivers into domain code.
 
 ## TIPS

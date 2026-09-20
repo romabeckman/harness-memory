@@ -33,7 +33,7 @@ services:
   mcp:
     build:
       context: .
-    command: ["python", "-m", "mcp.server.app"]
+    command: ["python", "-m", "harness_memory_mcp.server.app"]
     environment:
       DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       MCP_PRODUCTION: "true"

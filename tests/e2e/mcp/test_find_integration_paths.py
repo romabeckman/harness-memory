@@ -13,8 +13,8 @@ from core.application.integration_paths.use_cases.find_integration_paths.outboun
 )
 from core.application.relationship_context.contracts.entity_context_item import EntityContextItem
 from core.domain.snapshot_publication.types.entity_type import EntityType
-from mcp.server.factory import create_mcp_server
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def _output(entity_id):

@@ -25,8 +25,8 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
   "domain": "integration_paths",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/find_integration_paths.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/find_integration_paths.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/integration_paths/use_cases/find_integration_paths/handler.py",
     "core/infrastructure/postgres/repositories/integration_path_repository.py"
@@ -46,8 +46,8 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
     "core/application/integration_paths/types/path_traversal_direction.py",
     "core/application/integration_paths/use_cases/find_integration_paths/inbound.py",
     "core/application/integration_paths/use_cases/find_integration_paths/outbound.py",
-    "mcp/services/integration_path_response_mapper.py",
-    "mcp/services/tenant_context.py"
+    "harness_memory_mcp/services/integration_path_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py"
   ],
   "test_files": [
     "tests/unit/core/application/integration_paths/ports/test_integration_path_repository.py",
@@ -76,7 +76,7 @@ Use a read-only application query with PostgreSQL recursive traversal. Resolve b
 ```text
 core/application/integration_paths/       # Bounds, contracts, policy, port, handler
 core/infrastructure/postgres/repositories/ # Recursive traversal and bounded hydration
-mcp/tools/ and mcp/services/              # Public adapter and safe response mapping
+harness_memory_mcp/tools/ and harness_memory_mcp/services/              # Public adapter and safe response mapping
 tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalog tests
 ```
 
@@ -89,17 +89,18 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 
 ## HOW TO FIND PATHS
 
-1. Supply source and target active entity UUIDs; derive tenant scope from authenticated context. Active copies in different projects can connect through their shared canonical identity.
+1. Supply source and target stable identities or legacy active-row UUIDs; derive tenant scope from authenticated context. Active copies in different projects connect through shared canonical identity.
 2. Use bounds to control depth, path count, evidence, and ownership.
 3. Treat source equal to target as one zero-hop path and disconnected visible endpoints as an empty success.
 4. Treat hidden, stale, foreign, or unknown endpoints as one sanitized not-found result.
+5. Reject invalid traversal bounds before recursive query execution and expose stable `INVALID_ARGUMENT` errors.
 
 ## PARAMETERS / CONFIGURATIONS
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `source_entity_id` | UUID | Yes | Visible starting entity. | — |
-| `target_entity_id` | UUID | Yes | Visible ending entity. | — |
+| `source_entity_id` | UUID | Yes | Visible starting stable identity or legacy row UUID. | — |
+| `target_entity_id` | UUID | Yes | Visible ending stable identity or legacy row UUID. | — |
 | `max_depth` | integer | No | Path depth from 1 through 8. | `4` |
 | `max_paths` | integer | No | Returned path bound from 1 through 25. | `10` |
 | `evidence_limit` / `owner_limit` | integer | No | Per-relation/per-entity bound from 0 through 20. | `5` |
@@ -109,6 +110,7 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 REQUIRED: Anchor endpoint, traversal, ownership, and evidence reads to one coherent active-snapshot transaction.
 REQUIRED: Order paths by hop count, entity keys, and relation IDs; preserve parallel relation paths when sequences differ. Validate cross-snapshot hop continuity by canonical identity while retaining each relation's concrete endpoints.
 REQUIRED: Set truncation and termination reason when path or expansion bounds omit results.
+REQUIRED: Keep MCP authorization and argument validation outside recursive traversal.
 PROHIBITED: Join disconnected projects by entity key or return partial paths after a query failure.
 PROHIBITED: Put recursive SQL, ownership inference, or tenant selection in the MCP adapter.
 

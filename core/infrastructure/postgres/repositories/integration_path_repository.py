@@ -170,7 +170,7 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .where(
-                Entity.id == entity_id,
+                or_(Entity.id == entity_id, Entity.identity_id == entity_id),
                 Entity.tenant_id == scope.tenant_id,
                 Project.active_snapshot_id == Entity.snapshot_id,
             )

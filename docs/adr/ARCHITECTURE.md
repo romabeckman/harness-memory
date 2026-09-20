@@ -17,7 +17,7 @@ updated: 2026-09-20
 
 ## OVERVIEW
 
-Use **hexagonal architecture with pragmatic DDD** across two application modules: `api/` provides the REST management interface and `mcp/` provides the MCP interface. Both depend inward on application/domain code and reuse `core/` for shared business capabilities and PostgreSQL infrastructure.
+Use **hexagonal architecture with pragmatic DDD** across two application modules: `api/` provides the REST management interface and `harness_memory_mcp/` provides the MCP interface. Both depend inward on application/domain code and reuse `core/` for shared business capabilities and PostgreSQL infrastructure.
 
 Keep transport concerns at module boundaries. Domain rules remain independent from FastAPI, FastMCP, SQLAlchemy, PostgreSQL, and Alembic. `core/infrastructure/postgres` owns shared persistence adapters; `migrations/` owns schema revisions.
 
@@ -35,7 +35,7 @@ Keep transport concerns at module boundaries. Domain rules remain independent fr
 ```text
 harness-memory/
 ├── api/                 # FastAPI adapter, API application/domain, composition root
-├── mcp/                 # FastMCP adapter, transport security, runtime
+├── harness_memory_mcp/   # FastMCP adapter, transport security, runtime
 ├── core/                # Shared application/domain and infrastructure
 ├── migrations/          # Alembic revisions for shared PostgreSQL schema
 ├── tests/               # unit/, integration/, e2e/ mirroring source modules
@@ -44,7 +44,7 @@ harness-memory/
 
 ## DEPENDENCY RULES
 
-- **Inbound adapters**: `api/` and `mcp/` validate transport input, invoke application services/use cases, and map safe output.
+- **Inbound adapters**: `api/` and `harness_memory_mcp/` validate transport input, invoke application services/use cases, and map safe output.
 - **Application**: Coordinate use cases, contracts, ports, transactions, and typed failures without depending on transport or persistence implementations.
 - **Domain**: Enforce business invariants without framework or database imports.
 - **Shared infrastructure**: `core/infrastructure/postgres` implements persistence ports for API, MCP, and core application behavior.

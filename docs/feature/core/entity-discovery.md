@@ -25,8 +25,8 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
   "domain": "entity_discovery",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/search_entities.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/search_entities.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/entity_discovery/use_cases/search_entities/handler.py",
     "core/infrastructure/postgres/repositories/entity_search_repository.py"
@@ -51,8 +51,8 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
     "core/infrastructure/postgres/models/project.py",
     "core/infrastructure/postgres/models/snapshot.py",
     "migrations/versions/002_entity_search_indexes.py",
-    "mcp/services/entity_search_response_mapper.py",
-    "mcp/services/tenant_context.py"
+    "harness_memory_mcp/services/entity_search_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py"
   ],
   "test_files": [
     "tests/unit/core/application/entity_discovery/contracts/test_contracts.py",
@@ -77,7 +77,7 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
 ```text
 core/application/entity_discovery/   # Contracts, cursor policy, and use case
 core/infrastructure/postgres/        # Active-snapshot query and indexes
-mcp/tools/                           # Public search adapter
+harness_memory_mcp/tools/                           # Public search adapter
 tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ```
 
@@ -85,24 +85,27 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 - **Active snapshot**: Exclude historical Entity rows and Projects without an active snapshot.
 - **Conjunctive filters**: Apply every supplied key, name, type, and project filter together.
-- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last Entity key/UUID tuple.
+- **Stable identity**: Return the canonical Entity identity when present; retain the snapshot row UUID only for legacy rows.
+- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last Entity key/stable-identity tuple; reject malformed or filter-mismatched cursors.
 - **Bounded result**: Return scalar identity, Project, active Snapshot, and revision fields; omit metadata, relations, evidence, and total count.
 
 ## HOW TO SEARCH
 
 1. Supply at least one filter: `key`, `name`, `type`, or `project`.
-2. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
-3. Use a case-insensitive literal prefix for `name`; wildcard characters remain literal data.
-4. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
+2. Use exact, case-sensitive matching for `key`; use exact type matching.
+3. Use a case-insensitive literal prefix for `name` across Entity name and key; wildcard characters remain literal data.
+4. Use a case-insensitive literal prefix for `project`; keep results tenant-scoped and active-snapshot bound.
+5. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
+6. Return the applied `limit`; return `INVALID_ARGUMENT` for missing filters and `INVALID_SEARCH_CURSOR` for malformed cursors.
 
 ## PARAMETERS / CONFIGURATIONS
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
 | `key` | string | No | Exact Entity key, trimmed. | unset |
-| `name` | string | No | Case-insensitive literal prefix, trimmed. | unset |
+| `name` | string | No | Case-insensitive literal Entity name or key prefix, trimmed. | unset |
 | `type` | EntityType | No | Exact supported Entity type. | unset |
-| `project` | string | No | Exact Project key, trimmed. | unset |
+| `project` | string | No | Case-insensitive literal Project key prefix, trimmed. | unset |
 | `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
 
@@ -111,6 +114,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 REQUIRED: Read only active-snapshot rows and apply trusted tenant predicates to every repository query.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
 REQUIRED: Keep cursor contents free of tenant identity and contextual data.
+REQUIRED: Validate result identity strings before emitting MCP responses.
 PROHIBITED: Return metadata, relations, evidence, payloads, or a total count from this tool.
 PROHIBITED: Add fuzzy, infix, ranked, or full-text search behavior to this bounded capability.
 

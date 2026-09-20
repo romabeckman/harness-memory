@@ -60,10 +60,13 @@ class PostgresSnapshotPublicationRepository:
         for attempt in range(2):
             try:
                 return self._publish_once(tenant_id, snapshot, payload_hash)
-            except (IntegrityError, OperationalError) as error:
-                if isinstance(error, OperationalError) and not self._is_serialization_failure(
-                    error
-                ):
+            except IntegrityError as error:
+                if not self._is_retryable_integrity_error(error):
+                    raise PersistenceFailure(str(error)) from None
+                if attempt == 1:
+                    raise PersistenceFailure() from None
+            except OperationalError as error:
+                if not self._is_retryable_operational_error(error):
                     raise PersistenceFailure(str(error)) from None
                 if attempt == 1:
                     raise PersistenceFailure() from None
@@ -150,18 +153,36 @@ class PostgresSnapshotPublicationRepository:
         except (RevisionConflict, StaleRevision, PersistenceFailure, IntegrityError):
             raise
         except OperationalError as error:
-            if self._is_serialization_failure(error):
+            if self._is_retryable_operational_error(error):
                 raise
             raise PersistenceFailure(str(error)) from None
         except Exception as error:
             raise PersistenceFailure(str(error)) from None
 
     @staticmethod
-    def _is_serialization_failure(error: OperationalError) -> bool:
+    def _is_retryable_operational_error(error: OperationalError) -> bool:
         original = getattr(error, "orig", None)
-        return getattr(original, "pgcode", None) == "40001" or getattr(
-            original, "sqlstate", None
-        ) == "40001"
+        sqlstate = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+        if sqlstate in {"40001", "40P01"}:
+            return True
+        detail = str(original or error).lower()
+        return "database is locked" in detail or "deadlock detected" in detail
+
+    @staticmethod
+    def _is_retryable_integrity_error(error: IntegrityError) -> bool:
+        original = getattr(error, "orig", None)
+        sqlstate = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+        if sqlstate == "23505":
+            return True
+        detail = str(original or error).lower()
+        return "unique constraint" in detail or "duplicate key" in detail
+
+    @staticmethod
+    def _is_serialization_failure(error: OperationalError) -> bool:
+        """Backward-compatible classifier for PostgreSQL serialization failures."""
+        original = getattr(error, "orig", None)
+        sqlstate = getattr(original, "pgcode", None) or getattr(original, "sqlstate", None)
+        return sqlstate == "40001"
 
     @staticmethod
     def _record(

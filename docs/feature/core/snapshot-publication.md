@@ -25,15 +25,15 @@ Publish a complete immutable project snapshot and switch its active pointer atom
   "domain": "snapshot_publication",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/publish_project_snapshot.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/publish_project_snapshot.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/domain/snapshot_publication/aggregates/project_knowledge_snapshot.py",
     "core/infrastructure/postgres/repositories/snapshot_publication_repository.py"
   ],
   "code_files": [
-    "mcp/services/tenant_context.py",
-    "mcp/services/publication_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py",
+    "harness_memory_mcp/services/publication_response_mapper.py",
     "core/application/snapshot_publication/contracts/base.py",
     "core/application/snapshot_publication/contracts/entity_input.py",
     "core/application/snapshot_publication/contracts/evidence_input.py",
@@ -84,6 +84,8 @@ Publish a complete immutable project snapshot and switch its active pointer atom
     "tests/unit/core/domain/snapshot_publication/services/test_revision_policy.py",
     "tests/unit/core/domain/snapshot_publication/test_snapshot_domain.py",
     "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_persistence_mapper.py",
+    "tests/unit/core/infrastructure/postgres/test_snapshot_write_policy.py",
+    "tests/unit/mcp/services/test_publication_response_mapper.py",
     "tests/integration/core/infrastructure/postgres/repositories/test_snapshot_publication_repository.py",
     "tests/e2e/mcp/test_publish_project_snapshot.py"
   ]
@@ -100,7 +102,7 @@ Validate a complete schema `1.0` payload, build an immutable domain aggregate, c
 core/domain/snapshot_publication/        # Snapshot invariants and revision policy
 core/application/snapshot_publication/  # Contracts, hashing, and publication use case
 core/infrastructure/postgres/            # Graph mapping and atomic persistence
-mcp/tools/                               # Public publication adapter
+harness_memory_mcp/tools/                               # Public publication adapter
 tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contracts
 ```
 
@@ -117,6 +119,7 @@ tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contract
 2. Supply tenant context through the adapter boundary; exclude `tenant_id` from the snapshot payload.
 3. Resolve relation endpoints and evidence references within the same snapshot.
 4. Treat `ACTIVATED` as a new active snapshot and `ALREADY_PUBLISHED` as an idempotent retry.
+5. Treat retryable uniqueness, serialization, and deadlock races as bounded retries; map other persistence failures safely.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -134,6 +137,7 @@ tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contract
 REQUIRED: Hash validated canonical content, including revision and normalized timestamp, while excluding tenant context.
 REQUIRED: Keep Pydantic shape validation separate from domain graph invariants.
 REQUIRED: Map persistence failures to stable MCP-safe errors without SQL, credentials, or payload contents.
+REQUIRED: Keep publication authorization failures separate from graph invariant and persistence failures.
 PROHIBITED: Delete historical snapshots when activating a newer revision.
 PROHIBITED: Allow arbitrary graph mutations outside complete snapshot publication.
 

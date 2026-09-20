@@ -25,8 +25,8 @@ Analyze structured changes against active tenant graph relationships through `an
   "domain": "impact_analysis",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/analyze_impact.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/analyze_impact.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/impact_analysis/use_cases/analyze_impact/handler.py",
     "core/infrastructure/postgres/repositories/impact_analysis_repository.py"
@@ -42,7 +42,7 @@ Analyze structured changes against active tenant graph relationships through `an
     "core/application/impact_analysis/use_cases/analyze_impact/inbound.py",
     "core/application/impact_analysis/use_cases/analyze_impact/outbound.py",
     "migrations/versions/003_canonical_impact_identity.py",
-    "mcp/services/impact_response_mapper.py"
+    "harness_memory_mcp/services/impact_response_mapper.py"
   ],
   "test_files": [
     "tests/unit/core/application/impact_analysis/contracts/test_contracts.py",
@@ -65,7 +65,7 @@ Accept one changed entity, structured change description, and bounded analysis l
 core/application/impact_analysis/          # Change contracts, bounds, port, handler
 core/infrastructure/postgres/repositories/ # Canonical identity traversal and report assembly
 migrations/                                # Canonical impact identity revision
-mcp/tools/ and mcp/services/               # Scope enforcement and response mapping
+harness_memory_mcp/tools/ and harness_memory_mcp/services/               # Scope enforcement and response mapping
 tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 ```
 
@@ -74,12 +74,13 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 - **Consumer edge**: Traverse only inbound `consumes`, `depends_on`, and `subscribes_to` relations.
 - **Classification**: Put shortest-depth one consumers in `direct_consumers`; put depth two or greater in `indirect_consumers`.
 - **Canonical identity**: Resolve project-local active copies through canonical identity without duplicating returned consumers.
+- **Change contract**: Require one unambiguous target across supported target fields; accept only bounded `change_type`, `description`, and `changed_fields`.
 - **Impact context**: Derive projects and teams from impacted consumers; reuse integration-path views for paths, ownership, provenance, and evidence.
-- **Response budget**: Cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
+- **Response budget**: Apply per-consumer owner bounds, cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
 
 ## HOW TO ANALYZE IMPACT
 
-1. Submit a changed entity UUID and a bounded structured change; never submit tenant identity.
+1. Submit exactly one stable changed-entity identity or legacy active-row UUID; never submit conflicting targets or tenant identity.
 2. Require trusted tenant scope and read only active snapshot facts.
 3. Treat `unknowns` as explicit knowledge gaps for no consumers, missing requested evidence, or bounded traversal.
 4. Treat `truncated=true` as incomplete graph coverage; preserve deterministic ordering.
@@ -88,6 +89,7 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
+| `entity_id` / target aliases | UUID | Exactly one target | Stable changed-entity identity; legacy aliases remain compatible. | — |
 | `change_type` | string | Yes | Change category, 1–64 characters. | — |
 | `description` | string | Yes | Bounded change explanation, up to 4096 characters. | — |
 | `changed_fields` | string array | No | Typed fields affected by the change. | `[]` |
@@ -101,8 +103,10 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 REQUIRED: Enforce graph and response bounds during traversal and context loading, then perform an authoritative serialized-size check across consumers, paths, projects, teams, metadata, and evidence.
 REQUIRED: Deduplicate affected projects and teams from impacted consumers; exclude the changed entity's own context unless reached through impact.
 REQUIRED: Preserve provenance and bounded evidence; distinguish intentional evidence omission from missing evidence.
+REQUIRED: Deduplicate consumer classification by canonical identity and report byte truncation once in `unknowns`.
 PROHIBITED: Infer impact with an LLM or traverse ownership, structural, provider, or publication relations as consumer edges.
 PROHIBITED: Leak tenant, SQL, persistence, or free-text details through failure mapping or audit details.
+REQUIRED: Return `INVALID_IMPACT_CONTRACT` with a precise required or ambiguous target message before repository access.
 
 ## TIPS
 

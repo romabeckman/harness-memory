@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -76,12 +76,13 @@ def _seed(session_factory):
                 ),
                 Entity(
                     id=uuid4(),
+                    identity_id=UUID(int=100),
                     tenant_id="tenant-a",
                     project_id=project.id,
                     snapshot_id=active.id,
                     entity_key="payments-api",
                     entity_type="api",
-                    name="Payments API",
+                    name="GET /payments/{id}",
                     metadata_json={},
                 ),
                 Entity(
@@ -114,6 +115,12 @@ def test_repository_returns_active_tenant_rows_with_exact_and_prefix_filters():
     assert [item.key for item in result.items] == ["payments-api"]
     assert result.items[0].revision == 2
     assert result.items[0].project_key == "payments"
+    assert result.items[0].entity_id == UUID(int=100)
+
+    project_prefix = repository.search(
+        TenantScope("tenant-a"), EntitySearchCriteria(project="pay"), None, 25
+    )
+    assert [item.key for item in project_prefix.items] == ["payments-api"]
 
 
 def test_repository_escapes_name_wildcards_and_paginates_without_duplicates():

@@ -5,8 +5,8 @@ from fastmcp import FastMCP
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.relationship_context.types.relationship_direction import RelationshipDirection
-from mcp.services.tenant_context import TenantContextProvider
-from mcp.tools.get_dependencies import register_get_dependencies
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
 
 
 def test_get_dependencies_accepts_direction_and_uses_trusted_scope():

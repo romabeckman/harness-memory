@@ -171,6 +171,21 @@ def test_repository_distinguishes_direct_and_transitive_consumers_with_paths_evi
     assert result.unknowns == ()
 
 
+def test_repository_accepts_stable_changed_entity_identity():
+    session_factory = _session_factory()
+    ids = _seed(session_factory)
+    stable_id = __import__("uuid").uuid4()
+    with session_factory() as session:
+        session.get(Entity, ids["changed"]).identity_id = stable_id
+        session.commit()
+
+    result = PostgresImpactAnalysisRepository(session_factory).analyze_impact(
+        TenantScope("tenant-a"), AnalyzeImpactInput(entity_id=stable_id)
+    )
+
+    assert result.changed_entity.identity_id == stable_id
+
+
 def _publish_cross_project_graph():
     engine = create_engine(TEST_DATABASE_URL)
     Base.metadata.drop_all(engine)

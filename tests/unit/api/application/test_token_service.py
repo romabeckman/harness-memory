@@ -6,6 +6,7 @@ import pytest
 
 from api.application.services.token_service import TokenService
 from api.domain.entities.access_token import AccessToken
+from api.domain.entities.service_account import ServiceAccount
 from api.domain.entities.user import User
 
 
@@ -64,3 +65,40 @@ def test_rejects_update_that_extends_token_beyond_original_ninety_day_window():
             expires_at=issued_at + timedelta(days=91),
             now=now,
         )
+
+
+def test_issues_non_expiring_token_for_service_account():
+    tenant_id = uuid4()
+    account = ServiceAccount(uuid4(), tenant_id, "Build agent")
+    service_account_repository = Mock()
+    service_account_repository.get.return_value = account
+    token_repository = Mock()
+    token_repository.add.side_effect = lambda token: token
+
+    issued = TokenService(
+        token_repository,
+        Mock(),
+        service_account_repository=service_account_repository,
+    ).create(service_account_id=account.id, name="automation", expires_at=None)
+
+    assert issued.token.user_id is None
+    assert issued.token.service_account_id == account.id
+    assert issued.token.expires_at is None
+
+
+def test_user_token_still_requires_expiration():
+    user_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
+
+    with pytest.raises(ValueError, match="user tokens require an expiration"):
+        TokenService(Mock(), user_repository).create(
+            user_id=user_id, name="automation", expires_at=None
+        )
+
+
+def test_token_requires_exactly_one_owner():
+    service = TokenService(Mock(), Mock(), service_account_repository=Mock())
+
+    with pytest.raises(ValueError, match="exactly one token owner"):
+        service.create(name="automation", expires_at=None)

@@ -5,8 +5,8 @@ from fastmcp import FastMCP
 from core.application.mcp_access_surface.contracts.project_resource_input import (
     ProjectResourceInput,
 )
-from mcp.resources.project_resource import register_project_resource
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.resources.project_resource import register_project_resource
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def test_project_resource_decodes_percent_encoded_key_once():

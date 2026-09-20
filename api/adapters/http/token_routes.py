@@ -17,6 +17,7 @@ def create_token_router(service: TokenService) -> APIRouter:
         try:
             issued = service.create(
                 user_id=payload.user_id,
+                service_account_id=payload.service_account_id,
                 name=payload.name,
                 expires_at=payload.expires_at,
             )
@@ -28,21 +29,26 @@ def create_token_router(service: TokenService) -> APIRouter:
         return TokenCreatedResponse(
             id=token.id,
             user_id=token.user_id,
+            service_account_id=token.service_account_id,
             name=token.name,
             expires_at=token.expires_at,
             token=issued.plaintext,
         )
 
     @router.get("", response_model=list[TokenResponse])
-    def list_tokens(user_id: UUID | None = None) -> list[TokenResponse]:
+    def list_tokens(
+        user_id: UUID | None = None,
+        service_account_id: UUID | None = None,
+    ) -> list[TokenResponse]:
         return [
             TokenResponse(
                 id=item.id,
                 user_id=item.user_id,
+                service_account_id=item.service_account_id,
                 name=item.name,
                 expires_at=item.expires_at,
             )
-            for item in service.list(user_id)
+            for item in service.list(user_id, service_account_id)
         ]
 
     @router.get("/{token_id}", response_model=TokenResponse)
@@ -54,6 +60,7 @@ def create_token_router(service: TokenService) -> APIRouter:
         return TokenResponse(
             id=token.id,
             user_id=token.user_id,
+            service_account_id=token.service_account_id,
             name=token.name,
             expires_at=token.expires_at,
         )
@@ -73,6 +80,7 @@ def create_token_router(service: TokenService) -> APIRouter:
         return TokenResponse(
             id=token.id,
             user_id=token.user_id,
+            service_account_id=token.service_account_id,
             name=token.name,
             expires_at=token.expires_at,
         )

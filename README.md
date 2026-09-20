@@ -99,7 +99,7 @@ review_change_impact
 Harness Memory uses pragmatic Domain-Driven Design. Business rules remain independent from MCP transport and PostgreSQL implementation details.
 
 ```text
-mcp ────────► core/application ────────► core/domain
+harness_memory_mcp ────────► core/application ────────► core/domain
                     │
                     ▼
              application ports
@@ -214,7 +214,7 @@ Run the test tiers in source order:
 ./venv/bin/python -m pytest tests/unit
 ./venv/bin/python -m pytest tests/integration
 ./venv/bin/python -m pytest tests/e2e
-./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80
+./venv/bin/python -m pytest --cov=api --cov=core --cov=harness_memory_mcp --cov-branch --cov-fail-under=80
 ```
 
 The 80% global branch coverage gate is required in CI. Ruff format and lint must
@@ -253,14 +253,40 @@ For a remote deployment, use its publicly reachable HTTPS URL, such as
 ### Authentication
 
 The Compose configuration enables database authentication with
-`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/users`,
-then create its token through `POST http://localhost:8080/tokens`. Save the plaintext
+`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/v1/users`,
+then create its token through `POST http://localhost:8080/v1/tokens`. Save the plaintext
 token returned once by the creation response.
+
+For automation, create a tenant-bound service account through `POST /v1/service-accounts`,
+then issue its token through `POST /v1/tokens` with `service_account_id`. Omit `expires_at`
+to create a non-expiring service-account token. See the [API guide](api/README.md).
 
 Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
 value, accepts only an active stored token, and derives subject and tenant identity
 from its owning user. API-issued tokens authenticate MCP clients only; they do not
 authenticate REST API requests.
+
+### Set the MCP token environment variable
+
+Replace `<token>` with the plaintext token returned once by `POST /v1/tokens`. Keep
+the token secret; do not commit it or put it directly in the MCP configuration.
+
+On Windows, use PowerShell to create a persistent user environment variable:
+
+```powershell
+setx HARNESS_MEMORY_TOKEN "<token>"
+```
+
+Restart Codex so it reads the updated environment.
+
+On Linux, export the variable in the shell that starts Codex:
+
+```bash
+export HARNESS_MEMORY_TOKEN="<token>"
+```
+
+This applies to the current shell and its child processes. For Bash login sessions,
+add the `export` line to `~/.profile`, then start a new login session.
 
 ### Claude Code
 
@@ -318,7 +344,7 @@ Add this server to the `mcpServers` object in the global
 }
 ```
 
-Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /tokens`. Keep this global
+Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /v1/tokens`. Keep this global
 configuration private because it contains the token. Antigravity CLI also supports
 workspace configuration in `.agents/mcp_config.json`; do not commit a real token
 there. Open the MCP Servers panel in the IDE, or run `/mcp` in Antigravity CLI, to

@@ -7,19 +7,43 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_validator,
-    model_validator,
 )
 
 from core.domain.snapshot_publication.types.entity_type import EntityType
 
 
 class SearchEntitiesInput(BaseModel):
-    key: Annotated[StrictStr | None, Field(max_length=255)] = None
-    name: Annotated[StrictStr | None, Field(max_length=255)] = None
-    type: EntityType | None = None
-    project: Annotated[StrictStr | None, Field(max_length=255)] = None
-    limit: StrictInt = Field(default=25, ge=1, le=100)
-    cursor: Annotated[StrictStr | None, Field(max_length=1024)] = None
+    key: Annotated[
+        StrictStr | None,
+        Field(max_length=255, description="Match an entity's stable key exactly."),
+    ] = None
+    name: Annotated[
+        StrictStr | None,
+        Field(
+            max_length=255,
+            description="Match names that start with this text, ignoring case.",
+        ),
+    ] = None
+    type: EntityType | None = Field(
+        default=None, description="Restrict results to one entity type."
+    )
+    project: Annotated[
+        StrictStr | None,
+        Field(max_length=255, description="Match one project key exactly."),
+    ] = None
+    limit: StrictInt = Field(
+        default=25,
+        ge=1,
+        le=100,
+        description="Maximum number of results in this page, from 1 to 100.",
+    )
+    cursor: Annotated[
+        StrictStr | None,
+        Field(
+            max_length=1024,
+            description="Opaque continuation token returned by the previous page.",
+        ),
+    ] = None
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -32,9 +56,3 @@ class SearchEntitiesInput(BaseModel):
         if not value:
             raise ValueError("search filter must not be empty")
         return value
-
-    @model_validator(mode="after")
-    def require_filter(self):
-        if self.key is None and self.name is None and self.type is None and self.project is None:
-            raise ValueError("at least one discovery filter is required")
-        return self

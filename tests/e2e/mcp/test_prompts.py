@@ -1,7 +1,7 @@
 import pytest
 from fastmcp import Client
 
-from mcp.server.factory import create_mcp_server
+from harness_memory_mcp.server.factory import create_mcp_server
 
 
 @pytest.mark.asyncio

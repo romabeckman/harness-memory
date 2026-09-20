@@ -50,6 +50,16 @@ def test_structured_change_can_be_nested_and_rejects_missing_target():
         AnalyzeImpactInput(change_type="schema", description="No target")
 
 
+def test_structured_change_rejects_unknown_nested_fields():
+    with pytest.raises(ValidationError):
+        ChangeDescription(entity_id=uuid4(), metadata={"secret": "value"})
+
+
+def test_structured_change_rejects_conflicting_target_aliases():
+    with pytest.raises(ValidationError):
+        AnalyzeImpactInput(entity_id=uuid4(), changed_entity_id=uuid4())
+
+
 def test_bounds_reject_unbounded_impact_queries():
     with pytest.raises(ValidationError):
         ImpactAnalysisBounds(max_depth=0)
@@ -74,6 +84,29 @@ def test_output_rejects_overlapping_consumer_classifications():
             changed_entity=consumer.entity,
             direct_consumers=(consumer,),
             indirect_consumers=(consumer,),
+        )
+
+
+def test_output_rejects_overlapping_canonical_consumer_classifications():
+    consumer = _consumer(depth=1)
+    canonical_id = uuid4()
+    indirect = consumer.model_copy(
+        update={
+            "entity": consumer.entity.model_copy(
+                update={"id": uuid4(), "identity_id": canonical_id}
+            ),
+            "depth": 2,
+        }
+    )
+    direct = consumer.model_copy(
+        update={"entity": consumer.entity.model_copy(update={"identity_id": canonical_id})}
+    )
+
+    with pytest.raises(ValidationError, match="disjoint"):
+        AnalyzeImpactOutput(
+            changed_entity=_entity("changed"),
+            direct_consumers=(direct,),
+            indirect_consumers=(indirect,),
         )
 
 

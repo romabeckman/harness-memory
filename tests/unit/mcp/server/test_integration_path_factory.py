@@ -1,7 +1,7 @@
 from unittest.mock import Mock
 
-from mcp.server.factory import create_mcp_server
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def test_factory_registers_configured_integration_path_repository():

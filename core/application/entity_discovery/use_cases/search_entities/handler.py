@@ -65,6 +65,7 @@ class SearchEntitiesHandler:
         return SearchEntitiesOutput(
             items=page.items,
             count=page.count,
+            limit=page.limit,
             next_cursor=next_cursor,
         )
 

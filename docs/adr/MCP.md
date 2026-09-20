@@ -22,7 +22,7 @@ Define the FastMCP surface for publishing, querying, and analyzing corporate eng
 ## OVERVIEW
 
 Use **FastMCP** for the knowledge interface: tools for actions, resources for bounded reads, and prompts for agent guidance. The separate FastAPI module manages users and MCP access tokens; it does not expose these knowledge operations.
-Group application contracts and use cases by business domain; keep `mcp/server` and `mcp/tools` as adapter boundaries.
+Group application contracts and use cases by business domain; keep `harness_memory_mcp/server` and `harness_memory_mcp/tools` as adapter boundaries.
 Run MCP over HTTP in production and use the FastMCP in-process client for development and contract tests.
 
 ## FOLDER STRUCTURE
@@ -30,37 +30,19 @@ Run MCP over HTTP in production and use the FastMCP in-process client for develo
 Keep MCP adapters thin. Add business rules to application or domain layers.
 
 ```text
-<project-root-folder>/
-├── mcp/
-│   ├── server/             # FastMCP registration and runtime.
-│   ├── tools/              # One file per public MCP tool; call application handlers.
-│   │   ├── publish_project_snapshot.py
-│   │   ├── search_entities.py
-│   │   ├── get_context.py
-│   │   ├── get_dependencies.py
-│   │   ├── find_integration_paths.py
-│   │   └── analyze_impact.py
-│   ├── services/            # Authentication, tenant context, and response mapping.
-│   ├── config.py            # Runtime configuration.
-│   └── cli.py               # Operational commands.
-└── core/
-    ├── domain/              # Business-domain packages with entities, value_objects, services, and ports.
-    ├── application/        # Business-domain packages with use_cases, services, and ports.
-    └── infrastructure/
-        └── postgres/
-            ├── config.py   # PostgreSQL configuration.
-            ├── models/     # PostgreSQL persistence models.
-            └── repositories/ # Repository implementations.
+<project-root>/
++-- harness_memory_mcp/
+|   +-- server/              # FastMCP registration and runtime.
+|   +-- tools/               # Thin public adapters over application use cases.
+|   +-- services/            # Authentication, tenant context, and response mapping.
+|   +-- config.py, cli.py    # Runtime settings and operational commands.
++-- core/
+    +-- domain/              # Entities, value objects, invariants, and ports.
+    +-- application/         # Contracts, use cases, services, and ports.
+    +-- infrastructure/postgres/ # Models, repositories, and database configuration.
 ```
 
 ## MAIN CONCEPTS / COMPONENTS
-
-### Interface categories
-
-- **Tools**: Execute validated use cases and return structured results.
-- **Resources**: Read bounded entity, project, or snapshot context by URI.
-- **Prompts**: Guide agent workflows; never own business logic.
-- **Pydantic schemas**: Validate tool input and serialize stable tool/resource output.
 
 ### Request flow
 
@@ -70,21 +52,25 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 4. Enforce `core/domain` invariants and execute `core/infrastructure` PostgreSQL work in the required transaction.
 5. Return a bounded Pydantic response with provenance, evidence, and unknowns where applicable.
 
+For production Streamable HTTP, use stateless mode so each tool request can run without a prior session initialization. Keep malformed tool arguments in HTTP `200` JSON-RPC tool results with `isError: true` and stable `INVALID_ARGUMENT` text. Map authentication failures to `401` with a stable `invalid_token` body and authorization failures to `403` with an `insufficient_scope` challenge. Keep application error payloads free of verifier, persistence, tenant, and request-secret details.
+
 ## TOOLS
 
-Keep one public tool per file under `mcp/tools/`. Register modules through `mcp/server/`; delegate each handler to one domain-grouped application use case.
+Keep one public tool per file under `harness_memory_mcp/tools/`. Register modules through `harness_memory_mcp/server/`; delegate each handler to one domain-grouped application use case.
 
-| Tool | Scope | Input | Output |
-|------|-------|-------|--------|
-| `publish_project_snapshot` | `memory:publish` | Complete `ProjectKnowledgeSnapshot`. | Validation result, revision, activation status, and publication facts. |
-| `search_entities` | `memory:read` | Key, name, type, or project filters. | Bounded matching corporate entities. |
-| `get_context` | `memory:read` | Entity identifier. | Entity, project, owner, relations, dependencies, and evidence. |
-| `get_dependencies` | `memory:read` | Entity identifier and inbound/outbound query. | Known dependency relationships and provenance. |
-| `find_integration_paths` | `memory:read` | Source and target corporate entities. | Known paths, ownership, provenance, and evidence. |
-| `analyze_impact` | `memory:impact` | Structured change description. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
+| Tool | Scope | Purpose | Input | Output |
+|------|-------|---------|-------|--------|
+| `publish_project_snapshot` | `memory:publish` | Publish a complete project snapshot and activate a newer revision idempotently. | Complete `ProjectKnowledgeSnapshot`. | Validation result, revision, activation status, and publication facts. |
+| `search_entities` | `memory:read` | Find tenant-visible entities with filters and pagination. | Key, name, type, or project filters. | Bounded matching corporate entities. |
+| `get_context` | `memory:read` | Read bounded context and evidence for one entity. | Entity identifier and result limits. | Entity, project, owner, relations, dependencies, and evidence. |
+| `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |
+| `find_integration_paths` | `memory:read` | Find bounded dependency paths between two entities. | Source and target entity identifiers and result limits. | Known paths, ownership, provenance, and evidence. |
+| `analyze_impact` | `memory:impact` | Analyze downstream consumers of a proposed change. | Structured change description and analysis limits. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
 
+REQUIRED: Give every public tool a clear purpose, required scope, and result boundaries in its FastMCP description.
+REQUIRED: Describe every tool argument and nested Pydantic input field in the generated MCP schema.
 REQUIRED: Keep each tool a thin adapter over one application use case.
-REQUIRED: Keep `mcp/services/` focused on MCP boundary concerns.
+REQUIRED: Keep `harness_memory_mcp/services/` focused on MCP boundary concerns.
 REQUIRED: Bound results by query scope; include evidence for important relationships.
 PROHIBITED: Let tools mutate arbitrary graph nodes or edges outside snapshot publication.
 PROHIBITED: Use an LLM to guess impact when graph relationships or evidence are absent.
@@ -113,23 +99,13 @@ PROHIBITED: Expose tenant data through an identifier without authenticated tenan
 
 Prompts guide tool usage only. Keep authorization, validation, persistence, and impact logic outside prompts.
 
-## PYDANTIC CONTRACTS
+## CONTRACTS
 
 REQUIRED: Use Pydantic `inbound.py` and `outbound.py` models for application use-case contracts.
 REQUIRED: Reject malformed fields and unsupported `schema_version` values before persistence.
-REQUIRED: Keep domain invariants separate from shape validation; validate relation endpoints, revisions, and tenant scope in domain/application code.
+REQUIRED: Keep shape validation separate from domain invariants; validate relation endpoints, revisions, and tenant scope in domain/application code.
 REQUIRED: Map application outbound contracts to stable MCP tool and resource responses.
 PROHIBITED: Pass persistence models or unvalidated dictionaries from FastMCP handlers into domain services.
-
-```python
-# CORRECT: validate at the MCP boundary, then delegate.
-def search_entities(request: SearchEntitiesInput) -> SearchEntitiesOutput:
-    return query_service.search(request)
-
-# WRONG: mix transport parsing, persistence, and business rules in a tool.
-def publish_project_snapshot(payload: dict):
-    database.insert(payload)
-```
 
 ## SECURITY AND OPERATIONS
 
@@ -139,7 +115,8 @@ def publish_project_snapshot(payload: dict):
 | Authorization | Enforce exact `memory:read`, `memory:publish`, and `memory:impact` scopes; deny unmapped components. |
 | Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
 | Audit | Record snapshot publication, impact analysis, authentication failures, and authorization failures. |
-| Transport | Use in-process client for development/tests and HTTP for production. |
+| Transport | Use in-process client for development/tests and stateless Streamable HTTP for production. |
+| HTTP errors | Keep malformed arguments as HTTP `200` JSON-RPC tool errors marked `INVALID_ARGUMENT`; map authentication to `401` and authorization to `403`. |
 
 ## TEST CONTRACT
 

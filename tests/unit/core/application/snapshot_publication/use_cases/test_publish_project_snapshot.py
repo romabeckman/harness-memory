@@ -2,6 +2,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from core.application.snapshot_publication.types.publication_context import PublicationContext
 from core.application.snapshot_publication.types.publication_record import PublicationRecord
@@ -10,6 +11,9 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.ha
 )
 from core.application.snapshot_publication.use_cases.publish_project_snapshot.inbound import (
     PublishProjectSnapshotInput,
+)
+from core.application.snapshot_publication.use_cases.publish_project_snapshot.outbound import (
+    PublishProjectSnapshotOutput,
 )
 from core.domain.snapshot_publication.errors.persistence_failure import PersistenceFailure
 from tests.unit.core.application.snapshot_publication.helpers import valid_payload
@@ -80,3 +84,18 @@ def test_handler_requires_context_and_sanitizes_persistence_failure():
         PublishProjectSnapshotHandler(store).execute(request, PublicationContext("tenant-a"))
     assert "secret" not in str(error.value)
     store.publish_atomically.assert_called_once()
+
+
+def test_publication_output_accepts_only_stable_statuses():
+    with pytest.raises(ValidationError):
+        PublishProjectSnapshotOutput(
+            status="UNKNOWN",
+            snapshot_id=uuid4(),
+            requested_revision=1,
+            stored_revision=1,
+            active_snapshot_id=uuid4(),
+            payload_hash="a" * 64,
+            entity_count=0,
+            relation_count=0,
+            evidence_count=0,
+        )

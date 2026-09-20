@@ -1,5 +1,5 @@
 import pytest
-from mcp.services.trace_context_extractor import TraceContextExtractor
+from harness_memory_mcp.services.trace_context_extractor import TraceContextExtractor
 
 
 def test_extract_valid_w3c_trace_id():

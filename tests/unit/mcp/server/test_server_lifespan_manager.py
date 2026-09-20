@@ -5,7 +5,7 @@ import pytest
 
 from core.domain.platform.schema_incompatible_error import SchemaIncompatibleError
 from core.infrastructure.postgres.migrations_status import MigrationStatus
-from mcp.server.server_lifespan_manager import ServerLifespanManager
+from harness_memory_mcp.server.server_lifespan_manager import ServerLifespanManager
 
 
 def test_failed_startup_disposes_runtime_resources():

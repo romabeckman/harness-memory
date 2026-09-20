@@ -21,7 +21,7 @@ updated: 2026-09-20
 
 ## PURPOSE
 
-`api/` is the project's second application module. It exposes FastAPI endpoints for user and access-token CRUD, a process health check, and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
+`api/` is the project's second application module. It exposes FastAPI endpoints for user, tenant-bound service-account, and access-token CRUD, a process health check, and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
 
 ## MODULE BOUNDARIES
 
@@ -29,10 +29,10 @@ updated: 2026-09-20
 |-------|----------|----------------|
 | HTTP adapter | `api/adapters/http/` | Define route factories and Pydantic request/response schemas; translate application failures to HTTP responses. |
 | Application | `api/application/services/`, `api/application/ports/` | Coordinate CRUD operations and depend on repository interfaces, not SQLAlchemy. |
-| Domain | `api/domain/entities/`, `api/domain/services/` | Model users, access tokens, issued plaintext, and the maximum token lifetime. |
+| Domain | `api/domain/entities/`, `api/domain/services/` | Model users, service accounts, access tokens, issued plaintext, and token lifetime rules. |
 | Composition root | `api/server/app.py` | Build FastAPI, configure the shared PostgreSQL session factory, inject repositories/services, and register routes. |
 | Shared persistence | `core/infrastructure/postgres/` | Own SQLAlchemy API models and repository implementations alongside the rest of the system's PostgreSQL adapters. |
-| Schema history | `migrations/versions/` | Version shared database schema, including user and access-token tables. |
+| Schema history | `migrations/versions/` | Version shared database schema, including users, service accounts, and access tokens. |
 
 ## DEPENDENCY FLOW
 
@@ -58,19 +58,23 @@ PROHIBITED: Use API access tokens as REST API authentication credentials.
 | Method | Path | Responsibility |
 |--------|------|----------------|
 | GET | `/health` | Return process health. |
-| POST, GET | `/users` | Create and list users. |
-| GET, PATCH, DELETE | `/users/{user_id}` | Read, update, or delete a user. |
-| POST, GET | `/tokens` | Issue a token or list token metadata, optionally filtered by `user_id`. |
-| GET, PATCH, DELETE | `/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
+| POST, GET | `/v1/users` | Create and list users. |
+| GET, PATCH, DELETE | `/v1/users/{user_id}` | Read, update, or delete a user. |
+| POST, GET | `/v1/service-accounts` | Create or list service accounts, optionally filtered by `tenant_id`. |
+| GET, PATCH, DELETE | `/v1/service-accounts/{account_id}` | Read, rename, or delete a service account. |
+| POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
+| GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
+
+Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
 The current REST CRUD routes do not declare an authentication dependency. Do not mistake MCP bearer-token verification for protection of this management API; restrict its network exposure until a separate REST authorization mechanism is introduced.
 
 ## TOKEN HANDOFF TO MCP
 
-Issue a random opaque bearer token for a user and return its plaintext only in the successful create-token response. Persist only its SHA-256 digest. Enforce an expiry after issuance and no later than 90 days from issuance; reads and updates return metadata, never the digest or plaintext.
+Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
-In database authentication mode, the MCP adapter hashes the presented bearer token and asks the shared token repository for an active record and its owner. The owner supplies the trusted MCP identity/tenant context. Token lifecycle and consumption are therefore split by responsibility: REST API manages credentials; MCP accepts them for MCP requests.
+In database authentication mode, the MCP adapter hashes the presented bearer token and asks the shared token repository for an active record and its owner. The owner supplies the trusted MCP subject and tenant context. User tokens use the user ID as tenant ID; service-account tokens use the assigned tenant ID. Token lifecycle and consumption are split by responsibility: REST API manages credentials; MCP accepts them for MCP requests.
 
 ## DOCUMENT MAP
 

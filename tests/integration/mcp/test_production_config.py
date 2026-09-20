@@ -1,7 +1,7 @@
 import os
 import pytest
 from pydantic import ValidationError
-from mcp.config import RuntimeSettings
+from harness_memory_mcp.config import RuntimeSettings
 
 
 def test_validate_production_configuration_requires_database_url_and_production_flag(monkeypatch):
