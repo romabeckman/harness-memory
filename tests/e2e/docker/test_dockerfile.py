@@ -1,5 +1,4 @@
 from pathlib import Path
-import pytest
 
 
 def test_docker_container_runs_as_non_root_appuser():
@@ -14,7 +13,11 @@ def test_exclude_dev_and_test_artifacts_from_docker_image():
     dockerignore_path = Path(__file__).resolve().parents[3] / ".dockerignore"
     assert dockerignore_path.exists()
     content = dockerignore_path.read_text(encoding="utf-8")
-    ignored_patterns = [line.strip() for line in content.splitlines() if line.strip() and not line.startswith("#")]
+    ignored_patterns = [
+        line.strip()
+        for line in content.splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
     assert ".git" in ignored_patterns
     assert ".venv" in ignored_patterns or "venv" in ignored_patterns
     assert ".pytest_cache" in ignored_patterns
@@ -36,6 +39,5 @@ def test_compose_mcp_service_declares_production_runtime_settings():
     content = compose_path.read_text(encoding="utf-8")
 
     assert "MCP_PRODUCTION: \"true\"" in content
-    assert "MCP_ISSUER:" in content
-    assert "MCP_JWKS_URI:" in content
-    assert "MCP_AUDIENCE:" in content
+    assert "MCP_AUTH_MODE: database" in content
+    assert "DATABASE_URL:" in content

@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Entity Discovery
 Find bounded Entity identities from each tenant's active Project snapshots through `search_entities`.
@@ -126,15 +126,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| SNAPSHOT["Snapshot Publication"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click SNAPSHOT "./snapshot-publication.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines application ports and infrastructure boundaries.
-- [**TESTS.md**](../adr/TESTS.md): Defines query, persistence, and MCP test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines the `search_entities` adapter contract.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines application ports and infrastructure boundaries.
+- [**TESTS.md**](../../adr/TESTS.md): Defines query, persistence, and MCP test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines the `search_entities` adapter contract.
 - [**snapshot-publication.md**](./snapshot-publication.md): Owns active snapshot publication and tenant-scoped facts.

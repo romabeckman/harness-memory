@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:platform-foundation"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Snapshot Publication
 Publish a complete immutable project snapshot and switch its active pointer atomically.
@@ -149,15 +149,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| FOUNDATION["Platform Foundation"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click FOUNDATION "./platform-foundation.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines dependency direction and persistence ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines domain, persistence, and MCP test boundaries.
-- [**MCP.md**](../adr/MCP.md): Defines the tool and trusted-context boundary.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines dependency direction and persistence ownership.
+- [**TESTS.md**](../../adr/TESTS.md): Defines domain, persistence, and MCP test boundaries.
+- [**MCP.md**](../../adr/MCP.md): Defines the tool and trusted-context boundary.
 - [**platform-foundation.md**](./platform-foundation.md): Supplies schema, engine, and migration foundations.

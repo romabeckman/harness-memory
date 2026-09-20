@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import AnyHttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -43,6 +45,7 @@ class RuntimeSettings(BaseSettings):
     mcp_tenant_claim: str = "tenant_id"
     mcp_production: bool = False
     mcp_require_auth: bool = False
+    mcp_auth_mode: Literal["jwt", "database"] = "jwt"
 
     @property
     def security(self) -> SecuritySettings | None:
@@ -114,7 +117,10 @@ class RuntimeSettings(BaseSettings):
         if self.mcp_production and self.mcp_host == "127.0.0.1" and "MCP_HOST" not in os.environ:
             self.mcp_host = "0.0.0.0"
 
-        if self.mcp_require_auth:
+        if self.mcp_require_auth and self.mcp_auth_mode == "database":
+            if self.database_url is None:
+                raise ValueError("incomplete production authentication settings: DATABASE_URL")
+        elif self.mcp_require_auth:
             missing = [
                 name
                 for name, value in (
@@ -132,6 +138,10 @@ class RuntimeSettings(BaseSettings):
         return self
 
     def require_production_security(self) -> None:
+        if self.mcp_auth_mode == "database":
+            if self.database_url is None:
+                raise ValueError("DATABASE_URL is required for database authentication")
+            return
         if (
             not self.mcp_issuer
             or not self.mcp_jwks_uri

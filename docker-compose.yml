@@ -39,10 +39,7 @@ services:
       MCP_PRODUCTION: "true"
       MCP_HOST: 0.0.0.0
       MCP_PORT: "8000"
-      MCP_ISSUER: https://issuer.example
-      MCP_JWKS_URI: https://issuer.example/.well-known/jwks.json
-      MCP_AUDIENCE: harness-memory
-      MCP_TENANT_CLAIM: tenant_id
+      MCP_AUTH_MODE: database
     ports:
       - "8000:8000"
     depends_on:

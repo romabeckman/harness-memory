@@ -116,15 +116,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| PATHS["Integration Paths"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click PATHS "./integration-paths.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines application ports and persistence boundaries.
-- [**TESTS.md**](../adr/TESTS.md): Defines traversal, PostgreSQL, and MCP contract test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines the `analyze_impact` scope and response boundary.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines application ports and persistence boundaries.
+- [**TESTS.md**](../../adr/TESTS.md): Defines traversal, PostgreSQL, and MCP contract test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines the `analyze_impact` scope and response boundary.
 - [**integration-paths.md**](./integration-paths.md): Supplies reusable path, hop, ownership, and evidence views.

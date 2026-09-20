@@ -11,6 +11,7 @@ from core.application.tenant_security.use_cases.record_security_audit.handler im
 from core.infrastructure.postgres.alembic_runtime import AlembicRuntime
 from core.infrastructure.postgres.config import PostgresSettings
 from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
+from core.infrastructure.postgres.repositories.api_token_repository import ApiTokenRepository
 from core.infrastructure.postgres.repositories.entity_search_repository import (
     PostgresEntitySearchRepository,
 )
@@ -42,6 +43,7 @@ from mcp.server.server_lifespan_manager import ServerLifespanManager
 from mcp.services.audited_operation import ExecuteAuditedOperation
 from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
 from mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
+from mcp.services.database_token_verifier import DatabaseTokenVerifier
 from mcp.services.security_audit_middleware import AuditingTokenVerifier, SecurityAuditMiddleware
 from mcp.services.telemetry_middleware import TelemetryMiddleware
 from mcp.services.tenant_context import TenantContextProvider
@@ -96,6 +98,7 @@ def create_mcp_server(
     schema_checker: SchemaCompatibilityChecker | None = None,
     alembic_runtime: AlembicRuntime | None = None,
     telemetry_tracer: TelemetryTracer | None = None,
+    api_token_repository=None,
 ) -> FastMCP:
     if settings is not None:
         settings.model_validate(settings.model_dump())
@@ -106,15 +109,23 @@ def create_mcp_server(
         raise ValueError("production HTTP settings are required")
     if production:
         settings.require_production_security()
+    engine = None
     auth_provider = auth_provider or token_verifier
     if production and auth_provider is None:
-        auth_provider = JWTVerifier(
-            jwks_uri=str(settings.mcp_jwks_uri),
-            issuer=str(settings.mcp_issuer),
-            audience=settings.mcp_audience,
-            algorithm="RS256",
-        )
-        auth_provider.logger.disabled = True
+        if settings.mcp_auth_mode == "database":
+            if api_token_repository is None:
+                postgres = PostgresSettings(database_url=settings.database_url)
+                engine = PostgresEngineFactory.create(postgres)
+                api_token_repository = ApiTokenRepository(engine=engine)
+            auth_provider = DatabaseTokenVerifier(api_token_repository)
+        else:
+            auth_provider = JWTVerifier(
+                jwks_uri=str(settings.mcp_jwks_uri),
+                issuer=str(settings.mcp_issuer),
+                audience=settings.mcp_audience,
+                algorithm="RS256",
+            )
+            auth_provider.logger.disabled = True
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )
@@ -150,7 +161,8 @@ def create_mcp_server(
         handler = PublishProjectSnapshotHandler(repository)
     if handler is None and settings is not None and settings.database_url is not None:
         postgres = PostgresSettings(database_url=settings.database_url)
-        engine = PostgresEngineFactory.create(postgres)
+        if engine is None:
+            engine = PostgresEngineFactory.create(postgres)
         if lifespan_manager is not None:
             lifespan_manager.attach_engine(engine)
         repository = PostgresSnapshotPublicationRepository(engine=engine)
@@ -188,7 +200,7 @@ def create_mcp_server(
     if production and audit_handler is None:
         if settings.database_url is None:
             raise ValueError("production security audit repository is required")
-        if "engine" not in locals():
+        if engine is None:
             postgres = PostgresSettings(database_url=settings.database_url)
             engine = PostgresEngineFactory.create(postgres)
         from core.infrastructure.postgres.repositories.security_audit_repository import (

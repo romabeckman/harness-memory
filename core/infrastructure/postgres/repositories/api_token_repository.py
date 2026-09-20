@@ -3,14 +3,25 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from api.domain.entities.access_token import AccessToken
+from api.domain.entities.user import User
 from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
+from core.infrastructure.postgres.models.api_user import ApiUser
 
 
 class ApiTokenRepository:
-    def __init__(self, session_factory: Callable[[], Session]) -> None:
+    def __init__(
+        self,
+        session_factory: Callable[[], Session] | None = None,
+        *,
+        engine=None,
+    ) -> None:
+        if session_factory is None and engine is not None:
+            session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+        if session_factory is None:
+            raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
 
     def add(self, token: AccessToken) -> AccessToken:
@@ -57,6 +68,27 @@ class ApiTokenRepository:
                 session.delete(row)
                 session.commit()
 
+    def find_active_by_hash(
+        self, token_hash: str, *, now: datetime
+    ) -> tuple[AccessToken, User] | None:
+        statement = (
+            select(ApiAccessToken, ApiUser)
+            .join(ApiUser, ApiUser.id == ApiAccessToken.user_id)
+            .where(
+                ApiAccessToken.token_hash == token_hash,
+                ApiAccessToken.expires_at > now,
+            )
+        )
+        with self._session_factory() as session:
+            row = session.execute(statement).one_or_none()
+            if row is None:
+                return None
+            stored, user = row
+            return (
+                self._to_domain(stored),
+                User(id=user.id, name=user.name, email=user.email),
+            )
+
     @staticmethod
     def _to_domain(row: ApiAccessToken | None) -> AccessToken | None:
         if row is None:
@@ -66,6 +98,12 @@ class ApiTokenRepository:
             user_id=row.user_id,
             name=row.name,
             token_hash=row.token_hash,
-            expires_at=row.expires_at,
-            created_at=row.created_at,
+            expires_at=ApiTokenRepository._as_utc(row.expires_at),
+            created_at=ApiTokenRepository._as_utc(row.created_at),
         )
+
+    @staticmethod
+    def _as_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)

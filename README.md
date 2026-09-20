@@ -214,7 +214,7 @@ Run the test tiers in source order:
 ./venv/bin/python -m pytest tests/unit
 ./venv/bin/python -m pytest tests/integration
 ./venv/bin/python -m pytest tests/e2e
-./venv/bin/python -m pytest --cov=core --cov=mcp --cov-branch --cov-fail-under=80
+./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80
 ```
 
 The 80% global branch coverage gate is required in CI. Ruff format and lint must
@@ -223,11 +223,11 @@ also pass. Windows virtual environments use `venv\\Scripts\\python.exe` and
 
 ### Authentication and tenancy
 
-Production HTTP mode uses a bearer token verifier configured with `MCP_ISSUER`,
-`MCP_JWKS_URI`, `MCP_AUDIENCE`, and `MCP_TENANT_CLAIM`. Every tool request is
-bound to the authenticated tenant; tenant identity is never accepted from a tool
-payload. Scope checks protect publishing, reads, and impact analysis. Security
-audit records keep bounded safe identifiers and optional W3C trace correlation.
+Production HTTP mode verifies bearer tokens issued by the REST API and stored as
+SHA-256 digests. Every tool request is bound to the token owner; tenant identity is
+never accepted from a tool payload. Scope checks protect publishing, reads, and
+impact analysis. Security audit records keep bounded safe identifiers and optional
+W3C trace correlation.
 
 ### MCP example
 
@@ -252,18 +252,15 @@ For a remote deployment, use its publicly reachable HTTPS URL, such as
 
 ### Authentication
 
-The Compose configuration enables production authentication. Before starting the
-services, replace the example `MCP_ISSUER`, `MCP_JWKS_URI`, and `MCP_AUDIENCE`
-values in `docker-compose.yml` with values from your JWT issuer. The default tenant
-claim is `tenant_id`; change `MCP_TENANT_CLAIM` only when your tokens use another
-claim name.
+The Compose configuration enables database authentication with
+`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/users`,
+then create its token through `POST http://localhost:8080/tokens`. Save the plaintext
+token returned once by the creation response.
 
-Obtain a signed RS256 JWT from that issuer. The token must include `sub`, the
-configured tenant claim, and a `scope` claim. Grant the scopes needed by the client:
-`memory:read`, `memory:publish`, and `memory:impact`. Clients send the token in the
-`Authorization: Bearer <token>` HTTP header. Harness Memory does not provide a
-login flow or issue these tokens; use credentials from your configured identity
-provider.
+Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
+value, accepts only an active stored token, and derives subject and tenant identity
+from its owning user. API-issued tokens authenticate MCP clients only; they do not
+authenticate REST API requests.
 
 ### Claude Code
 
@@ -314,14 +311,14 @@ Add this server to the `mcpServers` object in the global
     "harness-memory": {
       "serverUrl": "http://localhost:8000/mcp",
       "headers": {
-        "Authorization": "Bearer <YOUR_JWT>"
+        "Authorization": "Bearer <YOUR_TOKEN>"
       }
     }
   }
 }
 ```
 
-Replace `<YOUR_JWT>` with a token from your identity provider. Keep this global
+Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /tokens`. Keep this global
 configuration private because it contains the token. Antigravity CLI also supports
 workspace configuration in `.agents/mcp_config.json`; do not commit a real token
 there. Open the MCP Servers panel in the IDE, or run `/mcp` in Antigravity CLI, to

@@ -1,5 +1,7 @@
 from mcp.config import RuntimeSettings
 from mcp.server.factory import create_mcp_server
+from mcp.services.database_token_verifier import DatabaseTokenVerifier
+from mcp.services.security_audit_middleware import AuditingTokenVerifier
 
 
 def test_create_mcp_server_is_named_and_database_independent():
@@ -8,3 +10,24 @@ def test_create_mcp_server_is_named_and_database_independent():
     )
 
     assert server.name == "harness-memory"
+
+
+def test_create_mcp_server_uses_api_token_repository_in_database_auth_mode():
+    repository = object()
+    settings = RuntimeSettings(
+        mcp_auth_mode="database",
+        database_url="postgresql+psycopg2://user:pass@postgres/memory",
+        mcp_production=True,
+    )
+
+    server = create_mcp_server(
+        settings,
+        production=True,
+        api_token_repository=repository,
+        audit_handler=object(),
+        handler=object(),
+        verify_schema=False,
+    )
+
+    assert isinstance(server.auth, AuditingTokenVerifier)
+    assert isinstance(server.auth.verifier, DatabaseTokenVerifier)

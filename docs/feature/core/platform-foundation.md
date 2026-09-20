@@ -11,7 +11,7 @@ edges:
     target: "adr:tests"
   - relation: references
     target: "adr:mcp"
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Platform Foundation
 Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
@@ -124,13 +124,13 @@ graph TD
     THIS["Platform Foundation"] -->|implements| ARCH["Project Architecture"]
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines layer ownership and dependency direction.
-- [**TESTS.md**](../adr/TESTS.md): Defines test tiers and coverage policy.
-- [**MCP.md**](../adr/MCP.md): Defines server and adapter boundaries.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines layer ownership and dependency direction.
+- [**TESTS.md**](../../adr/TESTS.md): Defines test tiers and coverage policy.
+- [**MCP.md**](../../adr/MCP.md): Defines server and adapter boundaries.

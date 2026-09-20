@@ -25,7 +25,7 @@ Rules:
 - The structure of the test folders should follow this order: unit, integration, e2e. Each folder should contain test files corresponding to the test types.
 - The folders within each type (unit, integration, e2e) should be organized according to the structure of the source code, reflecting the modules or components being tested.
 - Rule: One file per class; never add more than one class per file.
-
+- Ignore the `docs/workflow` folder during development. `docs/workflow` contains public-facing documents and should not be consulted for context.
 
 ---
 

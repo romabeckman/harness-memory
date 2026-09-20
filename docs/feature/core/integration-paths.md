@@ -124,15 +124,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| CONTEXT["Relationship Context"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click CONTEXT "./relationship-context.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines ports, layers, and infrastructure ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines recursive-query and MCP contract test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines the `find_integration_paths` adapter scope.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines ports, layers, and infrastructure ownership.
+- [**TESTS.md**](../../adr/TESTS.md): Defines recursive-query and MCP contract test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines the `find_integration_paths` adapter scope.
 - [**relationship-context.md**](./relationship-context.md): Supplies active relationship and tenant semantics.

@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:entity-discovery"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Relationship Context
 Return bounded active-snapshot context and direct dependency views for an entity.
@@ -125,15 +125,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| ENTITY["Entity Discovery"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click ENTITY "./entity-discovery.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines application read ports and infrastructure ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines bounded query and MCP contract test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines tool, tenant, and response boundaries.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines application read ports and infrastructure ownership.
+- [**TESTS.md**](../../adr/TESTS.md): Defines bounded query and MCP contract test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines tool, tenant, and response boundaries.
 - [**entity-discovery.md**](./entity-discovery.md): Supplies active entity discovery and trusted tenant scope.

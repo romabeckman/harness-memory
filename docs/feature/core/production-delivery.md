@@ -135,15 +135,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| SECURITY["Tenant Security"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
-    click SECURITY "./tenant-security.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
+    click SECURITY "../mcp/tenant-security.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines runtime layers and integration ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines CI, migration, and coverage checks.
-- [**MCP.md**](../adr/MCP.md): Defines HTTP interface and security boundaries.
-- [**tenant-security.md**](./tenant-security.md): Supplies authenticated production context and audit contracts.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines runtime layers and integration ownership.
+- [**TESTS.md**](../../adr/TESTS.md): Defines CI, migration, and coverage checks.
+- [**MCP.md**](../../adr/MCP.md): Defines HTTP interface and security boundaries.
+- [**tenant-security.md**](../mcp/tenant-security.md): Supplies authenticated production context and audit contracts.

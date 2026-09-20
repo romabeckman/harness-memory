@@ -7,6 +7,8 @@ tags: [api, users, tokens, fastapi, security]
 edges:
   - relation: implements
     target: "adr:architecture"
+  - relation: references
+    target: "adr:api"
   - relation: tested_by
     target: "adr:tests"
 updated: 2026-09-20
@@ -18,6 +20,7 @@ updated: 2026-09-20
   "node_id": "feature:api-users-tokens",
   "domain": "api-access-management",
   "implements": ["adr:architecture"],
+  "references": ["adr:api"],
   "tested_by": ["adr:tests"],
   "entrypoints": ["api/server/app.py"],
   "registration_files": ["core/infrastructure/postgres/models/__init__.py", "migrations/env.py", "docker-compose.yml"],
@@ -67,7 +70,9 @@ OpenAPI is available at `/openapi.json`; Swagger UI is available at `/docs`.
 REQUIRED: Set expiration after issuance and no later than **90 days** after issuance.
 REQUIRED: Store only the SHA-256 token digest; return plaintext only from `POST /tokens`.
 REQUIRED: Delete a user's tokens through database cascade when deleting that user.
+REQUIRED: Use issued tokens only to authenticate MCP clients.
 PROHIBITED: Return token hashes from read or update endpoints.
+PROHIBITED: Treat issued tokens as REST API authentication credentials.
 
 ## CONFIGURATION
 
@@ -81,7 +86,9 @@ PROHIBITED: Return token hashes from read or update endpoints.
 ```mermaid
 graph TD
     API["API Users and Tokens"] -->|implements| ARCH["Project Architecture"]
+    API -->|references| APIARCH["API Architecture"]
     API -->|tested_by| TESTS["Testing Protocol"]
+    click APIARCH "../../adr/API.md"
     click ARCH "../../adr/ARCHITECTURE.md"
     click TESTS "../../adr/TESTS.md"
 ```
@@ -89,4 +96,6 @@ graph TD
 ## REFERENCES
 
 - [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines hexagonal boundaries and shared infrastructure.
+- [**API.md**](../../adr/API.md): Defines the FastAPI module layers and its shared PostgreSQL adapters.
 - [**TESTS.md**](../../adr/TESTS.md): Defines unit, integration, E2E, and coverage gates.
+- [**token-authentication.md**](../mcp/token-authentication.md): Consumes active API tokens for MCP authentication.

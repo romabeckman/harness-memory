@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:impact-analysis"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # MCP Access Surface
 Expose bounded memory resources and deterministic workflow prompts through the FastMCP catalog.
@@ -133,15 +133,15 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| IMPACT["Impact Analysis"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
-    click IMPACT "./impact-analysis.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
+    click IMPACT "../core/impact-analysis.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines adapter, application, and persistence boundaries.
-- [**TESTS.md**](../adr/TESTS.md): Defines FastMCP catalog, read, and persistence test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines resource URIs, prompt responsibilities, and scopes.
-- [**impact-analysis.md**](./impact-analysis.md): Supplies the existing impact contract named by review guidance.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines adapter, application, and persistence boundaries.
+- [**TESTS.md**](../../adr/TESTS.md): Defines FastMCP catalog, read, and persistence test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines resource URIs, prompt responsibilities, and scopes.
+- [**impact-analysis.md**](../core/impact-analysis.md): Supplies the existing impact contract named by review guidance.

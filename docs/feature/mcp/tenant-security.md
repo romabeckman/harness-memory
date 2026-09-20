@@ -71,7 +71,7 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
 
 ## OVERVIEW
 
-Verify production bearer tokens with configured issuer, JWKS, audience, expiry, subject, and tenant claims. Bind one immutable principal per request, apply exact scope policy, and keep tenant predicates in repositories.
+Verify production bearer tokens through active database records or configured JWT issuer metadata. Bind one immutable principal per request, apply exact scope policy, and keep tenant predicates in repositories.
 
 ## FOLDER STRUCTURE
 
@@ -101,9 +101,11 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `MCP_ISSUER` | HTTPS URL | Production | JWT issuer. | unset |
-| `MCP_JWKS_URI` | HTTPS URL | Production | Asymmetric signing-key source. | unset |
-| `MCP_AUDIENCE` | string | Production | Required JWT audience. | unset |
+| `MCP_AUTH_MODE` | `database` or `jwt` | No | Select bearer verification strategy. | `jwt` |
+| `DATABASE_URL` | PostgreSQL URL | Database mode | Active API-token source. | unset |
+| `MCP_ISSUER` | HTTPS URL | JWT mode | JWT issuer. | unset |
+| `MCP_JWKS_URI` | HTTPS URL | JWT mode | Asymmetric signing-key source. | unset |
+| `MCP_AUDIENCE` | string | JWT mode | Required JWT audience. | unset |
 | `MCP_TENANT_CLAIM` | string | No | Claim used for tenant identity. | `tenant_id` |
 | `MCP_REQUIRE_AUTH` | boolean | Production | Require complete authentication settings. | `false` |
 | `scope` claim | space-delimited string | Token | Exact memory scopes. | none |
@@ -128,15 +130,16 @@ graph TD
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
     THIS -->|depends_on| SURFACE["MCP Access Surface"]
-    click ARCH "../adr/ARCHITECTURE.md"
-    click TESTS "../adr/TESTS.md"
-    click MCP "../adr/MCP.md"
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click MCP "../../adr/MCP.md"
     click SURFACE "./mcp-access-surface.md"
 ```
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../adr/ARCHITECTURE.md): Defines dependency direction and security integration ownership.
-- [**TESTS.md**](../adr/TESTS.md): Defines security, audit, tenant, and HTTP test tiers.
-- [**MCP.md**](../adr/MCP.md): Defines component scopes and production transport boundaries.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines dependency direction and security integration ownership.
+- [**TESTS.md**](../../adr/TESTS.md): Defines security, audit, tenant, and HTTP test tiers.
+- [**MCP.md**](../../adr/MCP.md): Defines component scopes and production transport boundaries.
 - [**mcp-access-surface.md**](./mcp-access-surface.md): Supplies protected resources and prompts.
+- [**token-authentication.md**](./token-authentication.md): Defines database-backed API token verification.
