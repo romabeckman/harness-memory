@@ -20,6 +20,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**mcp-access-surface.md**](./feature/mcp-access-surface.md) | Feature documentation for MCP resources and workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/tenant-security.md) | Feature documentation for authentication, tenant isolation, scopes, and audit. | Optional |
 | [**production-delivery.md**](./feature/production-delivery.md) | Feature documentation for Docker, startup safety, CI, and telemetry. | Optional |
+| [**PLAYBOOK-DAILY-USE.md**](./workflow/PLAYBOOK-DAILY-USE.md) | Practical daily workflow for developers using Harness Memory through MCP clients. | Optional |
 
 ## Recommended Reading Order
 
