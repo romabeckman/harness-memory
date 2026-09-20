@@ -34,7 +34,7 @@ def register_find_integration_paths(
         owner_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
     ):
         try:
-            context = tenant_context.require()
+            context = tenant_context.require_scope("memory:read")
             request = FindIntegrationPathsInput(
                 source_entity_id=source_entity_id,
                 target_entity_id=target_entity_id,
@@ -51,4 +51,3 @@ def register_find_integration_paths(
             return mapper.failure(error)
 
     return find_integration_paths
-

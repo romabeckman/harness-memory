@@ -32,7 +32,7 @@ def register_get_dependencies(
         evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
     ):
         try:
-            context = tenant_context.require()
+            context = tenant_context.require_scope("memory:read")
             request = GetDependenciesInput(
                 entity_id=entity_id,
                 direction=direction,

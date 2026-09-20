@@ -8,6 +8,8 @@ from core.domain.snapshot_publication.errors.snapshot_invariant_violation import
 )
 from core.domain.snapshot_publication.errors.stale_revision import StaleRevision
 
+from .audited_operation import AuditPersistenceFailure
+
 
 class PublicationResponseMapper:
     def success(self, result):
@@ -36,6 +38,8 @@ class PublicationResponseMapper:
             )
         elif isinstance(error, StaleRevision):
             code, message = "STALE_REVISION", "snapshot revision is stale"
+        elif isinstance(error, AuditPersistenceFailure):
+            code, message = "SECURITY_AUDIT_FAILED", "security audit is unavailable"
         elif isinstance(error, PersistenceFailure):
             code, message = "PERSISTENCE_FAILURE", "snapshot publication failed"
         else:

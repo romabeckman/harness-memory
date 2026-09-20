@@ -20,7 +20,7 @@ def register_search_entities(
     @server.tool(name="search_entities")
     def search_entities(request: SearchEntitiesInput):
         try:
-            context = tenant_context.require()
+            context = tenant_context.require_scope("memory:read")
             result = handler.execute(request, TenantScope(context.tenant_id))
             return mapper.success(result)
         except Exception as error:

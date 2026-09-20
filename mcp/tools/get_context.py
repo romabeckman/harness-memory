@@ -26,7 +26,7 @@ def register_get_context(
         evidence_limit: Annotated[StrictInt, Field(ge=0, le=20)] = 5,
     ):
         try:
-            context = tenant_context.require()
+            context = tenant_context.require_scope("memory:read")
             request = GetContextInput(
                 entity_id=entity_id, limit=limit, evidence_limit=evidence_limit
             )

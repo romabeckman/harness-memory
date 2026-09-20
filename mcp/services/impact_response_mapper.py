@@ -4,6 +4,7 @@ from core.application.impact_analysis.errors.impact_entity_not_found import Impa
 from core.application.impact_analysis.errors.impact_query_failure import ImpactQueryFailure
 from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
 
+from .audited_operation import AuditPersistenceFailure
 from .authorization_failure import AuthorizationFailure
 
 
@@ -18,6 +19,8 @@ class ImpactResponseMapper:
             code, message = "MISSING_TENANT_CONTEXT", "trusted tenant context is required"
         elif isinstance(error, AuthorizationFailure):
             code, message = "IMPACT_UNAUTHORIZED", "impact analysis authorization required"
+        elif isinstance(error, AuditPersistenceFailure):
+            code, message = "SECURITY_AUDIT_FAILED", "security audit is unavailable"
         elif isinstance(error, ImpactEntityNotFound):
             code, message = "IMPACT_ENTITY_NOT_FOUND", "impact analysis entity not found"
         elif isinstance(error, ImpactQueryFailure):

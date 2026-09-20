@@ -6,7 +6,7 @@ from mcp.server.factory import create_mcp_server
 pytestmark = pytest.mark.asyncio
 
 
-async def test_foundation_mcp_catalog_is_empty_and_server_has_expected_identity():
+async def test_mcp_catalog_exposes_guidance_prompts_without_read_handlers():
     fastmcp = pytest.importorskip("fastmcp")
     Client = fastmcp.Client
     server = create_mcp_server(RuntimeSettings(mcp_host="127.0.0.1", mcp_port=8000))
@@ -19,4 +19,8 @@ async def test_foundation_mcp_catalog_is_empty_and_server_has_expected_identity(
     assert server.name == "harness-memory"
     assert tools == []
     assert resources == []
-    assert prompts == []
+    assert {prompt.name for prompt in prompts} == {
+        "load_corporate_context",
+        "analyze_integration",
+        "review_change_impact",
+    }

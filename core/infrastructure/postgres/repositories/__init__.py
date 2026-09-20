@@ -10,3 +10,14 @@ __all__ = [
 from .entity_search_repository import PostgresEntitySearchRepository
 
 __all__ = ["PostgresEntitySearchRepository"]
+from .memory_resource_repository import PostgresMemoryResourceRepository
+from .security_audit_repository import PostgresSecurityAuditRepository
+
+__all__ = [
+    "PostgresEntitySearchRepository",
+    "PostgresIntegrationPathRepository",
+    "PostgresMemoryResourceRepository",
+    "PostgresSecurityAuditRepository",
+    "PostgresSnapshotPublicationRepository",
+    "SnapshotPersistenceMapper",
+]

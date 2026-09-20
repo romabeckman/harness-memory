@@ -16,4 +16,13 @@ __all__ = [
     "Project",
     "Relation",
     "Snapshot",
+    "SecurityAuditEvent",
 ]
+
+
+def __getattr__(name: str):
+    if name == "SecurityAuditEvent":
+        from .security_audit_event import SecurityAuditEvent
+
+        return SecurityAuditEvent
+    raise AttributeError(name)

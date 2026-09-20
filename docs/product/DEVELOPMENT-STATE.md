@@ -56,3 +56,23 @@
 | F006 | T03 | harness-memory | Implement Bounded Consumer Traversal | impact_analysis | - | COMPLETED |
 | F006 | T04 | harness-memory | Assemble Impact Context | impact_analysis | - | COMPLETED |
 | F006 | T05 | harness-memory | Expose Analyze Impact Tool | impact_analysis | - | COMPLETED |
+| F007 | T01 | harness-memory | Define Memory Resource Contracts | mcp_access_surface | - | COMPLETED |
+| F007 | T02 | harness-memory | Implement Project Resource Query | mcp_access_surface | - | COMPLETED |
+| F007 | T03 | harness-memory | Implement Snapshot Resource Query | mcp_access_surface | - | COMPLETED |
+| F007 | T04 | harness-memory | Expose Entity Memory Resource | mcp_access_surface | - | COMPLETED |
+| F007 | T05 | harness-memory | Expose Project Memory Resource | mcp_access_surface | - | COMPLETED |
+| F007 | T06 | harness-memory | Expose Snapshot Memory Resource | mcp_access_surface | - | COMPLETED |
+| F007 | T07 | harness-memory | Register MCP Guidance Prompts | mcp_access_surface | - | COMPLETED |
+| F007 | T08 | harness-memory | Wire MCP Read Surface Contracts | mcp_access_surface | - | COMPLETED |
+| F008 | T01 | harness-memory | Implement Tenant Security Types | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T02 | harness-memory | Implement Security Audit Use Case | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T03 | harness-memory | Persist Security Audit Records | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T04 | harness-memory | Configure Production Token Verification | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T05 | harness-memory | Bind Request Security Context | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T06 | harness-memory | Enforce Component Scope Policy | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T07 | harness-memory | Audit Security Failures | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T08 | harness-memory | Audit Publication Operations | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T09 | harness-memory | Audit Impact Analysis Operations | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T10 | harness-memory | Harden Production HTTP Startup | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T11 | harness-memory | Verify PostgreSQL Tenant Isolation | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T12 | harness-memory | Verify Authenticated HTTP MCP Flows | tenant_security | IMPLEMENTATION | IN_PROGRESS |
