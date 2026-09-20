@@ -23,8 +23,12 @@ class AnalyzeImpactOutput(BaseModel):
 
     @model_validator(mode="after")
     def validate_consumer_classifications(self):
-        direct_ids = {item.entity.id for item in self.direct_consumers}
-        indirect_ids = {item.entity.id for item in self.indirect_consumers}
+        direct_ids = {
+            item.entity.identity_id or item.entity.id for item in self.direct_consumers
+        }
+        indirect_ids = {
+            item.entity.identity_id or item.entity.id for item in self.indirect_consumers
+        }
         overlap = direct_ids & indirect_ids
         if overlap:
             raise ValueError("direct_consumers and indirect_consumers must be disjoint")

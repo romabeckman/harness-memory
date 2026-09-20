@@ -85,7 +85,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 - **Active snapshot**: Exclude historical Entity rows and Projects without an active snapshot.
 - **Conjunctive filters**: Apply every supplied key, name, type, and project filter together.
-- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last Entity key/UUID tuple.
+- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last nonblank, trimmed Entity key/UUID tuple; reject malformed or filter-mismatched cursors.
 - **Bounded result**: Return scalar identity, Project, active Snapshot, and revision fields; omit metadata, relations, evidence, and total count.
 
 ## HOW TO SEARCH
@@ -94,6 +94,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 2. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
 3. Use a case-insensitive literal prefix for `name`; wildcard characters remain literal data.
 4. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
+5. Return stable `INVALID_SEARCH_CURSOR` or `INVALID_ARGUMENT` errors for malformed cursors or missing filters.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -111,6 +112,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 REQUIRED: Read only active-snapshot rows and apply trusted tenant predicates to every repository query.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
 REQUIRED: Keep cursor contents free of tenant identity and contextual data.
+REQUIRED: Validate result identity strings before emitting MCP responses.
 PROHIBITED: Return metadata, relations, evidence, payloads, or a total count from this tool.
 PROHIBITED: Add fuzzy, infix, ranked, or full-text search behavior to this bounded capability.
 

@@ -16,11 +16,18 @@ class SearchCursorCodec:
     MAX_LENGTH = 1024
 
     def encode(self, criteria: EntitySearchCriteria, item: EntitySearchItem) -> str:
+        fingerprint = FilterFingerprint.from_criteria(criteria)
+        cursor = SearchCursor(
+            version=1,
+            filter_fingerprint=fingerprint,
+            last_key=item.key,
+            last_id=item.entity_id,
+        )
         payload = {
-            "filter_fingerprint": FilterFingerprint.from_criteria(criteria).value,
-            "last_id": str(item.entity_id),
-            "last_key": item.key,
-            "version": 1,
+            "filter_fingerprint": cursor.filter_fingerprint.value,
+            "last_id": str(cursor.last_id),
+            "last_key": cursor.last_key,
+            "version": cursor.version,
         }
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")

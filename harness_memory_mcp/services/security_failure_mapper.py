@@ -27,12 +27,12 @@ class SecurityFailureMapper:
                     required_scope = str(next(iter(scopes)))
         if required_scope:
             return self.authorization(required_scope)
-        return self.authentication(getattr(error, "reason_code", "invalid_token"))
+        return self.authentication()
 
-    def authentication(self, reason_code: str = "invalid_token") -> SecurityFailureResponse:
+    def authentication(self, _reason_code: str = "invalid_token") -> SecurityFailureResponse:
         return SecurityFailureResponse(
             status_code=401,
-            code=reason_code,
+            code="invalid_token",
             headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
             message="authentication required",
         )

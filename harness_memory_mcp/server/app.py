@@ -60,6 +60,7 @@ def main() -> None:
             transport="http",
             host=settings.mcp_host,
             port=settings.mcp_port,
+            stateless_http=True,
         )
     except Exception as exc:
         sys.stderr.write(f"Startup failed: {MigrationCLI._redact(str(exc))}\n")

@@ -93,6 +93,7 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 2. Use bounds to control depth, path count, evidence, and ownership.
 3. Treat source equal to target as one zero-hop path and disconnected visible endpoints as an empty success.
 4. Treat hidden, stale, foreign, or unknown endpoints as one sanitized not-found result.
+5. Reject invalid traversal bounds before recursive query execution and expose stable `INVALID_ARGUMENT` errors.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -109,6 +110,7 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 REQUIRED: Anchor endpoint, traversal, ownership, and evidence reads to one coherent active-snapshot transaction.
 REQUIRED: Order paths by hop count, entity keys, and relation IDs; preserve parallel relation paths when sequences differ. Validate cross-snapshot hop continuity by canonical identity while retaining each relation's concrete endpoints.
 REQUIRED: Set truncation and termination reason when path or expansion bounds omit results.
+REQUIRED: Keep MCP authorization and argument validation outside recursive traversal.
 PROHIBITED: Join disconnected projects by entity key or return partial paths after a query failure.
 PROHIBITED: Put recursive SQL, ownership inference, or tenant selection in the MCP adapter.
 

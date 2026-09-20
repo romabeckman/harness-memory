@@ -222,20 +222,20 @@ def create_mcp_server(
         if auth_provider is not None:
             server.auth = AuditingTokenVerifier(auth_provider, audit_handler, principal_factory)
         server.middleware.append(
+            SecurityAuditMiddleware(
+                context,
+                principal_factory,
+                policy=scope_policy,
+                audit_handler=audit_handler,
+            )
+        )
+        server.middleware.append(
             AuthMiddleware(
                 auth=component_scope_auth(
                     scope_policy,
                     audit_handler=audit_handler,
                     principal_factory=principal_factory,
                 )
-            )
-        )
-        server.middleware.append(
-            SecurityAuditMiddleware(
-                context,
-                principal_factory,
-                policy=scope_policy,
-                audit_handler=audit_handler,
             )
         )
     audited_operation = (

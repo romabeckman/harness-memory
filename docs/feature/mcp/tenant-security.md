@@ -61,6 +61,7 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
     "tests/unit/mcp/server/test_factory.py",
     "tests/unit/mcp/server/test_integration_path_factory.py",
     "tests/unit/mcp/server/test_relationship_factory.py",
+    "tests/unit/mcp/server/test_app_transport.py",
     "tests/unit/mcp/services/test_security_hardening.py",
     "tests/unit/mcp/services/test_tenant_security_services.py",
     "tests/unit/mcp/test_rework_security.py",
@@ -71,7 +72,7 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
 
 ## OVERVIEW
 
-Verify production bearer tokens through active database records or configured JWT issuer metadata. Bind one immutable principal per request, apply exact scope policy, and keep tenant predicates in repositories.
+Verify production bearer tokens through active database records or configured JWT issuer metadata. Bind one immutable principal per request, apply exact scope policy, keep tenant predicates in repositories, and normalize HTTP security failures.
 
 ## FOLDER STRUCTURE
 
@@ -95,7 +96,9 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 1. Verify bearer token before catalog filtering, authorization, handler execution, or repository access.
 2. Bind principal for request lifetime; reset context on success and exception.
 3. Require exact scope membership and preserve `401` authentication versus `403 insufficient_scope` authorization semantics.
-4. Audit protected operation attempts before publication or impact execution; never store tokens, claims, payloads, evidence, or credentials.
+4. Normalize missing or invalid tokens to a generic `401` `invalid_token` response; include the required scope in `403` challenges when known.
+5. Preserve validation failures as HTTP `200` JSON-RPC tool results with `isError: true` and stable `INVALID_ARGUMENT` text.
+6. Audit protected operation attempts before publication or impact execution; never store tokens, claims, payloads, evidence, or credentials.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -114,7 +117,9 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 
 REQUIRED: Derive tenant identity only from verified claims and enforce tenant predicates on every repository query.
 REQUIRED: Filter catalogs and recheck authorization on direct calls, reads, and prompt retrieval.
+REQUIRED: Run production Streamable HTTP in stateless mode so tool calls do not depend on an initialized session.
 REQUIRED: Keep audit records append-only, bounded, idempotent, and secret-free; apply request backpressure rather than dropping authentication failures when the audit concurrency limit is reached; fail closed when required audit persistence fails.
+REQUIRED: Keep authentication and authorization response bodies free of presented tokens, verifier details, tenant identifiers, and persistence errors.
 PROHIBITED: Use fixed tenants, request payload tenant fields, permissive missing-scope defaults, or raw verifier errors.
 PROHIBITED: Treat authentication or authorization audit failure as permission to continue the denied operation.
 

@@ -14,6 +14,8 @@ class DatabaseTokenVerifier(TokenVerifier):
         self._repository = repository
 
     async def verify_token(self, token: str) -> AccessToken | None:
+        if not isinstance(token, str) or not token.strip():
+            return None
         token_hash = sha256(token.encode()).hexdigest()
         identity = await asyncio.to_thread(
             self._repository.find_active_by_hash,
@@ -23,8 +25,12 @@ class DatabaseTokenVerifier(TokenVerifier):
         if identity is None:
             return None
         stored, owner = identity
-        subject = str(owner.id)
-        tenant_id = str(owner.tenant_id)
+        owner_id = getattr(owner, "id", None)
+        owner_tenant_id = getattr(owner, "tenant_id", None)
+        if stored is None or owner_id is None or owner_tenant_id is None:
+            return None
+        subject = str(owner_id)
+        tenant_id = str(owner_tenant_id)
         scopes = [scope.value for scope in MemoryScope]
         return AccessToken(
             token=token,

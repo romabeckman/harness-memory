@@ -40,7 +40,7 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
 
 ## OVERVIEW
 
-Use an API-issued token only as **MCP bearer authentication**. Hash every presented token, load its active database record, then create the FastMCP identity without exposing the stored digest.
+Use an API-issued token only as **MCP bearer authentication**. Reject blank credentials, hash every other presented token, load its active database record and owner, then create the FastMCP identity without exposing the stored digest.
 
 ## FOLDER STRUCTURE
 
@@ -75,6 +75,7 @@ The verifier maps the token owner's ID to `sub`. User tokens use the user ID as 
 REQUIRED: Compare only SHA-256 token digests in persistence.
 REQUIRED: Reject unknown, deleted, or expired tokens with HTTP 401; treat a null expiry as non-expiring.
 REQUIRED: Resolve subject and tenant from the stored token owner.
+REQUIRED: Reject active token records with missing token or owner data before creating a principal.
 PROHIBITED: Accept user or tenant identity from MCP request payloads.
 PROHIBITED: Use API tokens to authenticate REST API endpoints.
 

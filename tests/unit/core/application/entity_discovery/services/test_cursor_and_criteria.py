@@ -93,3 +93,14 @@ def test_cursor_rejects_invalid_uuid_and_filter_mismatch():
     valid_token = SearchCursorCodec().encode(criteria, _item())
     with pytest.raises(ValueError, match="filter"):
         SearchCursorCodec().decode(valid_token, EntitySearchCriteria(key="other"))
+
+
+@pytest.mark.parametrize("last_key", ["", "   ", " payments-api "])
+def test_cursor_rejects_blank_or_untrimmed_last_key(last_key):
+    with pytest.raises(ValueError):
+        SearchCursor(
+            version=1,
+            filter_fingerprint="a" * 64,
+            last_key=last_key,
+            last_id=uuid4(),
+        )

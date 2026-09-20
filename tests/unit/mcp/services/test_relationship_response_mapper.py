@@ -8,6 +8,7 @@ from core.application.relationship_context.errors.relationship_query_failure imp
     RelationshipQueryFailure,
 )
 from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
+from harness_memory_mcp.services.authorization_failure import AuthorizationFailure
 from harness_memory_mcp.services.relationship_response_mapper import RelationshipResponseMapper
 
 
@@ -66,3 +67,17 @@ def test_relationship_mapper_maps_validation_and_missing_context():
     assert mapper.failure(MissingTenantContext("secret tenant"))["error"]["code"] == (
         "MISSING_TENANT_CONTEXT"
     )
+
+
+def test_relationship_mapper_maps_authorization_failure_without_details():
+    response = RelationshipResponseMapper().failure(
+        AuthorizationFailure("missing memory:read", required_scope="memory:read")
+    )
+
+    assert response == {
+        "status": "ERROR",
+        "error": {
+            "code": "RELATIONSHIP_UNAUTHORIZED",
+            "message": "relationship access is unauthorized",
+        },
+    }

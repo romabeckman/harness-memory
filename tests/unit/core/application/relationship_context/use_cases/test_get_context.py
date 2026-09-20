@@ -12,6 +12,7 @@ from core.application.relationship_context.errors.relationship_query_failure imp
 )
 from core.application.relationship_context.use_cases.get_context.handler import GetContextHandler
 from core.application.relationship_context.use_cases.get_context.inbound import GetContextInput
+from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
 
 
 def test_get_context_delegates_once_with_validated_input_and_scope():
@@ -26,6 +27,14 @@ def test_get_context_delegates_once_with_validated_input_and_scope():
 
     assert result is expected
     repository.load_context.assert_called_once_with(scope, request)
+
+
+def test_get_context_maps_invalid_trusted_context_to_missing_context():
+    repository = Mock()
+
+    with pytest.raises(MissingTenantContext):
+        GetContextHandler(repository).execute(GetContextInput(entity_id=uuid4()), object())
+    repository.load_context.assert_not_called()
 
 
 @pytest.mark.parametrize("failure", [EntityContextNotFound(), RelationshipQueryFailure()])

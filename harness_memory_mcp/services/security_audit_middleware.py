@@ -76,8 +76,11 @@ class SecurityAuditMiddleware(Middleware):
             # AuthMiddleware normally performs this check.  Repeat it here so
             # direct middleware composition and future transports cannot skip
             # authorization after the request principal is bound.
-            if getattr(context, "method", None):
-                self._authorize_request(context, principal)
+            if getattr(context, "method", None) or hasattr(context, "fastmcp_context"):
+                if getattr(context, "method", None):
+                    self._authorize_request(context, principal)
+                else:
+                    self._authorize_component(principal, kind, name)
             else:
                 # Preserve compatibility with direct unit invocations that
                 # provide only a component message.
@@ -96,13 +99,19 @@ class SecurityAuditMiddleware(Middleware):
         elif method == "prompts/get":
             kind, kind_name = "prompt", getattr(params, "name", None)
         if kind and kind_name:
-            required = self.policy.required_scope(kind, kind_name)
-            if required is None or required not in principal.scopes:
-                self._record_failure(principal, kind, str(kind_name), required)
-                raise InsufficientScopeError(
-                    [required] if required else [],
-                    message="Authorization failed: insufficient scope",
-                )
+            self._authorize_component(principal, kind, str(kind_name))
+
+    def _authorize_component(self, principal, kind: str, name: str) -> None:
+        required = self.policy.required_scope(kind, name)
+        if required is None or required not in principal.scopes:
+            self._record_failure(principal, kind, name, required)
+            raise InsufficientScopeError(
+                [required] if required else [],
+                message=(
+                    "Authorization failed: insufficient scope"
+                    + (f" (required: {required})" if required else "")
+                ),
+            )
 
     def _record_failure(self, principal, kind: str, name: str, required: str | None):
         if self.audit_handler is None:

@@ -74,8 +74,9 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 - **Consumer edge**: Traverse only inbound `consumes`, `depends_on`, and `subscribes_to` relations.
 - **Classification**: Put shortest-depth one consumers in `direct_consumers`; put depth two or greater in `indirect_consumers`.
 - **Canonical identity**: Resolve project-local active copies through canonical identity without duplicating returned consumers.
+- **Change contract**: Accept only bounded `change_type`, `description`, and `changed_fields`; reject extra metadata fields.
 - **Impact context**: Derive projects and teams from impacted consumers; reuse integration-path views for paths, ownership, provenance, and evidence.
-- **Response budget**: Cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
+- **Response budget**: Apply per-consumer owner bounds, cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
 
 ## HOW TO ANALYZE IMPACT
 
@@ -101,6 +102,7 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 REQUIRED: Enforce graph and response bounds during traversal and context loading, then perform an authoritative serialized-size check across consumers, paths, projects, teams, metadata, and evidence.
 REQUIRED: Deduplicate affected projects and teams from impacted consumers; exclude the changed entity's own context unless reached through impact.
 REQUIRED: Preserve provenance and bounded evidence; distinguish intentional evidence omission from missing evidence.
+REQUIRED: Deduplicate consumer classification by canonical identity and report byte truncation once in `unknowns`.
 PROHIBITED: Infer impact with an LLM or traverse ownership, structural, provider, or publication relations as consumer edges.
 PROHIBITED: Leak tenant, SQL, persistence, or free-text details through failure mapping or audit details.
 

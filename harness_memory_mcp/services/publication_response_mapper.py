@@ -9,6 +9,7 @@ from core.domain.snapshot_publication.errors.snapshot_invariant_violation import
 from core.domain.snapshot_publication.errors.stale_revision import StaleRevision
 
 from .audited_operation import AuditPersistenceFailure
+from .authorization_failure import AuthorizationFailure
 
 
 class PublicationResponseMapper:
@@ -29,6 +30,11 @@ class PublicationResponseMapper:
             )
         elif isinstance(error, MissingTenantContext):
             code, message = "MISSING_TENANT_CONTEXT", "trusted tenant context is required"
+        elif isinstance(error, AuthorizationFailure):
+            code, message = (
+                "PUBLICATION_UNAUTHORIZED",
+                "snapshot publication authorization required",
+            )
         elif isinstance(error, SnapshotInvariantViolation):
             code, message = "DOMAIN_INVARIANT_VIOLATION", "snapshot violates domain invariants"
         elif isinstance(error, RevisionConflict):

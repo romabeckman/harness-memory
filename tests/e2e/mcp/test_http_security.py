@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from fastmcp.server.auth import AccessToken, TokenVerifier
 from starlette.testclient import TestClient
 
+from core.application.entity_discovery.use_cases.search_entities.inbound import SearchEntitiesInput
 from core.application.tenant_security.ports.security_audit_repository import AppendResult
 from harness_memory_mcp.config import RuntimeSettings
 from harness_memory_mcp.server.factory import create_mcp_server
@@ -104,4 +105,82 @@ def test_http_scope_filtering_and_direct_authorization_return_403():
     assert b"publish_project_snapshot" not in listed.content
     assert denied.status_code == 403
     assert b"insufficient" in denied.content.lower()
+    assert denied.headers["www-authenticate"] == (
+        'Bearer error="insufficient_scope", scope="memory:publish"'
+    )
     assert records[-1].event_type.value == "authorization_failure"
+
+
+def test_http_invalid_token_uses_same_secret_free_response_as_missing_token():
+    server, records = _server_and_records()
+    with TestClient(server.http_app()) as client:
+        missing = _initialize(client)
+        invalid = _initialize(client, "not-valid")
+
+    assert missing.status_code == invalid.status_code == 401
+    assert missing.headers["www-authenticate"] == invalid.headers["www-authenticate"]
+    assert missing.json() == invalid.json()
+    assert all(secret not in invalid.text for secret in ("not-valid", "digest"))
+    assert (
+        len([record for record in records if record.event_type.value == "authentication_failure"])
+        == 2
+    )
+
+
+def test_http_rejects_payload_tenant_override_before_tool_execution():
+    server, _records = _server_and_records()
+    calls = []
+
+    @server.tool(name="search_entities")
+    def search_entities(request: SearchEntitiesInput):
+        calls.append(request)
+        return {"ok": True}
+
+    with TestClient(server.http_app()) as client:
+        initialized = _initialize(client, "read")
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "search_entities",
+                    "arguments": {"request": {"key": "payments", "tenant_id": "tenant-b"}},
+                },
+            },
+            headers={
+                "Authorization": "Bearer read",
+                "Mcp-Session-Id": initialized.headers["mcp-session-id"],
+            },
+        )
+
+    assert response.status_code == 200
+    assert b"INVALID_ARGUMENT" in response.content
+    assert b"tenant_id" in response.content
+    assert b'"isError":true' in response.content.replace(b" ", b"")
+    assert calls == []
+
+
+def test_http_stateless_tools_can_be_called_without_initialization():
+    server, _records = _server_and_records()
+
+    @server.tool(name="search_entities")
+    def search_entities():
+        return {"entities": []}
+
+    with TestClient(server.http_app(stateless_http=True)) as client:
+        response = client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "search_entities", "arguments": {}},
+            },
+            headers={"Authorization": "Bearer read"},
+        )
+
+    assert response.status_code == 200
+    assert b"entities" in response.content
+    assert b"Missing session ID" not in response.content

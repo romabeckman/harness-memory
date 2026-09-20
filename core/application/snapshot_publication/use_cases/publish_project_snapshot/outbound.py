@@ -1,10 +1,11 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
 
 class PublishProjectSnapshotOutput(BaseModel):
-    status: str
+    status: Literal["ACTIVATED", "ALREADY_PUBLISHED"]
     snapshot_id: UUID
     requested_revision: int
     stored_revision: int

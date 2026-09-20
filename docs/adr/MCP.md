@@ -30,27 +30,16 @@ Run MCP over HTTP in production and use the FastMCP in-process client for develo
 Keep MCP adapters thin. Add business rules to application or domain layers.
 
 ```text
-<project-root-folder>/
-├── harness_memory_mcp/
-│   ├── server/             # FastMCP registration and runtime.
-│   ├── tools/              # One file per public MCP tool; call application handlers.
-│   │   ├── publish_project_snapshot.py
-│   │   ├── search_entities.py
-│   │   ├── get_context.py
-│   │   ├── get_dependencies.py
-│   │   ├── find_integration_paths.py
-│   │   └── analyze_impact.py
-│   ├── services/            # Authentication, tenant context, and response mapping.
-│   ├── config.py            # Runtime configuration.
-│   └── cli.py               # Operational commands.
-└── core/
-    ├── domain/              # Business-domain packages with entities, value_objects, services, and ports.
-    ├── application/        # Business-domain packages with use_cases, services, and ports.
-    └── infrastructure/
-        └── postgres/
-            ├── config.py   # PostgreSQL configuration.
-            ├── models/     # PostgreSQL persistence models.
-            └── repositories/ # Repository implementations.
+<project-root>/
++-- harness_memory_mcp/
+|   +-- server/              # FastMCP registration and runtime.
+|   +-- tools/               # Thin public adapters over application use cases.
+|   +-- services/            # Authentication, tenant context, and response mapping.
+|   +-- config.py, cli.py    # Runtime settings and operational commands.
++-- core/
+    +-- domain/              # Entities, value objects, invariants, and ports.
+    +-- application/         # Contracts, use cases, services, and ports.
+    +-- infrastructure/postgres/ # Models, repositories, and database configuration.
 ```
 
 ## MAIN CONCEPTS / COMPONENTS
@@ -62,6 +51,8 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 3. Dispatch a thin handler under the selected business domain's `use_cases/` package.
 4. Enforce `core/domain` invariants and execute `core/infrastructure` PostgreSQL work in the required transaction.
 5. Return a bounded Pydantic response with provenance, evidence, and unknowns where applicable.
+
+For production Streamable HTTP, use stateless mode so each tool request can run without a prior session initialization. Keep malformed tool arguments in HTTP `200` JSON-RPC tool results with `isError: true` and stable `INVALID_ARGUMENT` text. Map authentication failures to `401` with a stable `invalid_token` body and authorization failures to `403` with an `insufficient_scope` challenge. Keep application error payloads free of verifier, persistence, tenant, and request-secret details.
 
 ## TOOLS
 
@@ -106,23 +97,13 @@ PROHIBITED: Expose tenant data through an identifier without authenticated tenan
 
 Prompts guide tool usage only. Keep authorization, validation, persistence, and impact logic outside prompts.
 
-## PYDANTIC CONTRACTS
+## CONTRACTS
 
 REQUIRED: Use Pydantic `inbound.py` and `outbound.py` models for application use-case contracts.
 REQUIRED: Reject malformed fields and unsupported `schema_version` values before persistence.
-REQUIRED: Keep domain invariants separate from shape validation; validate relation endpoints, revisions, and tenant scope in domain/application code.
+REQUIRED: Keep shape validation separate from domain invariants; validate relation endpoints, revisions, and tenant scope in domain/application code.
 REQUIRED: Map application outbound contracts to stable MCP tool and resource responses.
 PROHIBITED: Pass persistence models or unvalidated dictionaries from FastMCP handlers into domain services.
-
-```python
-# CORRECT: validate at the MCP boundary, then delegate.
-def search_entities(request: SearchEntitiesInput) -> SearchEntitiesOutput:
-    return query_service.search(request)
-
-# WRONG: mix transport parsing, persistence, and business rules in a tool.
-def publish_project_snapshot(payload: dict):
-    database.insert(payload)
-```
 
 ## SECURITY AND OPERATIONS
 
@@ -132,7 +113,8 @@ def publish_project_snapshot(payload: dict):
 | Authorization | Enforce exact `memory:read`, `memory:publish`, and `memory:impact` scopes; deny unmapped components. |
 | Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
 | Audit | Record snapshot publication, impact analysis, authentication failures, and authorization failures. |
-| Transport | Use in-process client for development/tests and HTTP for production. |
+| Transport | Use in-process client for development/tests and stateless Streamable HTTP for production. |
+| HTTP errors | Keep malformed arguments as HTTP `200` JSON-RPC tool errors marked `INVALID_ARGUMENT`; map authentication to `401` and authorization to `403`. |
 
 ## TEST CONTRACT
 

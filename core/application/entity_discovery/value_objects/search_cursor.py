@@ -19,7 +19,12 @@ class SearchCursor:
             if isinstance(self.filter_fingerprint, FilterFingerprint)
             else FilterFingerprint(self.filter_fingerprint)
         )
-        if not isinstance(self.last_key, str) or not 1 <= len(self.last_key) <= 255:
+        if (
+            not isinstance(self.last_key, str)
+            or not 1 <= len(self.last_key) <= 255
+            or not self.last_key.strip()
+            or self.last_key != self.last_key.strip()
+        ):
             raise ValueError("invalid search cursor key")
         try:
             last_id = self.last_id if isinstance(self.last_id, UUID) else UUID(str(self.last_id))

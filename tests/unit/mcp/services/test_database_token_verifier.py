@@ -36,6 +36,28 @@ def test_database_token_verifier_rejects_unknown_token():
     assert asyncio.run(DatabaseTokenVerifier(repository).verify_token("unknown")) is None
 
 
+def test_database_token_verifier_rejects_blank_token_before_lookup():
+    repository = Mock()
+
+    assert asyncio.run(DatabaseTokenVerifier(repository).verify_token("   ")) is None
+
+    repository.find_active_by_hash.assert_not_called()
+
+
+def test_database_token_verifier_rejects_ownerless_active_token():
+    stored = DomainAccessToken(
+        id=uuid4(),
+        user_id=uuid4(),
+        name="client",
+        token_hash="c" * 64,
+        expires_at=None,
+    )
+    repository = Mock()
+    repository.find_active_by_hash.return_value = (stored, None)
+
+    assert asyncio.run(DatabaseTokenVerifier(repository).verify_token("ownerless")) is None
+
+
 def test_database_token_verifier_uses_service_account_tenant_and_allows_no_expiry():
     account = ServiceAccount(uuid4(), uuid4(), "deployment agent")
     stored = DomainAccessToken(

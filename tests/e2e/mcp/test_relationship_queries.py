@@ -71,3 +71,23 @@ async def test_relationship_tools_return_safe_success_and_validation_results():
 
     assert context.data["entity"]["id"] == str(entity_id)
     assert invalid.is_error is True
+
+
+@pytest.mark.asyncio
+async def test_relationship_tools_require_read_scope_before_handler_access():
+    repository = Mock()
+    server = create_mcp_server(
+        relationship_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a", scopes={"memory:publish"}),
+    )
+
+    async with Client(server) as client:
+        context = await client.call_tool("get_context", {"entity_id": str(uuid4())})
+        dependencies = await client.call_tool(
+            "get_dependencies", {"entity_id": str(uuid4())}
+        )
+
+    assert context.data["error"]["code"] == "RELATIONSHIP_UNAUTHORIZED"
+    assert dependencies.data["error"]["code"] == "RELATIONSHIP_UNAUTHORIZED"
+    repository.load_context.assert_not_called()
+    repository.load_dependencies.assert_not_called()

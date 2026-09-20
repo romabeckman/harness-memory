@@ -96,7 +96,13 @@ class PostgresImpactAnalysisRepository:
                         impacted_ids,
                         request.bounds.owner_limit,
                     )
-                    owners_truncated = len(owner_rows) > self._MAX_IMPACT_OWNER_ROWS
+                    owner_rows, owner_limit_truncated = self._trim_owner_rows(
+                        owner_rows, request.bounds.owner_limit
+                    )
+                    owners_truncated = (
+                        owner_limit_truncated
+                        or len(owner_rows) > self._MAX_IMPACT_OWNER_ROWS
+                    )
                     owner_rows = owner_rows[: self._MAX_IMPACT_OWNER_ROWS]
                     relation_ids = [
                         edge["relation"].id
@@ -560,12 +566,28 @@ class PostgresImpactAnalysisRepository:
                 Relation.tenant_id == scope.tenant_id,
                 Relation.relation_type == RelationType.OWNED_BY.value,
                 target.entity_type == EntityType.TEAM.value,
-                ranked.c.impact_owner_rank <= owner_limit,
+                ranked.c.impact_owner_rank <= owner_limit + 1,
             )
             .order_by(source.entity_key.asc(), target.entity_key.asc(), Relation.id.asc())
-            .limit(cls._MAX_IMPACT_OWNER_ROWS + 1)
-            ).all()
+            .limit(cls._MAX_IMPACT_OWNER_ROWS + len(entity_ids) + 1)
+        ).all()
         return tuple(rows)
+
+    @classmethod
+    def _trim_owner_rows(cls, owner_rows, owner_limit):
+        if owner_limit == 0:
+            return (), False
+        bounded = []
+        counts = defaultdict(int)
+        truncated = False
+        for row in owner_rows:
+            source_id = cls._node_id(row[1])
+            if counts[source_id] >= owner_limit:
+                truncated = True
+                continue
+            counts[source_id] += 1
+            bounded.append(row)
+        return tuple(bounded), truncated
 
     @staticmethod
     def _load_evidence(session, scope, relation_ids, evidence_limit, byte_budget):
@@ -778,6 +800,7 @@ class PostgresImpactAnalysisRepository:
             )
             for path in output.paths
         )
+        byte_unknown = "Impact result was truncated by byte bounds."
         bounded = output.model_copy(
             update={
                 "changed_entity": without_entity_metadata(output.changed_entity),
@@ -789,7 +812,7 @@ class PostgresImpactAnalysisRepository:
                 ),
                 "evidence": (),
                 "truncated": True,
-                "unknowns": (*output.unknowns, "Impact result was truncated by byte bounds."),
+                "unknowns": tuple(dict.fromkeys((*output.unknowns, byte_unknown))),
             }
         )
 
@@ -806,26 +829,30 @@ class PostgresImpactAnalysisRepository:
                     upper_bound = retained_count - 1
             return candidate.model_copy(update={field_name: items[:lower_bound]})
 
-        while serialized_size(bounded) > byte_budget:
-            if bounded.indirect_consumers:
-                bounded = trim_collection(bounded, "indirect_consumers")
-            elif bounded.direct_consumers:
-                bounded = trim_collection(bounded, "direct_consumers")
-            elif bounded.paths:
-                bounded = trim_collection(bounded, "paths")
-            elif bounded.affected_teams:
-                bounded = trim_collection(bounded, "affected_teams")
-            elif bounded.affected_projects:
-                bounded = trim_collection(bounded, "affected_projects")
-            else:
-                bounded = output.__class__(
-                    changed_entity=without_entity_metadata(output.changed_entity),
-                    truncated=True,
-                    unknowns=("Impact result was truncated by byte bounds.",),
-                )
-                if serialized_size(bounded) > byte_budget:
-                    raise ImpactQueryFailure("minimum impact response exceeds byte budget")
-                break
+        for field_name in (
+            "indirect_consumers",
+            "direct_consumers",
+            "paths",
+            "affected_teams",
+            "affected_projects",
+        ):
+            while serialized_size(bounded) > byte_budget:
+                items = getattr(bounded, field_name)
+                if not items:
+                    break
+                trimmed = trim_collection(bounded, field_name)
+                if len(getattr(trimmed, field_name)) == len(items):
+                    break
+                bounded = trimmed
+
+        if serialized_size(bounded) > byte_budget:
+            bounded = output.__class__(
+                changed_entity=without_entity_metadata(output.changed_entity),
+                truncated=True,
+                unknowns=tuple(dict.fromkeys((*output.unknowns, byte_unknown))),
+            )
+            if serialized_size(bounded) > byte_budget:
+                raise ImpactQueryFailure("minimum impact response exceeds byte budget")
         return bounded
 
     @staticmethod
