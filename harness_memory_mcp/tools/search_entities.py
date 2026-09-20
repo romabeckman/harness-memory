@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from pydantic import Field
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -24,7 +25,8 @@ def register_search_entities(
         name="search_entities",
         description=(
             "Find tenant-visible entities by key, name, type, or project. "
-            "Results are paginated and bounded. Requires memory:read."
+            "At least one filter is required. Results echo the page limit and are bounded. "
+            "Requires memory:read."
         ),
     )
     def search_entities(
@@ -33,6 +35,12 @@ def register_search_entities(
             Field(description="Entity filters, page size, and optional continuation cursor."),
         ],
     ):
+        if all(
+            value is None
+            for value in (request.key, request.name, request.type, request.project)
+        ):
+            raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")
+
         try:
             context = tenant_context.require_scope("memory:read")
             result = handler.execute(request, TenantScope(context.tenant_id))

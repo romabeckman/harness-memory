@@ -29,6 +29,7 @@ def register_analyze_impact(
         name="analyze_impact",
         description=(
             "Analyze downstream consumers and affected projects for a proposed entity change. "
+            "Exactly one target entity is required across supported target fields. "
             "Returns bounded paths, evidence, and unknowns; it does not guess missing impacts. "
             "Requires memory:impact."
         ),

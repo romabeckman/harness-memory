@@ -7,7 +7,6 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_validator,
-    model_validator,
 )
 
 from core.domain.snapshot_publication.types.entity_type import EntityType
@@ -57,9 +56,3 @@ class SearchEntitiesInput(BaseModel):
         if not value:
             raise ValueError("search filter must not be empty")
         return value
-
-    @model_validator(mode="after")
-    def require_filter(self):
-        if self.key is None and self.name is None and self.type is None and self.project is None:
-            raise ValueError("at least one discovery filter is required")
-        return self

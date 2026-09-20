@@ -74,13 +74,13 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 - **Consumer edge**: Traverse only inbound `consumes`, `depends_on`, and `subscribes_to` relations.
 - **Classification**: Put shortest-depth one consumers in `direct_consumers`; put depth two or greater in `indirect_consumers`.
 - **Canonical identity**: Resolve project-local active copies through canonical identity without duplicating returned consumers.
-- **Change contract**: Accept only bounded `change_type`, `description`, and `changed_fields`; reject extra metadata fields.
+- **Change contract**: Require one unambiguous target across supported target fields; accept only bounded `change_type`, `description`, and `changed_fields`.
 - **Impact context**: Derive projects and teams from impacted consumers; reuse integration-path views for paths, ownership, provenance, and evidence.
 - **Response budget**: Apply per-consumer owner bounds, cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
 
 ## HOW TO ANALYZE IMPACT
 
-1. Submit a changed entity UUID and a bounded structured change; never submit tenant identity.
+1. Submit exactly one stable changed-entity identity or legacy active-row UUID; never submit conflicting targets or tenant identity.
 2. Require trusted tenant scope and read only active snapshot facts.
 3. Treat `unknowns` as explicit knowledge gaps for no consumers, missing requested evidence, or bounded traversal.
 4. Treat `truncated=true` as incomplete graph coverage; preserve deterministic ordering.
@@ -89,6 +89,7 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
+| `entity_id` / target aliases | UUID | Exactly one target | Stable changed-entity identity; legacy aliases remain compatible. | — |
 | `change_type` | string | Yes | Change category, 1–64 characters. | — |
 | `description` | string | Yes | Bounded change explanation, up to 4096 characters. | — |
 | `changed_fields` | string array | No | Typed fields affected by the change. | `[]` |
@@ -105,6 +106,7 @@ REQUIRED: Preserve provenance and bounded evidence; distinguish intentional evid
 REQUIRED: Deduplicate consumer classification by canonical identity and report byte truncation once in `unknowns`.
 PROHIBITED: Infer impact with an LLM or traverse ownership, structural, provider, or publication relations as consumer edges.
 PROHIBITED: Leak tenant, SQL, persistence, or free-text details through failure mapping or audit details.
+REQUIRED: Return `INVALID_IMPACT_CONTRACT` with a precise required or ambiguous target message before repository access.
 
 ## TIPS
 

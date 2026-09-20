@@ -292,6 +292,27 @@ def test_dependencies_filter_direction_without_recursion_or_duplicates():
     assert sum(item.peer.id == ids["service"] for item in both.items) == 1
 
 
+def test_context_and_dependencies_accept_stable_entity_identity():
+    _, session_factory = _repository()
+    ids = _seed(session_factory)
+    stable_id = uuid4()
+    with session_factory() as session:
+        entity = session.get(Entity, ids["service"])
+        entity.identity_id = stable_id
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    context = repository.load_context(
+        TenantScope("tenant-a"), GetContextInput(entity_id=stable_id)
+    )
+    dependencies = repository.load_dependencies(
+        TenantScope("tenant-a"), GetDependenciesInput(entity_id=stable_id)
+    )
+
+    assert context.entity.id == stable_id
+    assert dependencies.entity.id == stable_id
+
+
 def test_dependency_query_is_bounded_and_reports_truncation():
     _, session_factory = _repository()
     ids = _seed(session_factory)

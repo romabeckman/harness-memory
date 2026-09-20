@@ -85,25 +85,27 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 - **Active snapshot**: Exclude historical Entity rows and Projects without an active snapshot.
 - **Conjunctive filters**: Apply every supplied key, name, type, and project filter together.
-- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last nonblank, trimmed Entity key/UUID tuple; reject malformed or filter-mismatched cursors.
+- **Stable identity**: Return the canonical Entity identity when present; retain the snapshot row UUID only for legacy rows.
+- **Keyset cursor**: Bind an opaque versioned cursor to normalized filters and the last Entity key/stable-identity tuple; reject malformed or filter-mismatched cursors.
 - **Bounded result**: Return scalar identity, Project, active Snapshot, and revision fields; omit metadata, relations, evidence, and total count.
 
 ## HOW TO SEARCH
 
 1. Supply at least one filter: `key`, `name`, `type`, or `project`.
-2. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
-3. Use a case-insensitive literal prefix for `name`; wildcard characters remain literal data.
-4. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
-5. Return stable `INVALID_SEARCH_CURSOR` or `INVALID_ARGUMENT` errors for malformed cursors or missing filters.
+2. Use exact, case-sensitive matching for `key`; use exact type matching.
+3. Use a case-insensitive literal prefix for `name` across Entity name and key; wildcard characters remain literal data.
+4. Use a case-insensitive literal prefix for `project`; keep results tenant-scoped and active-snapshot bound.
+5. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
+6. Return the applied `limit`; return `INVALID_ARGUMENT` for missing filters and `INVALID_SEARCH_CURSOR` for malformed cursors.
 
 ## PARAMETERS / CONFIGURATIONS
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
 | `key` | string | No | Exact Entity key, trimmed. | unset |
-| `name` | string | No | Case-insensitive literal prefix, trimmed. | unset |
+| `name` | string | No | Case-insensitive literal Entity name or key prefix, trimmed. | unset |
 | `type` | EntityType | No | Exact supported Entity type. | unset |
-| `project` | string | No | Exact Project key, trimmed. | unset |
+| `project` | string | No | Case-insensitive literal Project key prefix, trimmed. | unset |
 | `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
 

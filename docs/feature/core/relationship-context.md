@@ -84,14 +84,14 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Active context**: Resolve the requested UUID only when it belongs to the trusted tenant and its Project's active snapshot; reject malformed trusted context before repository access.
+- **Active context**: Resolve a stable identity or legacy row UUID only within the trusted tenant's active snapshot; reject malformed trusted context before repository access.
 - **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
 - **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
 - **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
 
 ## HOW TO QUERY
 
-1. Discover an active entity UUID with `search_entities`.
+1. Discover a stable active entity identity with `search_entities`.
 2. Call `get_context` for project, owners, direct relations, dependency subset, provenance, and linked evidence.
 3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
 4. Treat not-found responses for unknown, stale, and other-tenant UUIDs as the same non-disclosing result.
@@ -100,7 +100,7 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `entity_id` | UUID | Yes | Active entity identity from discovery. | — |
+| `entity_id` | UUID | Yes | Stable active entity identity from discovery; legacy row UUIDs remain accepted. | — |
 | `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
 | `limit` | strict integer | No | Relation bound from 1 through 100. | `25` |
 | `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |

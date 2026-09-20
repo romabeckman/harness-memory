@@ -355,6 +355,24 @@ def test_repository_returns_zero_hop_and_enforces_depth_and_path_limits():
     assert len(limited.paths) <= 1
 
 
+def test_repository_accepts_stable_endpoint_identities():
+    session_factory = _repository()
+    ids = _seed(session_factory)
+    source_identity = uuid4()
+    target_identity = uuid4()
+    with session_factory() as session:
+        session.get(Entity, ids["source"]).identity_id = source_identity
+        session.get(Entity, ids["middle"]).identity_id = target_identity
+        session.commit()
+
+    result = PostgresIntegrationPathRepository(session_factory).find_paths(
+        TenantScope("tenant-a"), _query(source_identity, target_identity)
+    )
+
+    assert len(result.paths) == 1
+    assert result.termination_reason is PathTerminationReason.COMPLETE
+
+
 @pytest.mark.parametrize("entity_key", ["unknown", "foreign"])
 def test_repository_hides_unavailable_endpoints(entity_key):
     session_factory = _repository()

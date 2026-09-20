@@ -89,7 +89,7 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 
 ## HOW TO FIND PATHS
 
-1. Supply source and target active entity UUIDs; derive tenant scope from authenticated context. Active copies in different projects can connect through their shared canonical identity.
+1. Supply source and target stable identities or legacy active-row UUIDs; derive tenant scope from authenticated context. Active copies in different projects connect through shared canonical identity.
 2. Use bounds to control depth, path count, evidence, and ownership.
 3. Treat source equal to target as one zero-hop path and disconnected visible endpoints as an empty success.
 4. Treat hidden, stale, foreign, or unknown endpoints as one sanitized not-found result.
@@ -99,8 +99,8 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `source_entity_id` | UUID | Yes | Visible starting entity. | — |
-| `target_entity_id` | UUID | Yes | Visible ending entity. | — |
+| `source_entity_id` | UUID | Yes | Visible starting stable identity or legacy row UUID. | — |
+| `target_entity_id` | UUID | Yes | Visible ending stable identity or legacy row UUID. | — |
 | `max_depth` | integer | No | Path depth from 1 through 8. | `4` |
 | `max_paths` | integer | No | Returned path bound from 1 through 25. | `10` |
 | `evidence_limit` / `owner_limit` | integer | No | Per-relation/per-entity bound from 0 through 20. | `5` |

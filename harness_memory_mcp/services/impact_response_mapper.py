@@ -14,7 +14,7 @@ class ImpactResponseMapper:
 
     def failure(self, error: Exception) -> dict:
         if isinstance(error, ValidationError):
-            code, message = "INVALID_IMPACT_CONTRACT", "invalid impact analysis contract"
+            code, message = "INVALID_IMPACT_CONTRACT", self._validation_message(error)
         elif isinstance(error, MissingTenantContext):
             code, message = "MISSING_TENANT_CONTEXT", "trusted tenant context is required"
         elif isinstance(error, AuthorizationFailure):
@@ -28,3 +28,12 @@ class ImpactResponseMapper:
         else:
             code, message = "IMPACT_QUERY_FAILED", "impact analysis query failed"
         return {"status": "ERROR", "error": {"code": code, "message": message}}
+
+    @staticmethod
+    def _validation_message(error: ValidationError) -> str:
+        messages = tuple(str(item.get("msg", "")) for item in error.errors())
+        if any("change target entity is required" in message for message in messages):
+            return "change target entity is required"
+        if any("change target entity is ambiguous" in message for message in messages):
+            return "change target entity is ambiguous"
+        return "invalid impact analysis contract"

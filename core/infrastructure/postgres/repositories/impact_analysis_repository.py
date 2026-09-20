@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Callable
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -187,7 +187,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                Entity.id == entity_id,
+                or_(Entity.id == entity_id, Entity.identity_id == entity_id),
                 Entity.tenant_id == scope.tenant_id,
                 Project.active_snapshot_id == Entity.snapshot_id,
             )

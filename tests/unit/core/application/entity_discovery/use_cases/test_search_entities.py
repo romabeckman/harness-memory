@@ -36,6 +36,7 @@ def test_handler_searches_once_with_normalized_criteria_and_scope():
     output = handler.execute(SearchEntitiesInput(name=" Payments "), TenantScope("tenant-a"))
 
     assert output.count == 1
+    assert output.limit == 25
     assert output.items[0].key == "payments-api"
     repository.search.assert_called_once()
     scope, criteria, cursor, limit = repository.search.call_args.args
@@ -64,7 +65,9 @@ def test_handler_maps_empty_and_populated_pages():
     populated = handler.execute(SearchEntitiesInput(key="payments-api"), TenantScope("tenant-a"))
 
     assert empty.items == () and empty.count == 0 and empty.next_cursor is None
+    assert empty.limit == 25
     assert populated.items == (item,) and populated.count == 1
+    assert populated.limit == 25
     assert populated.next_cursor
 
 

@@ -187,7 +187,7 @@ class PostgresRelationshipQueryRepository:
                 ),
             )
             .where(
-                Entity.id == entity_id,
+                or_(Entity.id == entity_id, Entity.identity_id == entity_id),
                 Entity.tenant_id == scope.tenant_id,
                 Project.active_snapshot_id == Entity.snapshot_id,
             )
@@ -312,7 +312,8 @@ class PostgresRelationshipQueryRepository:
     @staticmethod
     def _map_entity(entity: Entity) -> EntityContextItem:
         return EntityContextItem(
-            id=entity.id,
+            id=entity.identity_id or entity.id,
+            identity_id=entity.identity_id or entity.id,
             key=entity.entity_key,
             name=entity.name,
             type=entity.entity_type,

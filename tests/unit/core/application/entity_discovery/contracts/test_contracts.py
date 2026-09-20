@@ -25,11 +25,19 @@ def test_input_accepts_each_discovery_filter_and_defaults_limit():
 
 @pytest.mark.parametrize(
     "payload",
-    [{}, {"limit": 25}, {"key": "  "}, {"name": "  "}, {"project": "  "}],
+    [{"key": "  "}, {"name": "  "}, {"project": "  "}],
 )
-def test_input_requires_non_empty_discovery_filter(payload):
+def test_input_rejects_blank_text_filter(payload):
     with pytest.raises(ValidationError):
         SearchEntitiesInput(**payload)
+
+
+def test_input_accepts_missing_filters_for_tool_boundary_validation():
+    assert SearchEntitiesInput().key is None
+    assert SearchEntitiesInput(limit=25).project is None
+
+    with pytest.raises(ValueError, match="at least one discovery filter is required"):
+        EntitySearchCriteria()
 
 
 @pytest.mark.parametrize("field", ["key", "name", "project"])
