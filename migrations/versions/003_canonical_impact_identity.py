@@ -5,8 +5,8 @@ from uuid import NAMESPACE_URL, uuid5
 import sqlalchemy as sa
 from alembic import op
 
-revision = "f006_canonical_impact_identity"
-down_revision = "f003_entity_search_indexes"
+revision = "003"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 

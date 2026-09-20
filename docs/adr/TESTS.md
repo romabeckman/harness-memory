@@ -5,7 +5,7 @@ stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastM
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Testing Protocol
 
@@ -50,6 +50,7 @@ PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence b
 - **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no mocking library configured.
 - **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.
 - **CI Integration:** GitHub Actions runs Ruff, PostgreSQL migrations, unit, integration, E2E, and coverage jobs.
+- **Architecture:** Unit tests validate repository source rules against the real project root as well as isolated fixtures.
 
 ## TROUBLESHOOTING
 

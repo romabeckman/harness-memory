@@ -1,9 +1,9 @@
 from unittest.mock import MagicMock
 import pytest
 from core.domain.platform.schema_incompatible_error import SchemaIncompatibleError
-from core.domain.platform.verify_startup_schema import VerifyStartupSchema
 from core.infrastructure.postgres.migrations_status import MigrationStatus
 from core.infrastructure.postgres.schema_compatibility_checker import SchemaCompatibilityChecker
+from core.infrastructure.postgres.verify_startup_schema import VerifyStartupSchema
 
 
 def test_check_returns_compatible_when_current_equals_head():

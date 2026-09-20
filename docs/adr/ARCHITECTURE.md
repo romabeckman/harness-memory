@@ -7,7 +7,7 @@ tags: [architecture, design-patterns, folder-structure]
 edges:
   - relation: references
     target: "adr:tests"
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Project Architecture
 
@@ -45,7 +45,7 @@ harness-memory/
 - **MCP adapter**: Authenticate, authorize, validate boundary input, call one application use case, map safe output. Keep SQL and business rules out.
 - **Application**: Coordinate handlers, contracts, trusted tenant scope, ports, bounded results, and typed failures.
 - **Domain**: Enforce invariants independently of FastMCP, HTTP, SQLAlchemy, PostgreSQL, and Alembic.
-- **Infrastructure**: Implement PostgreSQL repositories, migrations inspection, telemetry, and external technical adapters.
+- **Infrastructure**: Implement PostgreSQL repositories, migrations inspection and startup verification, telemetry, and external technical adapters.
 
 ## MODULES
 

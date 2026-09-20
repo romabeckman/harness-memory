@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import threading
 from uuid import uuid4
 
 from fastmcp.exceptions import InsufficientScopeError
@@ -194,7 +193,7 @@ class AuditingTokenVerifier(TokenVerifier):
         self.verifier = verifier
         self.audit_handler = audit_handler
         self.principal_factory = principal_factory
-        self._audit_slots = threading.BoundedSemaphore(value=16)
+        self._audit_slots = asyncio.BoundedSemaphore(value=16)
 
     async def verify_token(self, token: str) -> AccessToken | None:
         try:
@@ -212,13 +211,8 @@ class AuditingTokenVerifier(TokenVerifier):
     async def _audit_auth_failure_async(self) -> None:
         if self.audit_handler is None:
             return
-        if not self._audit_slots.acquire(blocking=False):
-            logger.warning("security audit queue is full; authentication failure record dropped")
-            return
-        try:
+        async with self._audit_slots:
             await asyncio.to_thread(self._audit_auth_failure)
-        finally:
-            self._audit_slots.release()
 
     def _audit_auth_failure(self):
         if self.audit_handler is not None:

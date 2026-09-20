@@ -49,7 +49,7 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
     "core/infrastructure/postgres/models/snapshot.py",
     "core/infrastructure/postgres/models/types.py",
     "migrations/env.py",
-    "migrations/versions/initial_foundation.py"
+    "migrations/versions/001_foundation.py"
   ],
   "test_files": [
     "tests/unit/architecture/test_rules.py",

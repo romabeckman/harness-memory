@@ -12,7 +12,7 @@ from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.project import Project
 from mcp.migration_cli import MigrationCLI
 
-REVISION_PATH = Path(__file__).parents[3] / "migrations" / "versions" / "initial_foundation.py"
+REVISION_PATH = Path(__file__).parents[3] / "migrations" / "versions" / "001_foundation.py"
 
 
 def test_initial_revision_declares_only_its_owned_schema():

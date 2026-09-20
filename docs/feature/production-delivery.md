@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:tenant-security"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Production Delivery
 Package and operate Harness Memory as a non-root, migration-gated, observable MCP HTTP service.
@@ -29,6 +29,7 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
   "registration_files": [],
   "reference_files": [
     "core/infrastructure/postgres/schema_compatibility_checker.py",
+    "core/infrastructure/postgres/verify_startup_schema.py",
     "core/infrastructure/telemetry/telemetry_tracer.py",
     "mcp/server/server_lifespan_manager.py"
   ],
@@ -42,7 +43,6 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
     "core/domain/platform/schema_compatibility_status.py",
     "core/domain/platform/schema_incompatible_error.py",
     "core/domain/platform/trace_correlation_id.py",
-    "core/domain/platform/verify_startup_schema.py",
     "core/infrastructure/telemetry/telemetry_span_sanitizer.py",
     "core/infrastructure/telemetry/tracer_provider.py",
     "mcp/config.py",
@@ -67,6 +67,8 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
     "tests/unit/mcp/services/test_telemetry_middleware.py",
     "tests/unit/mcp/services/test_trace_context_extractor.py",
     "tests/unit/mcp/test_docker_config.py",
+    "tests/unit/architecture/test_rules.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py",
     "tests/unit/production_delivery/test_ci_workflow.py"
   ]
 }
@@ -83,7 +85,7 @@ Check Alembic compatibility during server lifespan startup. Keep startup fail-cl
 ```text
 Dockerfile and docker-compose.yml       # Non-root runtime and local service graph
 core/domain/platform/                   # Immutable schema status and startup error
-core/infrastructure/postgres/           # Alembic revision inspection
+core/infrastructure/postgres/           # Alembic inspection and startup verification
 core/infrastructure/telemetry/          # NoOp-safe span adapters and sanitization
 mcp/server/ and mcp/services/           # Lifespan, HTTP runtime, tracing middleware
 .github/workflows/                      # Ruff, migrations, test tiers, coverage
@@ -117,7 +119,7 @@ tests/{unit,integration,e2e}/           # Delivery, startup, telemetry, and Dock
 
 REQUIRED: Run migrations as an explicit service or CLI operation before runtime startup.
 REQUIRED: Sanitize telemetry attributes and trace correlation before export or audit use.
-REQUIRED: Keep CI integration checks on PostgreSQL and enforce global 80% branch coverage.
+REQUIRED: Keep CI integration checks on PostgreSQL, gate the repository source tree's architecture rules, and enforce global 80% branch coverage.
 PROHIBITED: Run the server as root or auto-create/upgrade production schema during startup.
 PROHIBITED: Export bearer tokens, claims, payloads, evidence, credentials, or database URLs.
 

@@ -6,11 +6,11 @@ from core.infrastructure.postgres.models.entity import Entity
 from core.infrastructure.postgres.models.project import Project
 
 
-def test_f003_migration_is_reversible_and_targets_only_documented_indexes():
-    migration = import_module("migrations.versions.f003_entity_search_indexes")
+def test_entity_search_migration_is_reversible_and_targets_only_documented_indexes():
+    migration = import_module("migrations.versions.002_entity_search_indexes")
 
-    assert migration.revision == "f003_entity_search_indexes"
-    assert migration.down_revision == "f001_foundation"
+    assert migration.revision == "002"
+    assert migration.down_revision == "001"
     assert {
         index.name
         for table in (Entity.__table__, Project.__table__)

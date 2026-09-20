@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:relationship-context"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Integration Paths
 Find bounded, tenant-scoped paths between active graph entities through `find_integration_paths`.
@@ -32,6 +32,7 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
     "core/infrastructure/postgres/repositories/integration_path_repository.py"
   ],
   "code_files": [
+    "core/application/relationship_context/contracts/entity_context_item.py",
     "core/application/integration_paths/contracts/integration_path_view.py",
     "core/application/integration_paths/contracts/ownership_view.py",
     "core/application/integration_paths/contracts/path_entity_view.py",
@@ -68,7 +69,7 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
 
 ## OVERVIEW
 
-Use a read-only application query with PostgreSQL recursive traversal. Resolve both endpoints from one trusted tenant's active snapshots, then return typed path, hop, ownership, provenance, and evidence views.
+Use a read-only application query with PostgreSQL recursive traversal. Resolve both endpoints from one trusted tenant's active snapshots, traverse by canonical identity across active projects, then return typed path, hop, ownership, provenance, and evidence views backed by concrete snapshot rows.
 
 ## FOLDER STRUCTURE
 
@@ -82,13 +83,13 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Eligible hop**: Traverse `provides`, `consumes`, `depends_on`, `publishes`, `subscribes_to`, and `implements`; exclude `owned_by` and `part_of`.
-- **Simple path**: Treat eligible relations as bidirectional adjacency while preserving stored endpoints and traversal direction; never repeat an entity UUID.
+- **Simple path**: Treat eligible relations as bidirectional adjacency while preserving concrete stored endpoints and traversal direction; join snapshot-local rows by canonical identity and never repeat a canonical node.
 - **Bounded result**: Limit depth to 1–8, paths to 1–25, evidence and owners to 0–20, and recursive expansion to 10,000.
 - **Explanatory context**: Attach direct hop evidence and explicit outbound team ownership; do not infer missing facts.
 
 ## HOW TO FIND PATHS
 
-1. Supply source and target active entity UUIDs; derive tenant scope from authenticated context.
+1. Supply source and target active entity UUIDs; derive tenant scope from authenticated context. Active copies in different projects can connect through their shared canonical identity.
 2. Use bounds to control depth, path count, evidence, and ownership.
 3. Treat source equal to target as one zero-hop path and disconnected visible endpoints as an empty success.
 4. Treat hidden, stale, foreign, or unknown endpoints as one sanitized not-found result.
@@ -106,7 +107,7 @@ tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalo
 ## BEST PRACTICES
 
 REQUIRED: Anchor endpoint, traversal, ownership, and evidence reads to one coherent active-snapshot transaction.
-REQUIRED: Order paths by hop count, entity keys, and relation IDs; preserve parallel relation paths when sequences differ.
+REQUIRED: Order paths by hop count, entity keys, and relation IDs; preserve parallel relation paths when sequences differ. Validate cross-snapshot hop continuity by canonical identity while retaining each relation's concrete endpoints.
 REQUIRED: Set truncation and termination reason when path or expansion bounds omit results.
 PROHIBITED: Join disconnected projects by entity key or return partial paths after a query failure.
 PROHIBITED: Put recursive SQL, ownership inference, or tenant selection in the MCP adapter.

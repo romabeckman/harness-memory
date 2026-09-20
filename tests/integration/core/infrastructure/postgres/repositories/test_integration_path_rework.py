@@ -143,8 +143,12 @@ def test_neighbor_query_is_endpoint_scoped_and_postgresql_safe():
     sql = str(statement.compile(dialect=postgresql.dialect())).upper()
 
     assert "INTEGRATION_PATH_EDGE_DEGREES" not in sql
-    assert "RELATIONS.SOURCE_ENTITY_ID IN" in sql
-    assert "RELATIONS.TARGET_ENTITY_ID IN" in sql
+    assert "RELATIONS.SOURCE_IDENTITY_ID" in sql
+    assert "RELATIONS.TARGET_IDENTITY_ID" in sql
+    assert "WALK_SOURCE.IDENTITY_ID" in sql
+    assert "WALK_TARGET.IDENTITY_ID" in sql
+    assert "RELATIONS.SOURCE_ENTITY_ID" in sql
+    assert "RELATIONS.TARGET_ENTITY_ID" in sql
     assert "LIMIT" in sql
 
 

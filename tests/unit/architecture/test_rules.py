@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from core.infrastructure.architecture.rules import ValidateArchitecture
 
 
@@ -45,3 +47,9 @@ def test_validate_architecture_reports_application_fastmcp_and_model_imports(tmp
     violations = ValidateArchitecture().execute(root)
 
     assert len(violations) == 2
+
+
+def test_validate_architecture_accepts_repository_source_tree():
+    project_root = Path(__file__).resolve().parents[3]
+
+    assert ValidateArchitecture().execute(project_root) == []

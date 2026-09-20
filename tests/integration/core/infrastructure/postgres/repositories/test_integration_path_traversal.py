@@ -231,6 +231,94 @@ def test_repository_returns_shortest_path_with_direction_ownership_and_evidence(
     assert result.paths[0].entities[0].owners[0].evidence[0].source == "owners.yaml"
 
 
+def test_repository_traverses_across_active_snapshots_by_canonical_identity():
+    session_factory = _repository()
+    tenant = "tenant-a"
+    source_identity = uuid4()
+    shared_identity = uuid4()
+    target_identity = uuid4()
+    with session_factory() as session:
+        projects = []
+        snapshots = []
+        for key in ("payments-a", "payments-b"):
+            project = Project(tenant_id=tenant, key=key, name=key)
+            session.add(project)
+            session.flush()
+            snapshot = Snapshot(
+                tenant_id=tenant,
+                project_id=project.id,
+                revision=1,
+                schema_version="1.0",
+                payload_hash=key[0] * 64,
+                payload={},
+                metadata_json={},
+            )
+            session.add(snapshot)
+            session.flush()
+            project.active_snapshot_id = snapshot.id
+            projects.append(project)
+            snapshots.append(snapshot)
+
+        source, bridge_a, bridge_b, target = (
+            Entity(
+                id=uuid4(),
+                tenant_id=tenant,
+                project_id=projects[project_index].id,
+                snapshot_id=snapshots[project_index].id,
+                identity_id=identity_id,
+                entity_key=key,
+                entity_type="service",
+                name=key,
+                metadata_json={},
+            )
+            for project_index, identity_id, key in (
+                (0, source_identity, "source"),
+                (0, shared_identity, "shared-a"),
+                (1, shared_identity, "shared-b"),
+                (1, target_identity, "target"),
+            )
+        )
+        session.add_all([source, bridge_a, bridge_b, target])
+        session.flush()
+        session.add_all(
+            [
+                Relation(
+                    tenant_id=tenant,
+                    snapshot_id=snapshots[0].id,
+                    source_entity_id=source.id,
+                    target_entity_id=bridge_a.id,
+                    source_identity_id=source_identity,
+                    target_identity_id=shared_identity,
+                    relation_type=RelationType.CONSUMES.value,
+                    provenance_kind="declared",
+                    metadata_json={},
+                ),
+                Relation(
+                    tenant_id=tenant,
+                    snapshot_id=snapshots[1].id,
+                    source_entity_id=bridge_b.id,
+                    target_entity_id=target.id,
+                    source_identity_id=shared_identity,
+                    target_identity_id=target_identity,
+                    relation_type=RelationType.PROVIDES.value,
+                    provenance_kind="declared",
+                    metadata_json={},
+                ),
+            ]
+        )
+        session.commit()
+
+    result = PostgresIntegrationPathRepository(session_factory).find_paths(
+        TenantScope(tenant), _query(source.id, target.id)
+    )
+
+    assert len(result.paths) == 1
+    assert result.paths[0].hop_count == 2
+    assert result.paths[0].hops[0].source.id == source.id
+    assert result.paths[0].hops[-1].target.id == target.id
+    assert result.paths[0].entities[1].entity.identity_id == shared_identity
+
+
 def test_repository_traverses_both_relation_directions_and_excludes_non_integration_edges():
     session_factory = _repository()
     ids = _seed(session_factory)

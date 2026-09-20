@@ -74,16 +74,18 @@ class PostgresIntegrationPathRepository:
                     source = self._resolve_endpoint(session, scope, request.source_entity_id)
                     target = self._resolve_endpoint(session, scope, request.target_entity_id)
                     entity_by_id = {source.id: source, target.id: target}
+                    source_node_id = self._node_id(source)
+                    target_node_id = self._node_id(target)
 
-                    if source.id == target.id:
+                    if source_node_id == target_node_id:
                         ordered_paths = (((source.id,), ()),)
                         expansion_limited = False
                     else:
                         raw_paths, expansion_limited, path_limited = self._load_recursive_paths(
                             session,
                             scope,
-                            source.id,
-                            target.id,
+                            source_node_id,
+                            target_node_id,
                             request.bounds.max_depth,
                             request.bounds.max_paths,
                         )
@@ -105,12 +107,14 @@ class PostgresIntegrationPathRepository:
                                 relation.id: (relation, source_entity, target_entity)
                                 for relation, source_entity, target_entity in rows
                             }
-                            complete_paths = self._materialize_raw_paths(raw_paths, relation_by_id)
+                            complete_paths = self._materialize_raw_paths(
+                                raw_paths, relation_by_id, source.id
+                            )
                             ordered_paths = self._order_raw_paths(complete_paths, entity_by_id)
                         else:
                             ordered_paths = ()
 
-                    if source.id == target.id:
+                    if source_node_id == target_node_id:
                         total_path_count = 1
                     else:
                         total_path_count = len(ordered_paths)
@@ -127,7 +131,7 @@ class PostgresIntegrationPathRepository:
                     if expansion_limited:
                         truncated = True
                         termination_reason = PathTerminationReason.EXPANSION_LIMIT
-                    elif source.id != target.id and (
+                    elif source_node_id != target_node_id and (
                         path_limited or total_path_count > request.bounds.max_paths
                     ):
                         truncated = True
@@ -206,13 +210,25 @@ class PostgresIntegrationPathRepository:
             rows_limited = len(rows) > remaining
             adjacency = defaultdict(list)
             for relation, relation_source, relation_target in rows:
-                if relation.source_entity_id in current_ids:
-                    adjacency[relation.source_entity_id].append(
-                        (relation_target.entity_key, relation.id, relation_target.id)
+                source_node_id = self._relation_node_id(relation, relation_source, "source")
+                target_node_id = self._relation_node_id(relation, relation_target, "target")
+                if source_node_id in current_ids:
+                    adjacency[source_node_id].append(
+                        (
+                            relation_target.entity_key,
+                            relation.id,
+                            target_node_id,
+                            relation_target.id,
+                        )
                     )
-                if relation.target_entity_id in current_ids:
-                    adjacency[relation.target_entity_id].append(
-                        (relation_source.entity_key, relation.id, relation_source.id)
+                if target_node_id in current_ids:
+                    adjacency[target_node_id].append(
+                        (
+                            relation_source.entity_key,
+                            relation.id,
+                            source_node_id,
+                            relation_source.id,
+                        )
                     )
             for candidates in adjacency.values():
                 candidates.sort(
@@ -226,8 +242,8 @@ class PostgresIntegrationPathRepository:
             next_frontier = []
             stop = False
             for entity_ids, relation_ids, entity_keys in frontier:
-                for next_key, relation_id, next_id in adjacency.get(entity_ids[-1], ()):
-                    if next_id in entity_ids:
+                for next_key, relation_id, next_node_id, _ in adjacency.get(entity_ids[-1], ()):
+                    if next_node_id in entity_ids:
                         continue
                     if expansions >= self._policy.max_expansions:
                         expansion_limited = True
@@ -235,11 +251,11 @@ class PostgresIntegrationPathRepository:
                         break
                     expansions += 1
                     next_path = (
-                        (*entity_ids, next_id),
+                        (*entity_ids, next_node_id),
                         (*relation_ids, relation_id),
                         (*entity_keys, next_key),
                     )
-                    if next_id == target_id:
+                    if next_node_id == target_id:
                         completed.append(next_path)
                         if len(completed) > max_paths:
                             stop = True
@@ -271,15 +287,26 @@ class PostgresIntegrationPathRepository:
         relation_target = aliased(Entity, name="walk_target")
         relation_snapshot = aliased(Snapshot, name="walk_snapshot")
         relation_project = aliased(Project, name="walk_project")
+        source_node_id = func.coalesce(
+            Relation.source_identity_id,
+            relation_source.identity_id,
+            Relation.source_entity_id,
+        )
+        target_node_id = func.coalesce(
+            Relation.target_identity_id,
+            relation_target.identity_id,
+            Relation.target_entity_id,
+        )
+        source_is_current = source_node_id.in_(current_ids)
         next_entity_key = case(
-            (Relation.source_entity_id.in_(current_ids), relation_target.entity_key),
+            (source_is_current, relation_target.entity_key),
             else_=relation_source.entity_key,
         )
-        next_entity_id = case(
-            (Relation.source_entity_id.in_(current_ids), relation_target.id),
-            else_=relation_source.id,
+        next_node_id = case(
+            (source_is_current, target_node_id),
+            else_=source_node_id,
         )
-        target_rank = case((next_entity_id == target_id, 0), else_=1)
+        target_rank = case((next_node_id == target_id, 0), else_=1)
         eligible_types = tuple(
             item.value for item in PathTraversalPolicy().eligible_types
         )
@@ -320,8 +347,8 @@ class PostgresIntegrationPathRepository:
                 Relation.tenant_id == scope.tenant_id,
                 Relation.relation_type.in_(eligible_types),
                 or_(
-                    Relation.source_entity_id.in_(current_ids),
-                    Relation.target_entity_id.in_(current_ids),
+                    source_node_id.in_(current_ids),
+                    target_node_id.in_(current_ids),
                 ),
             )
             .order_by(target_rank.asc(), next_entity_key.asc(), Relation.id.asc())
@@ -329,19 +356,34 @@ class PostgresIntegrationPathRepository:
         )
 
     @staticmethod
-    def _materialize_raw_paths(raw_paths, relation_by_id):
+    def _materialize_raw_paths(raw_paths, relation_by_id, source_entity_id):
         paths = []
-        for entity_ids, relation_ids in raw_paths:
+        for node_ids, relation_ids in raw_paths:
             hop_specs = []
+            entity_ids = [source_entity_id]
             for index, relation_id in enumerate(relation_ids):
                 relation, source, target = relation_by_id[relation_id]
-                if source.id == entity_ids[index]:
+                source_node_id = PostgresIntegrationPathRepository._relation_node_id(
+                    relation, source, "source"
+                )
+                if source_node_id == node_ids[index]:
                     direction = PathTraversalDirection.OUTBOUND
+                    entity_ids.append(target.id)
                 else:
                     direction = PathTraversalDirection.INBOUND
+                    entity_ids.append(source.id)
                 hop_specs.append((relation, source, target, direction))
-            paths.append((entity_ids, tuple(hop_specs)))
+            paths.append((tuple(entity_ids), tuple(hop_specs)))
         return tuple(paths)
+
+    @staticmethod
+    def _relation_node_id(relation, entity, endpoint):
+        identity_id = getattr(relation, f"{endpoint}_identity_id")
+        return identity_id or entity.identity_id or entity.id
+
+    @staticmethod
+    def _node_id(entity):
+        return entity.identity_id or entity.id
 
     def _load_active_relations(self, session: Session, scope: TenantScope, relation_ids=None):
         source = aliased(Entity, name="path_source")
@@ -612,6 +654,7 @@ class PostgresIntegrationPathRepository:
     def _map_entity(entity) -> EntityContextItem:
         return EntityContextItem(
             id=entity.id,
+            identity_id=entity.identity_id or entity.id,
             key=entity.entity_key,
             name=entity.name,
             type=entity.entity_type,

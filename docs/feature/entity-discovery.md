@@ -50,7 +50,7 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
     "core/infrastructure/postgres/models/entity.py",
     "core/infrastructure/postgres/models/project.py",
     "core/infrastructure/postgres/models/snapshot.py",
-    "migrations/versions/f003_entity_search_indexes.py",
+    "migrations/versions/002_entity_search_indexes.py",
     "mcp/services/entity_search_response_mapper.py",
     "mcp/services/tenant_context.py"
   ],

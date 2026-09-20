@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:mcp-access-surface"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Tenant Security
 Protect the MCP surface with verified bearer identity, exact scope authorization, tenant isolation, and append-only audit facts.
@@ -44,7 +44,7 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
     "core/application/tenant_security/use_cases/record_security_audit/inbound.py",
     "core/application/tenant_security/use_cases/record_security_audit/outbound.py",
     "core/infrastructure/postgres/models/security_audit_event.py",
-    "migrations/versions/f008_security_audit_events.py",
+    "migrations/versions/004_security_audit_events.py",
     "mcp/config.py",
     "mcp/server/http_security.py",
     "mcp/services/audited_operation.py",
@@ -88,7 +88,7 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 - **Authenticated principal**: Build only from verified claims; require non-empty subject and tenant; store exact scopes.
 - **Component policy**: Map every tool, resource, and prompt to one of `memory:read`, `memory:publish`, or `memory:impact`; deny unmapped components.
 - **Tenant context**: Bind and reset request-scoped identity with `ContextVar`; pass tenant scope separately from public payloads.
-- **Security audit**: Append attempted/completed operation and authentication/authorization facts with bounded safe details and idempotent identity.
+- **Security audit**: Append attempted/completed operation and authentication/authorization facts with bounded safe details and idempotent identity. Apply backpressure when concurrent authentication-failure writes reach capacity; never silently discard an event because the write slots are full.
 
 ## HOW TO SECURE REQUESTS
 
@@ -112,7 +112,7 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 
 REQUIRED: Derive tenant identity only from verified claims and enforce tenant predicates on every repository query.
 REQUIRED: Filter catalogs and recheck authorization on direct calls, reads, and prompt retrieval.
-REQUIRED: Keep audit records append-only, bounded, idempotent, and secret-free; fail closed when required audit persistence fails.
+REQUIRED: Keep audit records append-only, bounded, idempotent, and secret-free; apply request backpressure rather than dropping authentication failures when the audit concurrency limit is reached; fail closed when required audit persistence fails.
 PROHIBITED: Use fixed tenants, request payload tenant fields, permissive missing-scope defaults, or raw verifier errors.
 PROHIBITED: Treat authentication or authorization audit failure as permission to continue the denied operation.
 

@@ -8,7 +8,6 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.ha
 from core.application.tenant_security.use_cases.record_security_audit.handler import (
     RecordSecurityAuditHandler,
 )
-from core.domain.platform.verify_startup_schema import VerifyStartupSchema
 from core.infrastructure.postgres.alembic_runtime import AlembicRuntime
 from core.infrastructure.postgres.config import PostgresSettings
 from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
@@ -31,6 +30,7 @@ from core.infrastructure.postgres.repositories.snapshot_publication_repository i
     PostgresSnapshotPublicationRepository,
 )
 from core.infrastructure.postgres.schema_compatibility_checker import SchemaCompatibilityChecker
+from core.infrastructure.postgres.verify_startup_schema import VerifyStartupSchema
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
 from mcp.config import RuntimeSettings
 from mcp.prompts import register_mcp_guidance_prompts

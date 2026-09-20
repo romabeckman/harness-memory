@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:integration-paths"
     read: must
-updated: 2026-09-19
+updated: 2026-09-20
 ---
 # Impact Analysis
 Analyze structured changes against active tenant graph relationships through `analyze_impact`.
@@ -41,12 +41,13 @@ Analyze structured changes against active tenant graph relationships through `an
     "core/application/impact_analysis/types/impact_analysis_bounds.py",
     "core/application/impact_analysis/use_cases/analyze_impact/inbound.py",
     "core/application/impact_analysis/use_cases/analyze_impact/outbound.py",
-    "migrations/versions/f006_canonical_impact_identity.py",
+    "migrations/versions/003_canonical_impact_identity.py",
     "mcp/services/impact_response_mapper.py"
   ],
   "test_files": [
     "tests/unit/core/application/impact_analysis/contracts/test_contracts.py",
     "tests/unit/core/application/impact_analysis/use_cases/test_analyze_impact.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py",
     "tests/unit/mcp/services/test_impact_response_mapper.py",
     "tests/integration/core/infrastructure/postgres/repositories/test_impact_analysis_repository.py",
     "tests/e2e/mcp/test_analyze_impact.py"
@@ -74,6 +75,7 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 - **Classification**: Put shortest-depth one consumers in `direct_consumers`; put depth two or greater in `indirect_consumers`.
 - **Canonical identity**: Resolve project-local active copies through canonical identity without duplicating returned consumers.
 - **Impact context**: Derive projects and teams from impacted consumers; reuse integration-path views for paths, ownership, provenance, and evidence.
+- **Response budget**: Cap materialized ownership rows and globally returned teams at 100, enforce the serialized byte limit across every response collection, and strip optional metadata before dropping records.
 
 ## HOW TO ANALYZE IMPACT
 
@@ -96,7 +98,7 @@ tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 
 ## BEST PRACTICES
 
-REQUIRED: Enforce graph and response bounds during traversal and context loading, not only after materialization.
+REQUIRED: Enforce graph and response bounds during traversal and context loading, then perform an authoritative serialized-size check across consumers, paths, projects, teams, metadata, and evidence.
 REQUIRED: Deduplicate affected projects and teams from impacted consumers; exclude the changed entity's own context unless reached through impact.
 REQUIRED: Preserve provenance and bounded evidence; distinguish intentional evidence omission from missing evidence.
 PROHIBITED: Infer impact with an LLM or traverse ownership, structural, provider, or publication relations as consumer edges.

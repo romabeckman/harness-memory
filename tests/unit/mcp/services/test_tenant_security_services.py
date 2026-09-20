@@ -223,3 +223,30 @@ def test_auditing_token_verifier_records_invalid_and_accepts_valid():
 
     asyncio.run(run())
     assert repository.records[0].event_type.value == "authentication_failure"
+
+
+def test_auditing_token_verifier_applies_backpressure_instead_of_dropping_records():
+    async def reject_token(_token):
+        return None
+
+    repository = Repo()
+    verifier = AuditingTokenVerifier(
+        SimpleNamespace(verify_token=reject_token),
+        RecordSecurityAuditHandler(repository),
+        AuthenticatedPrincipalFactory(),
+    )
+    async def run():
+        for _ in range(16):
+            await verifier._audit_slots.acquire()
+        pending = asyncio.create_task(verifier.verify_token("bad"))
+        await asyncio.sleep(0.02)
+        assert not pending.done()
+        verifier._audit_slots.release()
+        assert await pending is None
+        for _ in range(15):
+            verifier._audit_slots.release()
+
+    asyncio.run(run())
+
+    assert len(repository.records) == 1
+    assert repository.records[0].event_type.value == "authentication_failure"

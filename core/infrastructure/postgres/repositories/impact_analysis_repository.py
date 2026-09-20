@@ -29,6 +29,8 @@ from ..models.snapshot import Snapshot
 
 
 class PostgresImpactAnalysisRepository:
+    _MAX_AFFECTED_TEAMS = 100
+    _MAX_IMPACT_OWNER_ROWS = 100
     _DEPENDENCY_TYPES = tuple(
         relation_type.value
         for relation_type in (
@@ -94,6 +96,8 @@ class PostgresImpactAnalysisRepository:
                         impacted_ids,
                         request.bounds.owner_limit,
                     )
+                    owners_truncated = len(owner_rows) > self._MAX_IMPACT_OWNER_ROWS
+                    owner_rows = owner_rows[: self._MAX_IMPACT_OWNER_ROWS]
                     relation_ids = [
                         edge["relation"].id
                         for record in records
@@ -122,11 +126,15 @@ class PostgresImpactAnalysisRepository:
                     affected_projects = self._map_projects(
                         records, project_by_node
                     )
-                    affected_teams = self._map_teams(owners_by_entity, impacted_ids)
+                    affected_teams, teams_truncated = self._map_teams(
+                        owners_by_entity, impacted_ids
+                    )
                     all_evidence = self._flatten_evidence(evidence)
                     truncated = (
                         traversal_truncated
                         or evidence_truncated
+                        or owners_truncated
+                        or teams_truncated
                         or len(records) > request.bounds.max_paths
                     )
                     unknowns = self._unknowns(
@@ -555,7 +563,8 @@ class PostgresImpactAnalysisRepository:
                 ranked.c.impact_owner_rank <= owner_limit,
             )
             .order_by(source.entity_key.asc(), target.entity_key.asc(), Relation.id.asc())
-        ).all()
+            .limit(cls._MAX_IMPACT_OWNER_ROWS + 1)
+            ).all()
         return tuple(rows)
 
     @staticmethod
@@ -675,8 +684,15 @@ class PostgresImpactAnalysisRepository:
         teams = {}
         for entity_id in impacted_ids:
             for owner in owners_by_entity.get(entity_id, ()):
-                teams[owner.owner.key] = owner.owner
-        return tuple(sorted(teams.values(), key=lambda team: team.key))
+                identity_id = owner.owner.identity_id or owner.owner.id
+                teams[identity_id] = owner.owner
+        ordered_teams = tuple(
+            sorted(teams.values(), key=lambda team: (team.key, str(team.identity_id or team.id)))
+        )
+        return (
+            ordered_teams[: cls._MAX_AFFECTED_TEAMS],
+            len(ordered_teams) > cls._MAX_AFFECTED_TEAMS,
+        )
 
     @staticmethod
     def _flatten_evidence(evidence):
@@ -688,58 +704,127 @@ class PostgresImpactAnalysisRepository:
 
     @classmethod
     def _fit_result_to_budget(cls, output, byte_budget):
-        if len(output.model_dump_json().encode("utf-8")) <= byte_budget:
+        def serialized_size(candidate):
+            return len(candidate.model_dump_json().encode("utf-8"))
+
+        def component_size_exceeds_budget(candidate):
+            consumed = len(candidate.changed_entity.model_dump_json().encode("utf-8"))
+            for field_name in (
+                "direct_consumers",
+                "indirect_consumers",
+                "affected_projects",
+                "affected_teams",
+                "paths",
+                "evidence",
+            ):
+                for item in getattr(candidate, field_name):
+                    consumed += len(item.model_dump_json().encode("utf-8"))
+                    if consumed > byte_budget:
+                        return True
+            consumed += sum(len(item.encode("utf-8")) for item in candidate.unknowns)
+            return consumed > byte_budget
+
+        if not component_size_exceeds_budget(output) and serialized_size(output) <= byte_budget:
             return output
 
-        consumers = tuple(
-            item.model_copy(update={"evidence": ()})
-            for item in (*output.direct_consumers, *output.indirect_consumers)
-        )
-        direct_count = len(output.direct_consumers)
-        direct = consumers[:direct_count]
-        indirect = consumers[direct_count:]
+        def without_entity_metadata(entity):
+            return entity.model_copy(update={"metadata": {}})
+
+        def without_consumer_details(consumer):
+            return consumer.model_copy(
+                update={
+                    "entity": without_entity_metadata(consumer.entity),
+                    "metadata": {},
+                    "owners": tuple(without_entity_metadata(owner) for owner in consumer.owners),
+                    "evidence": (),
+                }
+            )
+
+        direct = tuple(without_consumer_details(item) for item in output.direct_consumers)
+        indirect = tuple(without_consumer_details(item) for item in output.indirect_consumers)
         paths = tuple(
             path.model_copy(
                 update={
                     "entities": tuple(
                         entity.model_copy(
                             update={
+                                "entity": without_entity_metadata(entity.entity),
                                 "owners": tuple(
-                                    owner.model_copy(update={"evidence": ()})
+                                    owner.model_copy(
+                                        update={
+                                            "owner": without_entity_metadata(owner.owner),
+                                            "metadata": {},
+                                            "evidence": (),
+                                        }
+                                    )
                                     for owner in entity.owners
-                                )
+                                ),
                             }
                         )
                         for entity in path.entities
                     ),
-                    "hops": tuple(hop.model_copy(update={"evidence": ()}) for hop in path.hops),
+                    "hops": tuple(
+                        hop.model_copy(
+                            update={
+                                "source": without_entity_metadata(hop.source),
+                                "target": without_entity_metadata(hop.target),
+                                "metadata": {},
+                                "evidence": (),
+                            }
+                        )
+                        for hop in path.hops
+                    ),
                 }
             )
             for path in output.paths
         )
         bounded = output.model_copy(
             update={
-                "changed_entity": output.changed_entity.model_copy(update={"metadata": {}}),
+                "changed_entity": without_entity_metadata(output.changed_entity),
                 "direct_consumers": direct,
                 "indirect_consumers": indirect,
                 "paths": paths,
+                "affected_teams": tuple(
+                    without_entity_metadata(team) for team in output.affected_teams
+                ),
                 "evidence": (),
                 "truncated": True,
                 "unknowns": (*output.unknowns, "Impact result was truncated by byte bounds."),
             }
         )
-        while len(bounded.model_dump_json().encode("utf-8")) > byte_budget:
+
+        def trim_collection(candidate, field_name):
+            items = getattr(candidate, field_name)
+            lower_bound = 0
+            upper_bound = len(items)
+            while lower_bound < upper_bound:
+                retained_count = (lower_bound + upper_bound + 1) // 2
+                trial = candidate.model_copy(update={field_name: items[:retained_count]})
+                if serialized_size(trial) <= byte_budget:
+                    lower_bound = retained_count
+                else:
+                    upper_bound = retained_count - 1
+            return candidate.model_copy(update={field_name: items[:lower_bound]})
+
+        while serialized_size(bounded) > byte_budget:
             if bounded.indirect_consumers:
-                bounded = bounded.model_copy(
-                    update={"indirect_consumers": bounded.indirect_consumers[:-1]}
-                )
+                bounded = trim_collection(bounded, "indirect_consumers")
             elif bounded.direct_consumers:
-                bounded = bounded.model_copy(
-                    update={"direct_consumers": bounded.direct_consumers[:-1]}
-                )
+                bounded = trim_collection(bounded, "direct_consumers")
             elif bounded.paths:
-                bounded = bounded.model_copy(update={"paths": bounded.paths[:-1]})
+                bounded = trim_collection(bounded, "paths")
+            elif bounded.affected_teams:
+                bounded = trim_collection(bounded, "affected_teams")
+            elif bounded.affected_projects:
+                bounded = trim_collection(bounded, "affected_projects")
             else:
+                bounded = output.__class__(
+                    changed_entity=without_entity_metadata(output.changed_entity),
+                    truncated=True,
+                    unknowns=("Impact result was truncated by byte bounds.",),
+                )
+                if serialized_size(bounded) > byte_budget:
+                    raise ImpactQueryFailure("minimum impact response exceeds byte budget")
                 break
         return bounded
 
@@ -753,13 +838,14 @@ class PostgresImpactAnalysisRepository:
         ):
             unknowns.append("Some impacted relationships have no linked evidence.")
         if truncated:
-            unknowns.append("Impact traversal was truncated by query bounds.")
+            unknowns.append("Impact result was truncated by query or response bounds.")
         return tuple(unknowns)
 
     @staticmethod
     def _map_entity(entity):
         return EntityContextItem(
             id=entity.id,
+            identity_id=entity.identity_id or entity.id,
             key=entity.entity_key,
             name=entity.name,
             type=entity.entity_type,

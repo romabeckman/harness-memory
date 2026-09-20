@@ -1,10 +1,10 @@
-"""Create and remove only F001 foundation tables."""
+"""Create and remove the foundation tables."""
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision = "f001_foundation"
+revision = "001"
 down_revision = None
 branch_labels = None
 depends_on = None

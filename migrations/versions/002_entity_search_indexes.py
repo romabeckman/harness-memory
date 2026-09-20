@@ -3,8 +3,8 @@
 import sqlalchemy as sa
 from alembic import op
 
-revision = "f003_entity_search_indexes"
-down_revision = "f001_foundation"
+revision = "002"
+down_revision = "001"
 branch_labels = None
 depends_on = None
 

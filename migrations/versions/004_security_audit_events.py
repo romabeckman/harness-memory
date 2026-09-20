@@ -4,8 +4,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision = "f008_security_audit_events"
-down_revision = "f006_canonical_impact_identity"
+revision = "004"
+down_revision = "003"
 branch_labels = None
 depends_on = None
 

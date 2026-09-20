@@ -20,7 +20,7 @@ class IntegrationPathView(BaseModel):
             raise ValueError("integration path entity and hop cardinality is inconsistent")
         if self.hop_count != len(self.hops):
             raise ValueError("integration path hop_count is inconsistent")
-        entity_ids = tuple(item.entity.id for item in self.entities)
+        entity_ids = tuple(item.entity.identity_id or item.entity.id for item in self.entities)
         if len(entity_ids) != len(set(entity_ids)):
             raise ValueError("integration path cannot repeat entities")
         for index, hop in enumerate(self.hops):
@@ -28,6 +28,10 @@ class IntegrationPathView(BaseModel):
                 expected = (entity_ids[index], entity_ids[index + 1])
             else:
                 expected = (entity_ids[index + 1], entity_ids[index])
-            if (hop.source.id, hop.target.id) != expected:
+            hop_endpoints = (
+                hop.source.identity_id or hop.source.id,
+                hop.target.identity_id or hop.target.id,
+            )
+            if hop_endpoints != expected:
                 raise ValueError("integration path hop endpoints are inconsistent")
         return self
