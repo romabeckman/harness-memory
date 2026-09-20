@@ -262,6 +262,28 @@ value, accepts only an active stored token, and derives subject and tenant ident
 from its owning user. API-issued tokens authenticate MCP clients only; they do not
 authenticate REST API requests.
 
+### Set the MCP token environment variable
+
+Replace `<token>` with the plaintext token returned once by `POST /tokens`. Keep
+the token secret; do not commit it or put it directly in the MCP configuration.
+
+On Windows, use PowerShell to create a persistent user environment variable:
+
+```powershell
+setx HARNESS_MEMORY_TOKEN "<token>"
+```
+
+Restart Codex so it reads the updated environment.
+
+On Linux, export the variable in the shell that starts Codex:
+
+```bash
+export HARNESS_MEMORY_TOKEN="<token>"
+```
+
+This applies to the current shell and its child processes. For Bash login sessions,
+add the `export` line to `~/.profile`, then start a new login session.
+
 ### Claude Code
 
 Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_TOKEN` in the
