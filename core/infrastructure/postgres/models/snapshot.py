@@ -56,6 +56,8 @@ class Snapshot(Base):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
     project_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    environment_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    publication_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
