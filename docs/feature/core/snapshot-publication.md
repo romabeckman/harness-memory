@@ -25,15 +25,15 @@ Publish a complete immutable project snapshot and switch its active pointer atom
   "domain": "snapshot_publication",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/publish_project_snapshot.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/publish_project_snapshot.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/domain/snapshot_publication/aggregates/project_knowledge_snapshot.py",
     "core/infrastructure/postgres/repositories/snapshot_publication_repository.py"
   ],
   "code_files": [
-    "mcp/services/tenant_context.py",
-    "mcp/services/publication_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py",
+    "harness_memory_mcp/services/publication_response_mapper.py",
     "core/application/snapshot_publication/contracts/base.py",
     "core/application/snapshot_publication/contracts/entity_input.py",
     "core/application/snapshot_publication/contracts/evidence_input.py",
@@ -100,7 +100,7 @@ Validate a complete schema `1.0` payload, build an immutable domain aggregate, c
 core/domain/snapshot_publication/        # Snapshot invariants and revision policy
 core/application/snapshot_publication/  # Contracts, hashing, and publication use case
 core/infrastructure/postgres/            # Graph mapping and atomic persistence
-mcp/tools/                               # Public publication adapter
+harness_memory_mcp/tools/                               # Public publication adapter
 tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contracts
 ```
 

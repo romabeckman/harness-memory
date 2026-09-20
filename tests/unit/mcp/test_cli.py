@@ -1,7 +1,7 @@
 from io import StringIO
 
 from core.infrastructure.postgres.migrations import MigrationStatus
-from mcp.cli import MigrationCLI
+from harness_memory_mcp.cli import MigrationCLI
 
 
 def test_migration_cli_returns_zero_for_upgrade():

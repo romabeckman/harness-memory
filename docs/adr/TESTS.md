@@ -11,7 +11,7 @@ updated: 2026-09-20
 
 ## OVERVIEW
 
-Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `api`, `core`, and `mcp`.
+Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `api`, `core`, and `harness_memory_mcp`.
 
 ## COMMANDS
 
@@ -20,7 +20,7 @@ Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract
 | Unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
 | Integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
 | E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
-| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
+| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=harness_memory_mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
 | Migration | `harness-memory migrate` / `harness-memory migrate --status` | Upgrade or inspect Alembic schema state. |
 
 ## MINIMUM COVERAGE
@@ -31,8 +31,8 @@ REQUIRED: Maintain the configured global threshold. No independent per-layer gat
 |-------|----------|-------------|
 | Domain / Core | Report only | Included in global `core` measurement. |
 | Application / Use Cases | Report only | Included in global `core` measurement. |
-| Infrastructure / Adapters | Report only | Included in `core` and `mcp` measurement. |
-| Global | 80% | Enforced across `api`, `core`, and `mcp`. |
+| Infrastructure / Adapters | Report only | Included in `core` and `harness_memory_mcp` measurement. |
+| Global | 80% | Enforced across `api`, `core`, and `harness_memory_mcp`. |
 
 ## PATTERNS & BEST PRACTICES
 

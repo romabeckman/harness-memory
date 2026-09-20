@@ -3,9 +3,9 @@ from unittest.mock import Mock
 import pytest
 from fastmcp import FastMCP
 
-from mcp.prompts.analyze_integration import register_analyze_integration_prompt
-from mcp.prompts.load_corporate_context import register_load_corporate_context_prompt
-from mcp.prompts.review_change_impact import register_review_change_impact_prompt
+from harness_memory_mcp.prompts.analyze_integration import register_analyze_integration_prompt
+from harness_memory_mcp.prompts.load_corporate_context import register_load_corporate_context_prompt
+from harness_memory_mcp.prompts.review_change_impact import register_review_change_impact_prompt
 
 pytestmark = pytest.mark.asyncio
 

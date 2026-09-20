@@ -1,7 +1,7 @@
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
-from mcp.services.database_token_verifier import DatabaseTokenVerifier
-from mcp.services.security_audit_middleware import AuditingTokenVerifier
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.services.security_audit_middleware import AuditingTokenVerifier
 
 
 def test_create_mcp_server_is_named_and_database_independent():

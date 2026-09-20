@@ -25,8 +25,8 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
   "domain": "entity_discovery",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/search_entities.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/search_entities.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/entity_discovery/use_cases/search_entities/handler.py",
     "core/infrastructure/postgres/repositories/entity_search_repository.py"
@@ -51,8 +51,8 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
     "core/infrastructure/postgres/models/project.py",
     "core/infrastructure/postgres/models/snapshot.py",
     "migrations/versions/002_entity_search_indexes.py",
-    "mcp/services/entity_search_response_mapper.py",
-    "mcp/services/tenant_context.py"
+    "harness_memory_mcp/services/entity_search_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py"
   ],
   "test_files": [
     "tests/unit/core/application/entity_discovery/contracts/test_contracts.py",
@@ -77,7 +77,7 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
 ```text
 core/application/entity_discovery/   # Contracts, cursor policy, and use case
 core/infrastructure/postgres/        # Active-snapshot query and indexes
-mcp/tools/                           # Public search adapter
+harness_memory_mcp/tools/                           # Public search adapter
 tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ```
 

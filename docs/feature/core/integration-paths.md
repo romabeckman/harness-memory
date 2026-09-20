@@ -25,8 +25,8 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
   "domain": "integration_paths",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/find_integration_paths.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/find_integration_paths.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/integration_paths/use_cases/find_integration_paths/handler.py",
     "core/infrastructure/postgres/repositories/integration_path_repository.py"
@@ -46,8 +46,8 @@ Find bounded, tenant-scoped paths between active graph entities through `find_in
     "core/application/integration_paths/types/path_traversal_direction.py",
     "core/application/integration_paths/use_cases/find_integration_paths/inbound.py",
     "core/application/integration_paths/use_cases/find_integration_paths/outbound.py",
-    "mcp/services/integration_path_response_mapper.py",
-    "mcp/services/tenant_context.py"
+    "harness_memory_mcp/services/integration_path_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py"
   ],
   "test_files": [
     "tests/unit/core/application/integration_paths/ports/test_integration_path_repository.py",
@@ -76,7 +76,7 @@ Use a read-only application query with PostgreSQL recursive traversal. Resolve b
 ```text
 core/application/integration_paths/       # Bounds, contracts, policy, port, handler
 core/infrastructure/postgres/repositories/ # Recursive traversal and bounded hydration
-mcp/tools/ and mcp/services/              # Public adapter and safe response mapping
+harness_memory_mcp/tools/ and harness_memory_mcp/services/              # Public adapter and safe response mapping
 tests/{unit,integration,e2e}/              # Policy, repository, MCP, and catalog tests
 ```
 

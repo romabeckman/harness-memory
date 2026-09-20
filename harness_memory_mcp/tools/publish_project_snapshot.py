@@ -8,9 +8,9 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.in
 )
 from core.domain.tenant_security.types.audit_event_type import AuditEventType
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
-from mcp.services.audited_operation import ExecuteAuditedOperation
-from mcp.services.publication_response_mapper import PublicationResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.audited_operation import ExecuteAuditedOperation
+from harness_memory_mcp.services.publication_response_mapper import PublicationResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_publish_project_snapshot(

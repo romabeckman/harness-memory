@@ -10,7 +10,7 @@ from core.infrastructure.postgres.alembic_runtime import AlembicRuntime
 from core.infrastructure.postgres.config import PostgresSettings
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.project import Project
-from mcp.migration_cli import MigrationCLI
+from harness_memory_mcp.migration_cli import MigrationCLI
 
 REVISION_PATH = Path(__file__).parents[3] / "migrations" / "versions" / "001_foundation.py"
 

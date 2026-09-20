@@ -25,13 +25,13 @@ Return bounded active-snapshot context and direct dependency views for an entity
   "domain": "relationship_context",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/get_context.py", "mcp/tools/get_dependencies.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/get_context.py", "harness_memory_mcp/tools/get_dependencies.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
   ],
   "code_files": [
-    "mcp/services/tenant_context.py",
-    "mcp/services/relationship_response_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py",
+    "harness_memory_mcp/services/relationship_response_mapper.py",
     "core/application/entity_discovery/contracts/tenant_scope.py",
     "core/application/relationship_context/contracts/entity_context_item.py",
     "core/application/relationship_context/contracts/project_context_item.py",
@@ -75,8 +75,8 @@ Return bounded active-snapshot context and direct dependency views for an entity
 ## FOLDER STRUCTURE
 
 ```text
-mcp/tools/                                  # Thin context and dependency adapters
-mcp/services/                               # Tenant and safe response mapping
+harness_memory_mcp/tools/                                  # Thin context and dependency adapters
+harness_memory_mcp/services/                               # Tenant and safe response mapping
 core/application/relationship_context/      # Contracts, ports, and handlers
 core/infrastructure/postgres/repositories/  # Active-snapshot relationship reads
 tests/{unit,integration,e2e}/               # Contract, repository, and MCP tests

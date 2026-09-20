@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp.docker_config import DockerRuntimeConfig
+from harness_memory_mcp.docker_config import DockerRuntimeConfig
 
 
 def test_docker_runtime_config_defaults_to_production_host_and_port():

@@ -16,9 +16,9 @@ from core.infrastructure.postgres.models.api_user import ApiUser
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.repositories.api_token_repository import ApiTokenRepository
 from core.infrastructure.postgres.repositories.api_user_repository import ApiUserRepository
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
-from mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
 
 
 def test_api_issued_token_authenticates_mcp_client():

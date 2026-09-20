@@ -2,8 +2,8 @@ from unittest.mock import MagicMock
 import pytest
 from core.domain.platform.schema_incompatible_error import SchemaIncompatibleError
 from core.infrastructure.postgres.migrations_status import MigrationStatus
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
 
 
 def test_production_server_refuses_startup_when_schema_incompatible():

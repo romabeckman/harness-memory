@@ -4,8 +4,8 @@ from fastmcp.server.auth import AccessToken, TokenVerifier
 from starlette.testclient import TestClient
 
 from core.application.tenant_security.ports.security_audit_repository import AppendResult
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
 
 
 class StaticTokenVerifier(TokenVerifier):

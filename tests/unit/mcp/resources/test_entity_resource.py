@@ -5,8 +5,8 @@ from fastmcp import FastMCP
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.relationship_context.use_cases.get_context.inbound import GetContextInput
-from mcp.resources.entity_resource import register_entity_resource
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.resources.entity_resource import register_entity_resource
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def test_entity_resource_requires_read_scope_before_handler_access():

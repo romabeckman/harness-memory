@@ -7,9 +7,9 @@ from fastmcp.server.auth import AccessToken, TokenVerifier
 from core.application.tenant_security.ports.security_audit_repository import AppendResult
 from core.domain.tenant_security.types.audit_event_type import AuditEventType
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
-from mcp.services.trace_context_holder import TraceContextHolder
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.trace_context_holder import TraceContextHolder
 
 
 class StaticTokenVerifier(TokenVerifier):

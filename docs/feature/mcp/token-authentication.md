@@ -30,10 +30,10 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
   "tested_by": ["adr:tests"],
   "references": ["adr:mcp", "adr:api"],
   "depends_on": ["feature:api-users-tokens"],
-  "entrypoints": ["mcp/server/app.py"],
-  "registration_files": ["mcp/server/factory.py", "docker-compose.yml"],
-  "reference_files": ["mcp/services/database_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py"],
-  "code_files": ["mcp/config.py", "api/application/ports/token_repository.py", "core/domain/tenant_security/types/memory_scope.py"],
+  "entrypoints": ["harness_memory_mcp/server/app.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py", "docker-compose.yml"],
+  "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py"],
+  "code_files": ["harness_memory_mcp/config.py", "api/application/ports/token_repository.py", "core/domain/tenant_security/types/memory_scope.py"],
   "test_files": ["tests/unit/mcp/services/test_database_token_verifier.py", "tests/unit/mcp/server/test_factory.py", "tests/unit/mcp/test_config.py", "tests/integration/api/infrastructure/test_repositories.py", "tests/e2e/mcp/test_api_token_authentication.py"]
 }
 ```
@@ -46,7 +46,7 @@ Use an API-issued token only as **MCP bearer authentication**. Hash every presen
 
 <folder_structure>
 ```text
-mcp/
+harness_memory_mcp/
 ├── services/             # Opaque-token verification adapter
 ├── server/               # Authentication composition
 └── config.py             # Authentication mode selection

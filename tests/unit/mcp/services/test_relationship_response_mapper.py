@@ -8,7 +8,7 @@ from core.application.relationship_context.errors.relationship_query_failure imp
     RelationshipQueryFailure,
 )
 from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
-from mcp.services.relationship_response_mapper import RelationshipResponseMapper
+from harness_memory_mcp.services.relationship_response_mapper import RelationshipResponseMapper
 
 
 def test_relationship_mapper_maps_success_to_json():

@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 import pytest
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
-from mcp.services.telemetry_middleware import TelemetryMiddleware
+from harness_memory_mcp.services.telemetry_middleware import TelemetryMiddleware
 
 
 @pytest.mark.asyncio

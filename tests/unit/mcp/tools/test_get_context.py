@@ -4,8 +4,8 @@ from uuid import uuid4
 from fastmcp import FastMCP
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
-from mcp.services.tenant_context import TenantContextProvider
-from mcp.tools.get_context import register_get_context
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.tools.get_context import register_get_context
 
 
 def test_get_context_uses_trusted_tenant_context_and_serializes_result():

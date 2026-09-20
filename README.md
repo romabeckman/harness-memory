@@ -99,7 +99,7 @@ review_change_impact
 Harness Memory uses pragmatic Domain-Driven Design. Business rules remain independent from MCP transport and PostgreSQL implementation details.
 
 ```text
-mcp ────────► core/application ────────► core/domain
+harness_memory_mcp ────────► core/application ────────► core/domain
                     │
                     ▼
              application ports
@@ -214,7 +214,7 @@ Run the test tiers in source order:
 ./venv/bin/python -m pytest tests/unit
 ./venv/bin/python -m pytest tests/integration
 ./venv/bin/python -m pytest tests/e2e
-./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80
+./venv/bin/python -m pytest --cov=api --cov=core --cov=harness_memory_mcp --cov-branch --cov-fail-under=80
 ```
 
 The 80% global branch coverage gate is required in CI. Ruff format and lint must

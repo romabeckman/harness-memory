@@ -5,8 +5,8 @@ from fastmcp import FastMCP
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.relationship_context.use_cases.get_context.handler import GetContextHandler
 from core.application.relationship_context.use_cases.get_context.inbound import GetContextInput
-from mcp.services.resource_error_mapper import ResourceErrorMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.resource_error_mapper import ResourceErrorMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_entity_resource(

@@ -13,12 +13,12 @@ from core.domain.tenant_security.types import AuditEventType, AuditOutcome, Audi
 from core.domain.tenant_security.value_objects.authenticated_principal import (
     AuthenticatedPrincipal,
 )
-from mcp.services.authorization_failure import AuthorizationFailure
-from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
-from mcp.services.component_scope_policy import ComponentScopePolicy
-from mcp.services.request_security_context import RequestSecurityContext
-from mcp.services.security_failure_mapper import SecurityFailureMapper
-from mcp.server.http_security import install_http_security_error_mapping
+from harness_memory_mcp.services.authorization_failure import AuthorizationFailure
+from harness_memory_mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
+from harness_memory_mcp.services.component_scope_policy import ComponentScopePolicy
+from harness_memory_mcp.services.request_security_context import RequestSecurityContext
+from harness_memory_mcp.services.security_failure_mapper import SecurityFailureMapper
+from harness_memory_mcp.server.http_security import install_http_security_error_mapping
 
 
 def test_domain_record_normalizes_identifiers_and_accepts_command_mapping():

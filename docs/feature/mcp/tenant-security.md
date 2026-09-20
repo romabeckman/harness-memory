@@ -25,11 +25,11 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
   "domain": "tenant_security",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/server/app.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/server/app.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
-    "mcp/services/component_scope_policy.py",
-    "mcp/services/security_audit_middleware.py",
+    "harness_memory_mcp/services/component_scope_policy.py",
+    "harness_memory_mcp/services/security_audit_middleware.py",
     "core/infrastructure/postgres/repositories/security_audit_repository.py"
   ],
   "code_files": [
@@ -45,14 +45,14 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
     "core/application/tenant_security/use_cases/record_security_audit/outbound.py",
     "core/infrastructure/postgres/models/security_audit_event.py",
     "migrations/versions/004_security_audit_events.py",
-    "mcp/config.py",
-    "mcp/server/http_security.py",
-    "mcp/services/audited_operation.py",
-    "mcp/services/authenticated_principal.py",
-    "mcp/services/authenticated_principal_factory.py",
-    "mcp/services/request_security_context.py",
-    "mcp/services/security_failure_mapper.py",
-    "mcp/services/tenant_context.py"
+    "harness_memory_mcp/config.py",
+    "harness_memory_mcp/server/http_security.py",
+    "harness_memory_mcp/services/audited_operation.py",
+    "harness_memory_mcp/services/authenticated_principal.py",
+    "harness_memory_mcp/services/authenticated_principal_factory.py",
+    "harness_memory_mcp/services/request_security_context.py",
+    "harness_memory_mcp/services/security_failure_mapper.py",
+    "harness_memory_mcp/services/tenant_context.py"
   ],
   "test_files": [
     "tests/unit/core/application/tenant_security/test_security_audit.py",
@@ -79,7 +79,7 @@ Verify production bearer tokens through active database records or configured JW
 core/domain/tenant_security/             # Principal, scope, and audit invariants
 core/application/tenant_security/        # Append-only audit use case and port
 core/infrastructure/postgres/            # Audit model, repository, and migration
-mcp/server/ and mcp/services/            # HTTP security pipeline, context, policy, mapping
+harness_memory_mcp/server/ and harness_memory_mcp/services/            # HTTP security pipeline, context, policy, mapping
 tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract tests
 ```
 

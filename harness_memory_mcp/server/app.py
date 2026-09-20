@@ -1,7 +1,7 @@
 import json
 
-from mcp.config import RuntimeSettings
-from mcp.migration_cli import MigrationCLI
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.migration_cli import MigrationCLI
 
 from .factory import create_mcp_server
 

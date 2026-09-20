@@ -9,8 +9,8 @@ from core.application.mcp_access_surface.contracts.snapshot_resource_input impor
 from core.application.mcp_access_surface.use_cases.get_snapshot_resource.handler import (
     GetSnapshotResourceHandler,
 )
-from mcp.services.resource_error_mapper import ResourceErrorMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.resource_error_mapper import ResourceErrorMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_snapshot_resource(

@@ -10,7 +10,7 @@ RUN apt-get update && \
 COPY pyproject.toml .
 COPY api ./api
 COPY core ./core
-COPY mcp ./mcp
+COPY harness_memory_mcp ./harness_memory_mcp
 COPY migrations ./migrations
 RUN pip install --no-cache-dir --prefix=/install .
 
@@ -32,7 +32,7 @@ COPY pyproject.toml .
 COPY migrations ./migrations
 COPY api ./api
 COPY core ./core
-COPY mcp ./mcp
+COPY harness_memory_mcp ./harness_memory_mcp
 
 # Set permissions
 RUN chown -R appuser:appuser /app
@@ -44,4 +44,4 @@ EXPOSE 8000 8080
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import os,socket; s=socket.create_connection(('127.0.0.1',int(os.getenv('APP_PORT','8000'))),timeout=2); s.close()" || exit 1
 
-CMD ["python", "-m", "mcp.server.app"]
+CMD ["python", "-m", "harness_memory_mcp.server.app"]

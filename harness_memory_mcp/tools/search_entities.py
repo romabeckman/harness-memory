@@ -5,8 +5,8 @@ from core.application.entity_discovery.use_cases.search_entities.handler import 
     SearchEntitiesHandler,
 )
 from core.application.entity_discovery.use_cases.search_entities.inbound import SearchEntitiesInput
-from mcp.services.entity_search_response_mapper import EntitySearchResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.entity_search_response_mapper import EntitySearchResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_search_entities(

@@ -25,13 +25,13 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
   "domain": "production_delivery",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/server/app.py"],
+  "entrypoints": ["harness_memory_mcp/server/app.py"],
   "registration_files": [],
   "reference_files": [
     "core/infrastructure/postgres/schema_compatibility_checker.py",
     "core/infrastructure/postgres/verify_startup_schema.py",
     "core/infrastructure/telemetry/telemetry_tracer.py",
-    "mcp/server/server_lifespan_manager.py"
+    "harness_memory_mcp/server/server_lifespan_manager.py"
   ],
   "code_files": [
     ".dockerignore",
@@ -45,12 +45,12 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
     "core/domain/platform/trace_correlation_id.py",
     "core/infrastructure/telemetry/telemetry_span_sanitizer.py",
     "core/infrastructure/telemetry/tracer_provider.py",
-    "mcp/config.py",
-    "mcp/docker_config.py",
-    "mcp/server/factory.py",
-    "mcp/services/telemetry_middleware.py",
-    "mcp/services/trace_context_extractor.py",
-    "mcp/services/trace_context_holder.py"
+    "harness_memory_mcp/config.py",
+    "harness_memory_mcp/docker_config.py",
+    "harness_memory_mcp/server/factory.py",
+    "harness_memory_mcp/services/telemetry_middleware.py",
+    "harness_memory_mcp/services/trace_context_extractor.py",
+    "harness_memory_mcp/services/trace_context_holder.py"
   ],
   "test_files": [
     "tests/e2e/docker/test_dockerfile.py",
@@ -87,7 +87,7 @@ Dockerfile and docker-compose.yml       # Non-root runtime and local service gra
 core/domain/platform/                   # Immutable schema status and startup error
 core/infrastructure/postgres/           # Alembic inspection and startup verification
 core/infrastructure/telemetry/          # NoOp-safe span adapters and sanitization
-mcp/server/ and mcp/services/           # Lifespan, HTTP runtime, tracing middleware
+harness_memory_mcp/server/ and harness_memory_mcp/services/           # Lifespan, HTTP runtime, tracing middleware
 .github/workflows/                      # Ruff, migrations, test tiers, coverage
 tests/{unit,integration,e2e}/           # Delivery, startup, telemetry, and Docker checks
 ```

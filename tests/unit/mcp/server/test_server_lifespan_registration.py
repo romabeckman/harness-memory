@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 from starlette.testclient import TestClient
 
-from mcp.config import RuntimeSettings
-from mcp.server.factory import create_mcp_server
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.server.factory import create_mcp_server
 from core.infrastructure.postgres.migrations_status import MigrationStatus
 
 

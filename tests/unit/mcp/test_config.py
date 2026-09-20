@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp.config import RuntimeSettings
+from harness_memory_mcp.config import RuntimeSettings
 
 
 def test_runtime_settings_accept_valid_mcp_values_without_database():

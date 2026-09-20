@@ -12,8 +12,8 @@ from core.application.integration_paths.use_cases.find_integration_paths.handler
 from core.application.integration_paths.use_cases.find_integration_paths.inbound import (
     FindIntegrationPathsInput,
 )
-from mcp.services.integration_path_response_mapper import IntegrationPathResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.integration_path_response_mapper import IntegrationPathResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_find_integration_paths(

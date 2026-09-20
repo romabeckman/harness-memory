@@ -12,8 +12,8 @@ from core.application.relationship_context.use_cases.get_dependencies.handler im
 from core.application.relationship_context.use_cases.get_dependencies.inbound import (
     GetDependenciesInput,
 )
-from mcp.services.relationship_response_mapper import RelationshipResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.relationship_response_mapper import RelationshipResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_get_dependencies(

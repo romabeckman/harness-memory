@@ -6,8 +6,8 @@ from fastmcp import FastMCP
 from core.application.mcp_access_surface.contracts.snapshot_resource_input import (
     SnapshotResourceInput,
 )
-from mcp.resources.snapshot_resource import register_snapshot_resource
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.resources.snapshot_resource import register_snapshot_resource
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def test_snapshot_resource_passes_uuid_to_handler():

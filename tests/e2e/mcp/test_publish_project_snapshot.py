@@ -11,8 +11,8 @@ from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.repositories.snapshot_publication_repository import (
     PostgresSnapshotPublicationRepository,
 )
-from mcp.server.factory import create_mcp_server
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 @pytest.mark.asyncio

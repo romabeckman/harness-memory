@@ -33,26 +33,34 @@ from core.infrastructure.postgres.repositories.snapshot_publication_repository i
 from core.infrastructure.postgres.schema_compatibility_checker import SchemaCompatibilityChecker
 from core.infrastructure.postgres.verify_startup_schema import VerifyStartupSchema
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
-from mcp.config import RuntimeSettings
-from mcp.prompts import register_mcp_guidance_prompts
-from mcp.resources.entity_resource import register_entity_resource
-from mcp.resources.project_resource import register_project_resource
-from mcp.resources.snapshot_resource import register_snapshot_resource
-from mcp.server.http_security import install_http_security_error_mapping
-from mcp.server.server_lifespan_manager import ServerLifespanManager
-from mcp.services.audited_operation import ExecuteAuditedOperation
-from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
-from mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
-from mcp.services.database_token_verifier import DatabaseTokenVerifier
-from mcp.services.security_audit_middleware import AuditingTokenVerifier, SecurityAuditMiddleware
-from mcp.services.telemetry_middleware import TelemetryMiddleware
-from mcp.services.tenant_context import TenantContextProvider
-from mcp.tools.analyze_impact import register_analyze_impact
-from mcp.tools.find_integration_paths import register_find_integration_paths
-from mcp.tools.get_context import register_get_context
-from mcp.tools.get_dependencies import register_get_dependencies
-from mcp.tools.publish_project_snapshot import register_publish_project_snapshot
-from mcp.tools.search_entities import register_search_entities
+from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.prompts import register_mcp_guidance_prompts
+from harness_memory_mcp.resources.entity_resource import register_entity_resource
+from harness_memory_mcp.resources.project_resource import register_project_resource
+from harness_memory_mcp.resources.snapshot_resource import register_snapshot_resource
+from harness_memory_mcp.server.http_security import install_http_security_error_mapping
+from harness_memory_mcp.server.server_lifespan_manager import ServerLifespanManager
+from harness_memory_mcp.services.audited_operation import ExecuteAuditedOperation
+from harness_memory_mcp.services.authenticated_principal_factory import (
+    AuthenticatedPrincipalFactory,
+)
+from harness_memory_mcp.services.component_scope_policy import (
+    ComponentScopePolicy,
+    component_scope_auth,
+)
+from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.services.security_audit_middleware import (
+    AuditingTokenVerifier,
+    SecurityAuditMiddleware,
+)
+from harness_memory_mcp.services.telemetry_middleware import TelemetryMiddleware
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.tools.analyze_impact import register_analyze_impact
+from harness_memory_mcp.tools.find_integration_paths import register_find_integration_paths
+from harness_memory_mcp.tools.get_context import register_get_context
+from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
+from harness_memory_mcp.tools.publish_project_snapshot import register_publish_project_snapshot
+from harness_memory_mcp.tools.search_entities import register_search_entities
 
 
 def create_mcp_server(

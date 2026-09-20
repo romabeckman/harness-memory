@@ -10,17 +10,17 @@ from core.application.tenant_security.use_cases.record_security_audit.handler im
     RecordSecurityAuditHandler,
 )
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
-from mcp.config import RuntimeSettings, SecuritySettings
-from mcp.services.audited_operation import AuditPersistenceFailure, ExecuteAuditedOperation
-from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
-from mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
-from mcp.services.request_security_context import RequestSecurityContext
-from mcp.services.security_audit_middleware import (
+from harness_memory_mcp.config import RuntimeSettings, SecuritySettings
+from harness_memory_mcp.services.audited_operation import AuditPersistenceFailure, ExecuteAuditedOperation
+from harness_memory_mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
+from harness_memory_mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
+from harness_memory_mcp.services.request_security_context import RequestSecurityContext
+from harness_memory_mcp.services.security_audit_middleware import (
     AuditingTokenVerifier,
     SecurityAuditMiddleware,
 )
-from mcp.services.security_failure_mapper import SecurityFailureMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.security_failure_mapper import SecurityFailureMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 class Repo:
@@ -160,7 +160,7 @@ def test_component_auth_uses_exact_scopes_and_security_settings_validate():
 
 
 def test_security_middleware_binds_typed_requests_and_filters_catalog(monkeypatch):
-    import mcp.services.security_audit_middleware as middleware_module
+    import harness_memory_mcp.services.security_audit_middleware as middleware_module
 
     repository = Repo()
     tenant_context = TenantContextProvider()

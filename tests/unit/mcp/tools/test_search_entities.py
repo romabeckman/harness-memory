@@ -7,8 +7,8 @@ from core.application.entity_discovery.contracts.entity_search_page import Entit
 from core.application.entity_discovery.use_cases.search_entities.handler import (
     SearchEntitiesHandler,
 )
-from mcp.server.factory import create_mcp_server
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 @pytest.mark.asyncio

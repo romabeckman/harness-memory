@@ -7,8 +7,8 @@ from pydantic import Field, StrictInt
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.relationship_context.use_cases.get_context.handler import GetContextHandler
 from core.application.relationship_context.use_cases.get_context.inbound import GetContextInput
-from mcp.services.relationship_response_mapper import RelationshipResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.relationship_response_mapper import RelationshipResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_get_context(

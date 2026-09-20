@@ -10,8 +10,8 @@ from core.application.mcp_access_surface.contracts.project_resource_input import
 from core.application.mcp_access_surface.use_cases.get_project_resource.handler import (
     GetProjectResourceHandler,
 )
-from mcp.services.resource_error_mapper import ResourceErrorMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.resource_error_mapper import ResourceErrorMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 _INVALID_PERCENT_ESCAPE = re.compile(r"%(?![0-9a-fA-F]{2})")
 

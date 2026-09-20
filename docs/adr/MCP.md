@@ -22,7 +22,7 @@ Define the FastMCP surface for publishing, querying, and analyzing corporate eng
 ## OVERVIEW
 
 Use **FastMCP** for the knowledge interface: tools for actions, resources for bounded reads, and prompts for agent guidance. The separate FastAPI module manages users and MCP access tokens; it does not expose these knowledge operations.
-Group application contracts and use cases by business domain; keep `mcp/server` and `mcp/tools` as adapter boundaries.
+Group application contracts and use cases by business domain; keep `harness_memory_mcp/server` and `harness_memory_mcp/tools` as adapter boundaries.
 Run MCP over HTTP in production and use the FastMCP in-process client for development and contract tests.
 
 ## FOLDER STRUCTURE
@@ -31,7 +31,7 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 
 ```text
 <project-root-folder>/
-├── mcp/
+├── harness_memory_mcp/
 │   ├── server/             # FastMCP registration and runtime.
 │   ├── tools/              # One file per public MCP tool; call application handlers.
 │   │   ├── publish_project_snapshot.py
@@ -55,13 +55,6 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 
 ## MAIN CONCEPTS / COMPONENTS
 
-### Interface categories
-
-- **Tools**: Execute validated use cases and return structured results.
-- **Resources**: Read bounded entity, project, or snapshot context by URI.
-- **Prompts**: Guide agent workflows; never own business logic.
-- **Pydantic schemas**: Validate tool input and serialize stable tool/resource output.
-
 ### Request flow
 
 1. Authenticate request and resolve tenant identity from authenticated context.
@@ -72,7 +65,7 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 
 ## TOOLS
 
-Keep one public tool per file under `mcp/tools/`. Register modules through `mcp/server/`; delegate each handler to one domain-grouped application use case.
+Keep one public tool per file under `harness_memory_mcp/tools/`. Register modules through `harness_memory_mcp/server/`; delegate each handler to one domain-grouped application use case.
 
 | Tool | Scope | Input | Output |
 |------|-------|-------|--------|
@@ -84,7 +77,7 @@ Keep one public tool per file under `mcp/tools/`. Register modules through `mcp/
 | `analyze_impact` | `memory:impact` | Structured change description. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
 
 REQUIRED: Keep each tool a thin adapter over one application use case.
-REQUIRED: Keep `mcp/services/` focused on MCP boundary concerns.
+REQUIRED: Keep `harness_memory_mcp/services/` focused on MCP boundary concerns.
 REQUIRED: Bound results by query scope; include evidence for important relationships.
 PROHIBITED: Let tools mutate arbitrary graph nodes or edges outside snapshot publication.
 PROHIBITED: Use an LLM to guess impact when graph relationships or evidence are absent.

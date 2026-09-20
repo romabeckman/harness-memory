@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from api.domain.entities.access_token import AccessToken as DomainAccessToken
 from api.domain.entities.user import User
-from mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
 
 
 def test_database_token_verifier_maps_active_api_token_to_mcp_identity():

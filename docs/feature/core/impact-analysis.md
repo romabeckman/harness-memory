@@ -25,8 +25,8 @@ Analyze structured changes against active tenant graph relationships through `an
   "domain": "impact_analysis",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/tools/analyze_impact.py"],
-  "registration_files": ["mcp/server/factory.py"],
+  "entrypoints": ["harness_memory_mcp/tools/analyze_impact.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py"],
   "reference_files": [
     "core/application/impact_analysis/use_cases/analyze_impact/handler.py",
     "core/infrastructure/postgres/repositories/impact_analysis_repository.py"
@@ -42,7 +42,7 @@ Analyze structured changes against active tenant graph relationships through `an
     "core/application/impact_analysis/use_cases/analyze_impact/inbound.py",
     "core/application/impact_analysis/use_cases/analyze_impact/outbound.py",
     "migrations/versions/003_canonical_impact_identity.py",
-    "mcp/services/impact_response_mapper.py"
+    "harness_memory_mcp/services/impact_response_mapper.py"
   ],
   "test_files": [
     "tests/unit/core/application/impact_analysis/contracts/test_contracts.py",
@@ -65,7 +65,7 @@ Accept one changed entity, structured change description, and bounded analysis l
 core/application/impact_analysis/          # Change contracts, bounds, port, handler
 core/infrastructure/postgres/repositories/ # Canonical identity traversal and report assembly
 migrations/                                # Canonical impact identity revision
-mcp/tools/ and mcp/services/               # Scope enforcement and response mapping
+harness_memory_mcp/tools/ and harness_memory_mcp/services/               # Scope enforcement and response mapping
 tests/{unit,integration,e2e}/              # Contract, repository, and MCP tests
 ```
 

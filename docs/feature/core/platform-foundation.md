@@ -22,13 +22,13 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
   "domain": "platform_foundation",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["mcp/cli.py", "mcp/server/app.py"],
-  "registration_files": ["mcp/server/factory.py", "pyproject.toml"],
+  "entrypoints": ["harness_memory_mcp/cli.py", "harness_memory_mcp/server/app.py"],
+  "registration_files": ["harness_memory_mcp/server/factory.py", "pyproject.toml"],
   "reference_files": ["core/infrastructure/postgres/engine_factory.py", "core/infrastructure/architecture/validator.py"],
   "code_files": [
-    "mcp/config.py",
-    "mcp/migration_cli.py",
-    "mcp/migration_mode.py",
+    "harness_memory_mcp/config.py",
+    "harness_memory_mcp/migration_cli.py",
+    "harness_memory_mcp/migration_mode.py",
     "core/infrastructure/architecture/rules.py",
     "core/infrastructure/architecture/violation.py",
     "core/infrastructure/postgres/alembic_runtime.py",
@@ -75,7 +75,7 @@ Use **pragmatic DDD organized by business domain**. Keep FastMCP at the adapter 
 ## FOLDER STRUCTURE
 
 ```text
-mcp/                          # Runtime, CLI, and transport adapters
+harness_memory_mcp/                          # Runtime, CLI, and transport adapters
 core/application/             # Feature use cases and ports
 core/domain/                  # Business invariants and value objects
 core/infrastructure/postgres/ # Database configuration and adapters

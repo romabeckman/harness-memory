@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 from fastmcp import Client
 
-from mcp.server.factory import create_mcp_server
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.server.factory import create_mcp_server
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 @pytest.mark.asyncio

@@ -11,9 +11,9 @@ from core.application.impact_analysis.use_cases.analyze_impact.handler import An
 from core.application.impact_analysis.use_cases.analyze_impact.inbound import AnalyzeImpactInput
 from core.domain.tenant_security.types.audit_event_type import AuditEventType
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
-from mcp.services.audited_operation import ExecuteAuditedOperation
-from mcp.services.impact_response_mapper import ImpactResponseMapper
-from mcp.services.tenant_context import TenantContextProvider
+from harness_memory_mcp.services.audited_operation import ExecuteAuditedOperation
+from harness_memory_mcp.services.impact_response_mapper import ImpactResponseMapper
+from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 def register_analyze_impact(
