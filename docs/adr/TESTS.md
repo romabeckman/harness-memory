@@ -11,57 +11,54 @@ updated: 2026-09-19
 
 ## OVERVIEW
 
-Use **pytest 9.x** for unit, integration, end-to-end, and MCP contract tests. The configured **80% coverage gate** applies globally to `core` and `mcp`; no per-layer threshold is configured.
+Use **pytest 9.x** across unit, PostgreSQL integration, MCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `core` and `mcp`.
 
 ## COMMANDS
 
 | Type | Command | Description |
 |------|---------|-------------|
-| Unit | `pytest tests/unit` | Test domain entities, application handlers, contracts, and adapters. |
-| Integration | `pytest tests/integration` | Test repository behavior and migrations; repository integration fixtures currently use SQLite. |
-| E2E / MCP | `pytest tests/e2e` | Test public MCP registration, schemas, and adapter-to-application behavior. |
-| Coverage | `pytest --cov=core --cov=mcp` | Run configured branch coverage with the global 80% threshold. |
-
-Verified migration commands from project scope: `harness-memory migrate` and `harness-memory migrate --status`.
+| Unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
+| Integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
+| E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
+| Coverage | `./venv/bin/python -m pytest --cov=core --cov=mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
+| Migration | `harness-memory migrate` / `harness-memory migrate --status` | Upgrade or inspect Alembic schema state. |
 
 ## MINIMUM COVERAGE
 
-REQUIRED: Maintain the configured global coverage threshold. Per-layer thresholds remain unconfigured.
+REQUIRED: Maintain the configured global threshold. No independent per-layer gates exist.
 
 | Layer | Coverage | Description |
 |-------|----------|-------------|
-| Domain / Core | Report only | `core` contributes to the global threshold; no independent gate exists. |
-| Application / Use Cases | Report only | `core` contributes to the global threshold; no independent gate exists. |
-| Infrastructure / Adapters | Report only | `core` and `mcp` contribute to the global threshold; no independent gate exists. |
-| Global | 80% | Enforced by `coverage.fail_under` across configured source packages. |
-
-No CI gate exists in the repository yet. REQUIRED: Add a CI gate before treating 80% as release-enforced.
+| Domain / Core | Report only | Included in global `core` measurement. |
+| Application / Use Cases | Report only | Included in global `core` measurement. |
+| Infrastructure / Adapters | Report only | Included in `core` and `mcp` measurement. |
+| Global | 80% | Enforced by `coverage.fail_under` and CI. |
 
 ## PATTERNS & BEST PRACTICES
 
-REQUIRED: Use Arrange, Act, Assert with one behavior per test.
-REQUIRED: Test domain entities/value objects without infrastructure and application handlers through fake/mock ports.
-REQUIRED: Test snapshot immutability, versioning, idempotent publication, invalid input rejection, and active replacement.
-REQUIRED: Use real PostgreSQL behavior for models, repositories, transactions, migrations, and tenant isolation.
-REQUIRED: Use the FastMCP in-process client for MCP catalog and schema tests.
-REQUIRED: Assert provenance and evidence in relationship and impact results.
-PROHIBITED: Mock domain logic or hide transaction behavior behind broad mocks.
-PROHIBITED: Depend on test execution order or shared tenant data.
+REQUIRED: Keep unit tests independent from infrastructure; test handlers through ports and domain rules directly.
+REQUIRED: Use real PostgreSQL for repository, migration, transaction, tenant-isolation, and schema-plan behavior.
+REQUIRED: Use FastMCP in-process clients for catalog and contract tests; use HTTP E2E for production authentication flows.
+REQUIRED: Assert bounded output, provenance, evidence, authorization, tenant isolation, and sanitized failures.
+PROHIBITED: Mock domain behavior or rely on test execution order.
+PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence behavior.
 
 ## TOOLING
 
-- **Framework:** Python 3.12+, pytest 9.x, pytest-asyncio, and FastMCP 4.x.
+- **Framework:** Python 3.12+, pytest 9.x, pytest-asyncio, FastMCP 4.x.
 - **Assertions:** pytest built-in assertions.
-- **Mocks/Stubs:** No mocking library configured; keep substitutes at external boundaries.
-- **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line text report.
-- **CI Integration:** No CI configuration exists in the repository.
+- **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no mocking library configured.
+- **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.
+- **CI Integration:** GitHub Actions runs Ruff, PostgreSQL migrations, unit, integration, E2E, and coverage jobs.
 
 ## TROUBLESHOOTING
 
-- **Flaky tests:** Isolate the failing tier, record database state and tenant identity, then rerun the focused test.
-- **Debug mode:** Run `pytest -vv -s` to show verbose test output and captured standard output.
+- **Flaky tests:** Isolate the tier, verify `TEST_DATABASE_URL`, tenant data, migration revision, and request context; rerun the focused test.
+- **Debug mode:** `./venv/bin/python -m pytest -vv -s <test-path>`.
+
+<!-- DOCUMENT MAP: omitted because this baseline ADR has no graph edge. -->
 
 ## REFERENCES
 
-- [**README.md**](../README.md): Documentation navigation index.
-- [**ARCHITECTURE.md**](./ARCHITECTURE.md): System boundaries and dependency rules.
+- [**README.md**](../README.md): Main documentation index.
+- [**ARCHITECTURE.md**](./ARCHITECTURE.md): System architecture and dependency rules.

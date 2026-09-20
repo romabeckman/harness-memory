@@ -110,8 +110,8 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 REQUIRED: Keep tenant, project, and snapshot ownership in composite PostgreSQL constraints.
 REQUIRED: Keep ORM models in infrastructure and map future domain objects explicitly.
 REQUIRED: Redact credentials and connection details from migration diagnostics.
-FORBIDDEN: Run migrations or create schema during MCP server construction.
-FORBIDDEN: Import FastMCP, SQLAlchemy, or PostgreSQL drivers into domain code.
+PROHIBITED: Run migrations or create schema during MCP server construction.
+PROHIBITED: Import FastMCP, SQLAlchemy, or PostgreSQL drivers into domain code.
 
 ## TIPS
 

@@ -111,8 +111,8 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 REQUIRED: Read only active-snapshot rows and apply trusted tenant predicates to every repository query.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
 REQUIRED: Keep cursor contents free of tenant identity and contextual data.
-FORBIDDEN: Return metadata, relations, evidence, payloads, or a total count from this tool.
-FORBIDDEN: Add fuzzy, infix, ranked, or full-text search behavior to this bounded capability.
+PROHIBITED: Return metadata, relations, evidence, payloads, or a total count from this tool.
+PROHIBITED: Add fuzzy, infix, ranked, or full-text search behavior to this bounded capability.
 
 ## TIPS
 

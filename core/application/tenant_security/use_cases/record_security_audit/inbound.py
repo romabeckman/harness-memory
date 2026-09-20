@@ -52,7 +52,7 @@ class SecurityAuditCommand(BaseModel):
     @field_validator("safe_details")
     @classmethod
     def validate_details(cls, value: dict[str, Any]) -> dict[str, str]:
-        allowed = {"project_key", "revision", "entity_id", "change_type"}
+        allowed = {"project_key", "revision", "entity_id", "change_type", "trace_id", "span_id"}
         if any(key not in allowed for key in value):
             raise ValueError("safe_details contains a non-allowlisted field")
         for key, item in value.items():

@@ -127,7 +127,7 @@ core/application/<domain>/
 - Domain objects own business invariants.
 - Infrastructure implements persistence and external adapters.
 
-See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed architecture and dependency rules.
+See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and dependency rules.
 
 ## Getting Started
 
@@ -135,6 +135,7 @@ See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed architecture and 
 
 - Docker
 - Docker Compose
+- Python 3.12+ for local development
 
 ### Start the services
 
@@ -172,6 +173,10 @@ docker compose down -v
 
 > This permanently removes the local database data stored by Docker Compose.
 
+The production image runs as `appuser` (UID `10001`). The `migrate` service runs
+`alembic upgrade head` before the MCP service accepts traffic. The server checks
+that the database revision equals Alembic `head`; it never runs implicit migrations.
+
 ## Database Migrations
 
 Schema migrations are managed by Alembic and run automatically before the MCP service starts.
@@ -191,6 +196,52 @@ docker compose up -d --build mcp
 ```
 
 For hot reload, use a development-specific Compose override with a source bind mount and an appropriate Python reload/watch mechanism.
+
+For a local virtual environment:
+
+```bash
+python3 -m venv venv
+./venv/bin/pip install -e ".[test]"
+```
+
+Set `DATABASE_URL` to a PostgreSQL `postgresql+psycopg2://` URL before running
+`alembic upgrade head` or `harness-memory migrate`. Read-only migration status is
+available with `harness-memory migrate --status`.
+
+Run the test tiers in source order:
+
+```bash
+./venv/bin/python -m pytest tests/unit
+./venv/bin/python -m pytest tests/integration
+./venv/bin/python -m pytest tests/e2e
+./venv/bin/python -m pytest --cov=core --cov=mcp --cov-branch --cov-fail-under=80
+```
+
+The 80% global branch coverage gate is required in CI. Ruff format and lint must
+also pass. Windows virtual environments use `venv\\Scripts\\python.exe` and
+`venv\\Scripts\\pip.exe`.
+
+### Authentication and tenancy
+
+Production HTTP mode uses a bearer token verifier configured with `MCP_ISSUER`,
+`MCP_JWKS_URI`, `MCP_AUDIENCE`, and `MCP_TENANT_CLAIM`. Every tool request is
+bound to the authenticated tenant; tenant identity is never accepted from a tool
+payload. Scope checks protect publishing, reads, and impact analysis. Security
+audit records keep bounded safe identifiers and optional W3C trace correlation.
+
+### MCP example
+
+After startup, an MCP client can discover the catalog with `tools/list`, then call
+`search_entities` with a tenant-scoped query:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {"name": "search_entities", "arguments": {"query": "billing"}}
+}
+```
 
 ## Design Principles
 
@@ -213,7 +264,7 @@ Contributions are welcome.
 
 If you want to propose a feature or architectural change, open an issue or pull request with a clear description of the problem, expected behavior, and relevant tests.
 
-When contributing, please preserve the dependency boundaries described in [`ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+When contributing, preserve the dependency boundaries described in [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md), keep one class per file, and add tests in the matching `unit`, `integration`, or `e2e` tree.
 
 ## License
 

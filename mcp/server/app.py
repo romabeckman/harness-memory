@@ -1,10 +1,12 @@
+import json
+
 from mcp.config import RuntimeSettings
+from mcp.migration_cli import MigrationCLI
 
 from .factory import create_mcp_server
 
 
-
-def _fail_closed_server():
+def _fail_closed_server(error_message: str = "production authentication is not configured"):
     async def application(scope, receive, send):
         if scope.get("type") == "lifespan":
             while True:
@@ -16,7 +18,7 @@ def _fail_closed_server():
                     return
         if scope.get("type") != "http":
             return
-        body = b'{"error":"production authentication is not configured"}'
+        body = json.dumps({"error": error_message}).encode("utf-8")
         await send(
             {
                 "type": "http.response.start",
@@ -38,9 +40,9 @@ def _build_server():
     try:
         settings = RuntimeSettings()
         settings.mcp_production = True
-        return create_mcp_server(settings, production=True)
-    except Exception:
-        return _fail_closed_server()
+        return create_mcp_server(settings, production=True, verify_schema=False)
+    except Exception as exc:
+        return _fail_closed_server(MigrationCLI._redact(str(exc)))
 
 
 server = _build_server()
@@ -48,13 +50,20 @@ mcp = server
 
 
 def main() -> None:
-    settings = RuntimeSettings()
-    settings.mcp_production = True
-    create_mcp_server(settings, production=True).run(
-        transport="http",
-        host=settings.mcp_host,
-        port=settings.mcp_port,
-    )
+    import sys
+
+    try:
+        settings = RuntimeSettings()
+        settings.mcp_production = True
+        server = create_mcp_server(settings, production=True, verify_schema=False)
+        server.run(
+            transport="http",
+            host=settings.mcp_host,
+            port=settings.mcp_port,
+        )
+    except Exception as exc:
+        sys.stderr.write(f"Startup failed: {MigrationCLI._redact(str(exc))}\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,11 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**snapshot-publication.md**](./feature/snapshot-publication.md) | Feature documentation for project snapshot publication. | Optional |
 | [**entity-discovery.md**](./feature/entity-discovery.md) | Feature documentation for entity discovery. | Optional |
 | [**relationship-context.md**](./feature/relationship-context.md) | Feature documentation for bounded relationship context and dependency queries. | Optional |
+| [**integration-paths.md**](./feature/integration-paths.md) | Feature documentation for bounded integration path discovery. | Optional |
+| [**impact-analysis.md**](./feature/impact-analysis.md) | Feature documentation for structured change impact analysis. | Optional |
+| [**mcp-access-surface.md**](./feature/mcp-access-surface.md) | Feature documentation for MCP resources and workflow prompts. | Optional |
+| [**tenant-security.md**](./feature/tenant-security.md) | Feature documentation for authentication, tenant isolation, scopes, and audit. | Optional |
+| [**production-delivery.md**](./feature/production-delivery.md) | Feature documentation for Docker, startup safety, CI, and telemetry. | Optional |
 
 ## Recommended Reading Order
 

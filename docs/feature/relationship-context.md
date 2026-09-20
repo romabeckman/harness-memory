@@ -110,8 +110,8 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 REQUIRED: Apply tenant and active-snapshot predicates to every entity, project, snapshot, relation, and evidence join.
 REQUIRED: Use one read transaction per query so returned facts come from one active snapshot.
 REQUIRED: Preserve relation direction, provenance, peer identity, and linked evidence in output projections.
-FORBIDDEN: Recurse through dependency paths; reserve transitive traversal for integration-path or impact features.
-FORBIDDEN: Accept tenant identity from tool payloads or disclose whether another tenant owns a UUID.
+PROHIBITED: Recurse through dependency paths; reserve transitive traversal for integration-path or impact features.
+PROHIBITED: Accept tenant identity from tool payloads or disclose whether another tenant owns a UUID.
 
 ## TIPS
 

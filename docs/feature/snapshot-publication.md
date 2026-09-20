@@ -134,8 +134,8 @@ tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contract
 REQUIRED: Hash validated canonical content, including revision and normalized timestamp, while excluding tenant context.
 REQUIRED: Keep Pydantic shape validation separate from domain graph invariants.
 REQUIRED: Map persistence failures to stable MCP-safe errors without SQL, credentials, or payload contents.
-FORBIDDEN: Delete historical snapshots when activating a newer revision.
-FORBIDDEN: Allow arbitrary graph mutations outside complete snapshot publication.
+PROHIBITED: Delete historical snapshots when activating a newer revision.
+PROHIBITED: Allow arbitrary graph mutations outside complete snapshot publication.
 
 ## TIPS
 

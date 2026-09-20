@@ -98,9 +98,23 @@ class RuntimeSettings(BaseSettings):
             raise ValueError("MCP_TENANT_CLAIM must not be empty")
         return value
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def validate_database_url(cls, value: str | SecretStr | None) -> str | SecretStr | None:
+        if value is not None:
+            raw = value.get_secret_value() if isinstance(value, SecretStr) else str(value)
+            if not raw.strip():
+                raise ValueError("DATABASE_URL must not be empty")
+        return value
+
     @model_validator(mode="after")
     def validate_production_auth(self):
-        if self.mcp_production or self.mcp_require_auth:
+        import os
+
+        if self.mcp_production and self.mcp_host == "127.0.0.1" and "MCP_HOST" not in os.environ:
+            self.mcp_host = "0.0.0.0"
+
+        if self.mcp_require_auth:
             missing = [
                 name
                 for name, value in (

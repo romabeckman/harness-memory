@@ -15,6 +15,7 @@ from core.domain.tenant_security.types.audit_event_type import AuditEventType
 from core.domain.tenant_security.types.audit_outcome import AuditOutcome
 from core.domain.tenant_security.types.audit_phase import AuditPhase
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
+from .trace_context_holder import TraceContextHolder
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,13 @@ class ExecuteAuditedOperation:
         safe_details: Mapping[str, str] | None = None,
     ) -> object:
         correlation_id = UUID(str(request_id)) if request_id else uuid4()
+        details = dict(safe_details or {})
+        current_trace_id = TraceContextHolder.get_current_trace_id()
+        if current_trace_id and "trace_id" not in details:
+            details["trace_id"] = current_trace_id
+        current_span_id = TraceContextHolder.get_current_span_id()
+        if current_span_id and "span_id" not in details:
+            details["span_id"] = current_span_id
         attempted = SecurityAuditCommand(
             request_id=correlation_id,
             event_type=event_type,
@@ -49,7 +57,7 @@ class ExecuteAuditedOperation:
             required_scope=required_scope,
             tenant_id=principal.tenant_id,
             subject=principal.subject,
-            safe_details=dict(safe_details or {}),
+            safe_details=details,
         )
         try:
             self._audit_handler.execute(attempted)

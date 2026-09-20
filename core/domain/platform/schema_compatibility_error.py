@@ -1,0 +1,4 @@
+from .schema_incompatible_error import SchemaIncompatibleError
+
+# Backward compatible alias for SchemaIncompatibleError
+SchemaCompatibilityError = SchemaIncompatibleError

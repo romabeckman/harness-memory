@@ -52,3 +52,9 @@
 | 2026-09-20T00:14:40.398Z | F008 | Development: TDD execution for domain 'tenant_security' — SUCCESS | - | tests: 287 total, 274 passed, 0 failed, coverage: 81.25. modified: core/application/tenant_security/ports/security_audit_repository.py, core/application/tenant_security/use_cases/record_security_audit... |
 | 2026-09-20T00:21:39.829Z | F008 | Review: validation verdict RETRY for domain 'tenant_security' | TL:0.61, Adv:0.7 | RETRY: TL score 0.61 below threshold 0.7; high/critical vulnerability detected; 6 open point(s) flagged by tech lead; Vulnerabilities: mcp/server/app.py:5 exports server = create_mcp_server() without ... |
 | 2026-09-20T00:38:04.095Z | F008 | Development: TDD execution for domain 'tenant_security' — SUCCESS | - | tests: 295 total, 282 passed, 0 failed, coverage: 81.63. modified: mcp/config.py, mcp/server/app.py, mcp/server/factory.py, mcp/server/http_security.py, mcp/services/audited_operation.py (+3 more). Re... |
+| 2026-09-20T00:53:33.127Z | F009 | Planning: specs generated for domain 'production_delivery' (8 task(s)) | - | Spec files: 003-harness-memory-tactical-design.md, 004-harness-memory-test-scenarios.md. |
+| 2026-09-20T02:33:27.681Z | F009 | Development: TDD execution for domain 'production_delivery' — PARSE_ERROR | - | Failed to parse TDD-OUTPUT.json: Unexpected token '﻿', "﻿{
+    "f"... is not valid JSON |
+| 2026-09-20T02:39:07.032Z | F009 | Review: validation verdict PASS for domain 'production_delivery' | TL:0.7, Adv:0.9 | Scores pass thresholds (TL: 0.7 >= 0.7, Adv: 0.9 >= 0.7) with no high/critical vulnerabilities. |
+| 2026-09-20T02:39:07.043Z | GLOBAL | TRANSITION (state check): 9/9 features completed. | - | - |
+| 2026-09-20T02:59:13.938Z | GLOBAL | Memory: project memory written | - | Documents created or updated: C:/Users/romab/Codigo/harness-memory/docs/feature/entity-discovery.md, C:/Users/romab/Codigo/harness-memory/docs/feature/impact-analysis.md, C:/Users/romab/Codigo/harness... |

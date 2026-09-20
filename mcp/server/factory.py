@@ -8,6 +8,8 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.ha
 from core.application.tenant_security.use_cases.record_security_audit.handler import (
     RecordSecurityAuditHandler,
 )
+from core.domain.platform.verify_startup_schema import VerifyStartupSchema
+from core.infrastructure.postgres.alembic_runtime import AlembicRuntime
 from core.infrastructure.postgres.config import PostgresSettings
 from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
 from core.infrastructure.postgres.repositories.entity_search_repository import (
@@ -28,16 +30,20 @@ from core.infrastructure.postgres.repositories.relationship_query_repository imp
 from core.infrastructure.postgres.repositories.snapshot_publication_repository import (
     PostgresSnapshotPublicationRepository,
 )
+from core.infrastructure.postgres.schema_compatibility_checker import SchemaCompatibilityChecker
+from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
 from mcp.config import RuntimeSettings
 from mcp.prompts import register_mcp_guidance_prompts
 from mcp.resources.entity_resource import register_entity_resource
 from mcp.resources.project_resource import register_project_resource
 from mcp.resources.snapshot_resource import register_snapshot_resource
 from mcp.server.http_security import install_http_security_error_mapping
+from mcp.server.server_lifespan_manager import ServerLifespanManager
 from mcp.services.audited_operation import ExecuteAuditedOperation
 from mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
 from mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
 from mcp.services.security_audit_middleware import AuditingTokenVerifier, SecurityAuditMiddleware
+from mcp.services.telemetry_middleware import TelemetryMiddleware
 from mcp.services.tenant_context import TenantContextProvider
 from mcp.tools.analyze_impact import register_analyze_impact
 from mcp.tools.find_integration_paths import register_find_integration_paths
@@ -86,6 +92,10 @@ def create_mcp_server(
     security_audit_handler=None,
     production: bool = False,
     scope_policy=None,
+    verify_schema: bool | None = None,
+    schema_checker: SchemaCompatibilityChecker | None = None,
+    alembic_runtime: AlembicRuntime | None = None,
+    telemetry_tracer: TelemetryTracer | None = None,
 ) -> FastMCP:
     if settings is not None:
         settings.model_validate(settings.model_dump())
@@ -108,13 +118,41 @@ def create_mcp_server(
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )
-    server = FastMCP(name="harness-memory", auth=auth_provider)
+    effective_runtime = alembic_runtime
+    if (
+        effective_runtime is None
+        and settings is not None
+        and settings.database_url is not None
+        and (production or verify_schema is True)
+    ):
+        postgres_cfg = PostgresSettings(database_url=settings.database_url)
+        effective_runtime = AlembicRuntime(postgres_cfg)
+    if verify_schema is True or (
+        verify_schema is None and production and effective_runtime is not None
+    ):
+        if effective_runtime is not None:
+            VerifyStartupSchema(schema_checker).execute(effective_runtime)
+
+    lifespan_manager = None
+    if production and effective_runtime is not None:
+        lifespan_manager = ServerLifespanManager(
+            alembic_runtime=effective_runtime,
+            telemetry_tracer=telemetry_tracer,
+        )
+
+    server = FastMCP(
+        name="harness-memory",
+        auth=auth_provider,
+        lifespan=lifespan_manager.lifespan if lifespan_manager is not None else None,
+    )
     memory_resource_repository = memory_resource_repository or resource_repository
     if handler is None and repository is not None:
         handler = PublishProjectSnapshotHandler(repository)
     if handler is None and settings is not None and settings.database_url is not None:
         postgres = PostgresSettings(database_url=settings.database_url)
         engine = PostgresEngineFactory.create(postgres)
+        if lifespan_manager is not None:
+            lifespan_manager.attach_engine(engine)
         repository = PostgresSnapshotPublicationRepository(engine=engine)
         handler = PublishProjectSnapshotHandler(repository)
         if (
@@ -140,6 +178,7 @@ def create_mcp_server(
         if memory_resource_repository is None:
             memory_resource_repository = PostgresMemoryResourceRepository(engine=engine)
     context = tenant_context or TenantContextProvider()
+    server.middleware.append(TelemetryMiddleware(tracer=telemetry_tracer, tenant_context=context))
     if production and context.has_fixed_context():
         raise ValueError("production tenant context cannot use a fixed tenant")
     audit_repository = audit_repository or security_audit_repository
@@ -183,9 +222,7 @@ def create_mcp_server(
         ExecuteAuditedOperation(audit_handler) if audit_handler is not None else None
     )
     integration_path_repository = (
-        integration_path_repository
-        or integration_repository
-        or integration_path_query_repository
+        integration_path_repository or integration_repository or integration_path_query_repository
     )
     if handler is not None:
         register_publish_project_snapshot(

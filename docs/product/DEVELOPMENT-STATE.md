@@ -64,15 +64,23 @@
 | F007 | T06 | harness-memory | Expose Snapshot Memory Resource | mcp_access_surface | - | COMPLETED |
 | F007 | T07 | harness-memory | Register MCP Guidance Prompts | mcp_access_surface | - | COMPLETED |
 | F007 | T08 | harness-memory | Wire MCP Read Surface Contracts | mcp_access_surface | - | COMPLETED |
-| F008 | T01 | harness-memory | Implement Tenant Security Types | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T02 | harness-memory | Implement Security Audit Use Case | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T03 | harness-memory | Persist Security Audit Records | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T04 | harness-memory | Configure Production Token Verification | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T05 | harness-memory | Bind Request Security Context | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T06 | harness-memory | Enforce Component Scope Policy | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T07 | harness-memory | Audit Security Failures | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T08 | harness-memory | Audit Publication Operations | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T09 | harness-memory | Audit Impact Analysis Operations | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T10 | harness-memory | Harden Production HTTP Startup | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T11 | harness-memory | Verify PostgreSQL Tenant Isolation | tenant_security | IMPLEMENTATION | IN_PROGRESS |
-| F008 | T12 | harness-memory | Verify Authenticated HTTP MCP Flows | tenant_security | IMPLEMENTATION | IN_PROGRESS |
+| F008 | T01 | harness-memory | Implement Tenant Security Types | tenant_security | - | COMPLETED |
+| F008 | T02 | harness-memory | Implement Security Audit Use Case | tenant_security | - | COMPLETED |
+| F008 | T03 | harness-memory | Persist Security Audit Records | tenant_security | - | COMPLETED |
+| F008 | T04 | harness-memory | Configure Production Token Verification | tenant_security | - | COMPLETED |
+| F008 | T05 | harness-memory | Bind Request Security Context | tenant_security | - | COMPLETED |
+| F008 | T06 | harness-memory | Enforce Component Scope Policy | tenant_security | - | COMPLETED |
+| F008 | T07 | harness-memory | Audit Security Failures | tenant_security | - | COMPLETED |
+| F008 | T08 | harness-memory | Audit Publication Operations | tenant_security | - | COMPLETED |
+| F008 | T09 | harness-memory | Audit Impact Analysis Operations | tenant_security | - | COMPLETED |
+| F008 | T10 | harness-memory | Harden Production HTTP Startup | tenant_security | - | COMPLETED |
+| F008 | T11 | harness-memory | Verify PostgreSQL Tenant Isolation | tenant_security | - | COMPLETED |
+| F008 | T12 | harness-memory | Verify Authenticated HTTP MCP Flows | tenant_security | - | COMPLETED |
+| F009 | T01 | harness-memory | Create Production Dockerfile and Dockerignore | production_delivery | - | COMPLETED |
+| F009 | T02 | harness-memory | Implement Startup Schema Compatibility Checker | production_delivery | - | COMPLETED |
+| F009 | T03 | harness-memory | Enforce Schema Compatibility at Production Server Startup | production_delivery | - | COMPLETED |
+| F009 | T04 | harness-memory | Implement Focused OpenTelemetry Tracing Provider | production_delivery | - | COMPLETED |
+| F009 | T05 | harness-memory | Instrument MCP Tool Execution with Telemetry Middleware | production_delivery | - | COMPLETED |
+| F009 | T06 | harness-memory | Create GitHub Actions Continuous Integration Workflow | production_delivery | - | COMPLETED |
+| F009 | T07 | harness-memory | Verify Startup Schema Compatibility and Production Flows | production_delivery | - | COMPLETED |
+| F009 | T08 | harness-memory | Update Community README with Architecture and Developer Guide | production_delivery | - | COMPLETED |

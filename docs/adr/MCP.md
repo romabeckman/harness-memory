@@ -9,7 +9,7 @@ edges:
     target: "adr:architecture"
   - relation: references
     target: "adr:tests"
-updated: 2026-09-18
+updated: 2026-09-19
 ---
 # MCP Interface
 
@@ -132,7 +132,7 @@ def publish_project_snapshot(payload: dict):
 | Concern | Rule |
 |---------|------|
 | Authentication | Require authentication for production MCP over HTTP. |
-| Authorization | Enforce `memory:read`, `memory:publish`, and `memory:impact` scopes. |
+| Authorization | Enforce exact `memory:read`, `memory:publish`, and `memory:impact` scopes; deny unmapped components. |
 | Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
 | Audit | Record snapshot publication, impact analysis, authentication failures, and authorization failures. |
 | Transport | Use in-process client for development/tests and HTTP for production. |
