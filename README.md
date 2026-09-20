@@ -253,9 +253,13 @@ For a remote deployment, use its publicly reachable HTTPS URL, such as
 ### Authentication
 
 The Compose configuration enables database authentication with
-`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/users`,
-then create its token through `POST http://localhost:8080/tokens`. Save the plaintext
+`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/v1/users`,
+then create its token through `POST http://localhost:8080/v1/tokens`. Save the plaintext
 token returned once by the creation response.
+
+For automation, create a tenant-bound service account through `POST /v1/service-accounts`,
+then issue its token through `POST /v1/tokens` with `service_account_id`. Omit `expires_at`
+to create a non-expiring service-account token. See the [API guide](api/README.md).
 
 Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
 value, accepts only an active stored token, and derives subject and tenant identity
@@ -264,7 +268,7 @@ authenticate REST API requests.
 
 ### Set the MCP token environment variable
 
-Replace `<token>` with the plaintext token returned once by `POST /tokens`. Keep
+Replace `<token>` with the plaintext token returned once by `POST /v1/tokens`. Keep
 the token secret; do not commit it or put it directly in the MCP configuration.
 
 On Windows, use PowerShell to create a persistent user environment variable:
@@ -340,7 +344,7 @@ Add this server to the `mcpServers` object in the global
 }
 ```
 
-Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /tokens`. Keep this global
+Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /v1/tokens`. Keep this global
 configuration private because it contains the token. Antigravity CLI also supports
 workspace configuration in `.agents/mcp_config.json`; do not commit a real token
 there. Open the MCP Servers panel in the IDE, or run `/mcp` in Antigravity CLI, to

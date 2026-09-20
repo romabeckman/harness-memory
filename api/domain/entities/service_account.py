@@ -3,11 +3,7 @@ from uuid import UUID
 
 
 @dataclass(slots=True)
-class User:
+class ServiceAccount:
     id: UUID
+    tenant_id: UUID
     name: str
-    email: str
-
-    @property
-    def tenant_id(self) -> UUID:
-        return self.id

@@ -22,18 +22,21 @@ class DatabaseTokenVerifier(TokenVerifier):
         )
         if identity is None:
             return None
-        stored, user = identity
-        subject = str(user.id)
+        stored, owner = identity
+        subject = str(owner.id)
+        tenant_id = str(owner.tenant_id)
         scopes = [scope.value for scope in MemoryScope]
         return AccessToken(
             token=token,
             client_id=subject,
             scopes=scopes,
-            expires_at=int(stored.expires_at.timestamp()),
+            expires_at=(
+                int(stored.expires_at.timestamp()) if stored.expires_at is not None else None
+            ),
             subject=subject,
             claims={
                 "sub": subject,
-                "tenant_id": subject,
+                "tenant_id": tenant_id,
                 "scope": " ".join(scopes),
             },
         )

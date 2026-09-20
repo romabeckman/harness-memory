@@ -12,7 +12,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**API.md**](./adr/API.md) | FastAPI architecture, shared persistence boundary, and token handoff to MCP. | Optional |
 | [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
 | [**MCP.md**](./adr/MCP.md) | MCP tools, resources, prompts, contracts, and security boundaries. | Optional |
-| [**users-and-tokens.md**](./feature/api/users-and-tokens.md) | FastAPI user and MCP-token CRUD contract. | Optional |
+| [**users-and-tokens.md**](./feature/api/users-and-tokens.md) | FastAPI user, service-account, and MCP-token CRUD contract. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | MCP tenant isolation, scopes, and security audit behavior. | Optional |
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | API-issued bearer-token authentication for MCP clients. | Optional |
