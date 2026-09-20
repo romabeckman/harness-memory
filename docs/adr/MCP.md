@@ -8,8 +8,12 @@ edges:
   - relation: references
     target: "adr:architecture"
   - relation: references
+    target: "adr:api"
+  - relation: references
     target: "adr:tests"
-updated: 2026-09-18
+  - relation: references
+    target: "feature:mcp-token-authentication"
+updated: 2026-09-20
 ---
 # MCP Interface
 
@@ -17,7 +21,7 @@ Define the FastMCP surface for publishing, querying, and analyzing corporate eng
 
 ## OVERVIEW
 
-Use **FastMCP** as the only external application interface. Expose tools for actions, resources for bounded reads, and prompts for agent guidance.
+Use **FastMCP** for the knowledge interface: tools for actions, resources for bounded reads, and prompts for agent guidance. The separate FastAPI module manages users and MCP access tokens; it does not expose these knowledge operations.
 Group application contracts and use cases by business domain; keep `mcp/server` and `mcp/tools` as adapter boundaries.
 Run MCP over HTTP in production and use the FastMCP in-process client for development and contract tests.
 
@@ -131,8 +135,8 @@ def publish_project_snapshot(payload: dict):
 
 | Concern | Rule |
 |---------|------|
-| Authentication | Require authentication for production MCP over HTTP. |
-| Authorization | Enforce `memory:read`, `memory:publish`, and `memory:impact` scopes. |
+| Authentication | Accept database-backed opaque API bearer tokens or externally verified JWTs for production MCP over HTTP. |
+| Authorization | Enforce exact `memory:read`, `memory:publish`, and `memory:impact` scopes; deny unmapped components. |
 | Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
 | Audit | Record snapshot publication, impact analysis, authentication failures, and authorization failures. |
 | Transport | Use in-process client for development/tests and HTTP for production. |
@@ -149,10 +153,16 @@ PROHIBITED: Treat prompt text tests as a replacement for tool and resource contr
 ```mermaid
 graph TD
     MCP["MCP Interface"] -->|references| ARCH["Project Architecture"]
+    MCP -->|references| API["API Architecture"]
     MCP -->|references| TESTS["Testing Protocol"]
+    MCP -->|references| AUTH["MCP Token Authentication"]
+    click API "./API.md"
+    click AUTH "../feature/mcp/token-authentication.md"
 ```
 
 ## REFERENCES
 
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): Defines layers, Pydantic boundary rules, and integrations.
+- [**API.md**](./API.md): Defines API-issued tokens and their handoff to MCP authentication.
 - [**TESTS.md**](./TESTS.md): Defines MCP contract testing and 80% minimum coverage.
+- [**token-authentication.md**](../feature/mcp/token-authentication.md): Defines database-backed API token verification for MCP clients.

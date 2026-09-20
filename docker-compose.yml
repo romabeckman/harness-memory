@@ -22,7 +22,7 @@ services:
       context: .
     command: ["alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+      DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,9 +35,11 @@ services:
       context: .
     command: ["python", "-m", "mcp.server.app"]
     environment:
-      DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
+      DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
+      MCP_PRODUCTION: "true"
       MCP_HOST: 0.0.0.0
       MCP_PORT: "8000"
+      MCP_AUTH_MODE: database
     ports:
       - "8000:8000"
     depends_on:
@@ -46,30 +48,31 @@ services:
     networks:
       - harness_memory_network
 
-  # api:
-  #   build:
-  #     context: .
-  #   command:
-  #     [
-  #       "uvicorn",
-  #       "api.server.app:app",
-  #       "--host",
-  #       "0.0.0.0",
-  #       "--port",
-  #       "8080"
-  #     ]
-  #   environment:
-  #     DATABASE_URL: postgresql+psycopg://harness_memory:harness_memory@postgres:5432/harness_memory
-  #     API_HOST: 0.0.0.0
-  #     API_PORT: "8080"
-  #     AUTH_ENABLED: "false"
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     migrate:
-  #       condition: service_completed_successfully
-  #   networks:
-  #     - harness_memory_network
+  api:
+    build:
+      context: .
+    command: ["uvicorn", "api.server.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
+      APP_PORT: "8080"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - harness_memory_network
 
 volumes:
   harness_memory_postgres:

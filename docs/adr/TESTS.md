@@ -1,72 +1,65 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, FastMCP 4.x, PostgreSQL, Alembic]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastAPI, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
-updated: 2026-09-18
+updated: 2026-09-20
 ---
 # Testing Protocol
 
 ## OVERVIEW
 
-Use separate **unit**, **integration**, **end-to-end**, and **MCP contract** tests.
-Cover domain entities/value objects, application handlers/contracts, PostgreSQL models/repositories, migrations, tenant isolation, and MCP schemas.
-REQUIRED: Enforce **80% minimum coverage** for each listed layer and globally.
+Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `api`, `core`, and `mcp`.
 
 ## COMMANDS
 
-No `pyproject.toml`, test runner, coverage tool, CI file, or test command exists.
-Add commands only when project tooling exists.
-
 | Type | Command | Description |
 |------|---------|-------------|
-| Unit | Not configured | Test entities, value objects, domain services, application handlers, and Pydantic inbound/outbound contracts. |
-| Integration | Not configured | Test PostgreSQL models/repositories, snapshot activation, transactions, tenant isolation, and migrations. |
-| E2E / MCP | Not configured | Test public MCP tools, resources, prompts, and adapter-to-application mapping through FastMCP. |
-| Coverage | Not configured | Add a coverage command that enforces 80% domain, application, infrastructure, and global coverage. |
-
-Verified migration commands from project scope: `harness-memory migrate` and `harness-memory migrate --status`.
+| Unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
+| Integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
+| E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
+| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
+| Migration | `harness-memory migrate` / `harness-memory migrate --status` | Upgrade or inspect Alembic schema state. |
 
 ## MINIMUM COVERAGE
 
-REQUIRED: Maintain the following minimum coverage levels:
+REQUIRED: Maintain the configured global threshold. No independent per-layer gates exist.
 
 | Layer | Coverage | Description |
 |-------|----------|-------------|
-| Domain / Core | 80% | Entities, value objects, domain services, invariants, and impact rules. |
-| Application / Use Cases | 80% | Handlers, inbound/outbound contracts, ports, and orchestration. |
-| Infrastructure / Adapters | 80% | PostgreSQL models, repositories, transactions, migrations, and MCP adapters. |
-| Global | 80% | Total measured project coverage. |
-
-No CI gate exists in the repository yet. Add a CI gate before treating 80% as release-enforced.
+| Domain / Core | Report only | Included in global `core` measurement. |
+| Application / Use Cases | Report only | Included in global `core` measurement. |
+| Infrastructure / Adapters | Report only | Included in `core` and `mcp` measurement. |
+| Global | 80% | Enforced across `api`, `core`, and `mcp`. |
 
 ## PATTERNS & BEST PRACTICES
 
-REQUIRED: Use Arrange, Act, Assert with one behavior per test.
-REQUIRED: Test domain entities/value objects without infrastructure and application handlers through fake/mock ports.
-REQUIRED: Test snapshot immutability, versioning, idempotent publication, invalid input rejection, and active replacement.
-REQUIRED: Use real PostgreSQL behavior for models, repositories, transactions, migrations, and tenant isolation.
-REQUIRED: Use the FastMCP in-process client for MCP catalog and schema tests.
-REQUIRED: Assert provenance and evidence in relationship and impact results.
-PROHIBITED: Mock domain logic or hide transaction behavior behind broad mocks.
-PROHIBITED: Depend on test execution order or shared tenant data.
+REQUIRED: Keep unit tests independent from infrastructure; test handlers through ports and domain rules directly.
+REQUIRED: Use real PostgreSQL for repository, migration, transaction, tenant-isolation, and schema-plan behavior.
+REQUIRED: Use FastMCP in-process clients for catalog and contract tests; use HTTP E2E for production authentication flows.
+REQUIRED: Assert bounded output, provenance, evidence, authorization, tenant isolation, and sanitized failures.
+PROHIBITED: Mock domain behavior or rely on test execution order.
+PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence behavior.
 
 ## TOOLING
 
-- **Framework:** Python 3.12+ and FastMCP 4.x; test framework not configured.
-- **Assertions:** Not configured; select with the project test runner.
-- **Mocks/Stubs:** Not specified; mock external boundaries only after tooling is added.
-- **Coverage:** Coverage tool and report format not configured; enforce 80% minimum.
-- **CI Integration:** No CI configuration exists in the repository.
+- **Framework:** Python 3.12+, pytest 9.x, pytest-asyncio, FastMCP 4.x.
+- **Assertions:** pytest built-in assertions.
+- **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no mocking library configured.
+- **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.
+- **CI Integration:** GitHub Actions runs Ruff, PostgreSQL migrations, unit, integration, E2E, and coverage jobs.
+- **Architecture:** Unit tests validate repository source rules against the real project root as well as isolated fixtures.
 
 ## TROUBLESHOOTING
 
-- **Flaky tests:** Isolate the failing tier, record database state and tenant identity, then report the failure after the runner exists.
-- **Debug mode:** No debug command is configured. Add the runner's verbose mode with the test tooling.
+- **Flaky tests:** Isolate the tier, verify `TEST_DATABASE_URL`, tenant data, migration revision, and request context; rerun the focused test.
+- **Debug mode:** `./venv/bin/python -m pytest -vv -s <test-path>`.
+
+<!-- DOCUMENT MAP: omitted because this baseline ADR has no graph edge. -->
 
 ## REFERENCES
 
-- [**README.md**](../README.md): Documentation navigation index.
-- [**ARCHITECTURE.md**](./ARCHITECTURE.md): System boundaries and dependency rules.
+- [**README.md**](../README.md): Main documentation index.
+- [**ARCHITECTURE.md**](./ARCHITECTURE.md): System architecture and dependency rules.

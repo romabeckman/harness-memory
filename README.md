@@ -1,3 +1,5 @@
+![Harness Memory](docs/assets/harness-memory-banner.png)
+
 # Harness Memory
 
 **Harness Memory** is an open-source MCP server for sharing structured engineering knowledge across software projects.
@@ -125,7 +127,7 @@ core/application/<domain>/
 - Domain objects own business invariants.
 - Infrastructure implements persistence and external adapters.
 
-See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed architecture and dependency rules.
+See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and dependency rules.
 
 ## Getting Started
 
@@ -133,6 +135,7 @@ See [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the detailed architecture and 
 
 - Docker
 - Docker Compose
+- Python 3.12+ for local development
 
 ### Start the services
 
@@ -170,6 +173,10 @@ docker compose down -v
 
 > This permanently removes the local database data stored by Docker Compose.
 
+The production image runs as `appuser` (UID `10001`). The `migrate` service runs
+`alembic upgrade head` before the MCP service accepts traffic. The server checks
+that the database revision equals Alembic `head`; it never runs implicit migrations.
+
 ## Database Migrations
 
 Schema migrations are managed by Alembic and run automatically before the MCP service starts.
@@ -189,6 +196,140 @@ docker compose up -d --build mcp
 ```
 
 For hot reload, use a development-specific Compose override with a source bind mount and an appropriate Python reload/watch mechanism.
+
+For a local virtual environment:
+
+```bash
+python3 -m venv venv
+./venv/bin/pip install -e ".[test]"
+```
+
+Set `DATABASE_URL` to a PostgreSQL `postgresql+psycopg2://` URL before running
+`alembic upgrade head` or `harness-memory migrate`. Read-only migration status is
+available with `harness-memory migrate --status`.
+
+Run the test tiers in source order:
+
+```bash
+./venv/bin/python -m pytest tests/unit
+./venv/bin/python -m pytest tests/integration
+./venv/bin/python -m pytest tests/e2e
+./venv/bin/python -m pytest --cov=api --cov=core --cov=mcp --cov-branch --cov-fail-under=80
+```
+
+The 80% global branch coverage gate is required in CI. Ruff format and lint must
+also pass. Windows virtual environments use `venv\\Scripts\\python.exe` and
+`venv\\Scripts\\pip.exe`.
+
+### Authentication and tenancy
+
+Production HTTP mode verifies bearer tokens issued by the REST API and stored as
+SHA-256 digests. Every tool request is bound to the token owner; tenant identity is
+never accepted from a tool payload. Scope checks protect publishing, reads, and
+impact analysis. Security audit records keep bounded safe identifiers and optional
+W3C trace correlation.
+
+### MCP example
+
+After startup, an MCP client can discover the catalog with `tools/list`, then call
+`search_entities` with a tenant-scoped query:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {"name": "search_entities", "arguments": {"query": "billing"}}
+}
+```
+
+## Connect MCP Clients
+
+Harness Memory exposes MCP over Streamable HTTP at `http://localhost:8000/mcp` when
+running with Docker Compose. It does not currently expose a local `stdio` command.
+For a remote deployment, use its publicly reachable HTTPS URL, such as
+`https://mcp.example.com/mcp`.
+
+### Authentication
+
+The Compose configuration enables database authentication with
+`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/users`,
+then create its token through `POST http://localhost:8080/tokens`. Save the plaintext
+token returned once by the creation response.
+
+Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
+value, accepts only an active stored token, and derives subject and tenant identity
+from its owning user. API-issued tokens authenticate MCP clients only; they do not
+authenticate REST API requests.
+
+### Claude Code
+
+Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_TOKEN` in the
+environment before starting Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "harness-memory": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer ${HARNESS_MEMORY_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Start Claude Code in the project, approve the project MCP server if prompted, then
+run `/mcp` to check its connection. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
+
+### OpenAI Codex
+
+Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_TOKEN` in the
+environment before starting Codex:
+
+```toml
+[mcp_servers.harness-memory]
+url = "http://localhost:8000/mcp"
+bearer_token_env_var = "HARNESS_MEMORY_TOKEN"
+```
+
+The Codex CLI, desktop app, and IDE extension share this configuration. Run
+`codex mcp list` or enter `/mcp` in the Codex TUI to check the connection. See the
+[Codex MCP documentation](https://developers.openai.com/codex/mcp).
+
+### Google Antigravity
+
+In Antigravity IDE, open **MCP Servers > Manage MCP Servers > View raw config**.
+Add this server to the `mcpServers` object in the global
+`~/.gemini/config/mcp_config.json` file:
+
+```json
+{
+  "mcpServers": {
+    "harness-memory": {
+      "serverUrl": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer <YOUR_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+Replace `<YOUR_TOKEN>` with the plaintext returned by `POST /tokens`. Keep this global
+configuration private because it contains the token. Antigravity CLI also supports
+workspace configuration in `.agents/mcp_config.json`; do not commit a real token
+there. Open the MCP Servers panel in the IDE, or run `/mcp` in Antigravity CLI, to
+check or reload the server. See the [Antigravity MCP documentation](https://antigravity.google/docs/mcp).
+
+### Other MCP clients
+
+Use a client that supports remote Streamable HTTP servers. Set its server URL to
+`http://localhost:8000/mcp` (or your deployed HTTPS URL) and configure the
+`Authorization` header with a valid bearer token. See the client's MCP settings for
+the exact configuration format.
 
 ## Design Principles
 
@@ -211,7 +352,7 @@ Contributions are welcome.
 
 If you want to propose a feature or architectural change, open an issue or pull request with a clear description of the problem, expected behavior, and relevant tests.
 
-When contributing, please preserve the dependency boundaries described in [`ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+When contributing, preserve the dependency boundaries described in [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md), keep one class per file, and add tests in the matching `unit`, `integration`, or `e2e` tree.
 
 ## License
 
