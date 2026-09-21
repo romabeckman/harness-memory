@@ -18,6 +18,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | API-issued bearer-token authentication for MCP clients. | Optional |
 | [**platform-foundation.md**](./feature/core/platform-foundation.md) | Shared PostgreSQL foundation, migrations, and platform runtime. | Optional |
 | [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Versioned knowledge snapshot publication and activation. | Optional |
+| [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Contextualize knowledge by environment and publish pipeline snapshots. | Optional |
 | [**entity-discovery.md**](./feature/core/entity-discovery.md) | Bounded entity discovery from the active snapshot. | Optional |
 | [**relationship-context.md**](./feature/core/relationship-context.md) | Bounded relationship context and dependency queries. | Optional |
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded integration path discovery. | Optional |
