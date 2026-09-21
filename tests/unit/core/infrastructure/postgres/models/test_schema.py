@@ -18,6 +18,8 @@ def test_metadata_contains_all_registered_tables():
         "users",
         "tokens",
         "service_accounts",
+        "environments",
+        "knowledge_publications",
     }
 
 
@@ -53,3 +55,30 @@ def test_graph_fact_constraints_enforce_ownership_and_provenance():
     assert sum(isinstance(item, ForeignKeyConstraint) for item in evidence.constraints) >= 2
     assert any(isinstance(item, CheckConstraint) for item in relation.constraints)
     assert any(isinstance(item, Index) for item in entity.indexes)
+
+
+def test_environment_and_publication_constraints():
+    from core.infrastructure.postgres.models.environment import Environment
+    from core.infrastructure.postgres.models.knowledge_publication import KnowledgePublication
+
+    env_table = Environment.__table__
+    pub_table = KnowledgePublication.__table__
+
+    assert any(
+        isinstance(constraint, UniqueConstraint)
+        and {column.name for column in constraint.columns}
+        == {"tenant_id", "project_id", "name"}
+        for constraint in env_table.constraints
+    )
+    assert any(
+        isinstance(constraint, UniqueConstraint)
+        and {column.name for column in constraint.columns}
+        == {"tenant_id", "project_id", "environment_id", "deployment_id"}
+        for constraint in pub_table.constraints
+    )
+    assert any(
+        isinstance(constraint, ForeignKeyConstraint)
+        and [col.name for col in constraint.columns] == ["current_snapshot_id", "tenant_id"]
+        for constraint in env_table.constraints
+    )
+

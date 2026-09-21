@@ -56,9 +56,11 @@ from harness_memory_mcp.services.security_audit_middleware import (
 from harness_memory_mcp.services.telemetry_middleware import TelemetryMiddleware
 from harness_memory_mcp.services.tenant_context import TenantContextProvider
 from harness_memory_mcp.tools.analyze_impact import register_analyze_impact
+from harness_memory_mcp.tools.compare_environments import register_compare_environments
 from harness_memory_mcp.tools.find_integration_paths import register_find_integration_paths
 from harness_memory_mcp.tools.get_context import register_get_context
 from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
+from harness_memory_mcp.tools.get_environment import register_get_environment
 from harness_memory_mcp.tools.publish_project_snapshot import register_publish_project_snapshot
 from harness_memory_mcp.tools.search_entities import register_search_entities
 
@@ -93,6 +95,9 @@ def create_mcp_server(
     snapshot_resource_handler=None,
     get_snapshot_resource_handler=None,
     snapshot_handler=None,
+    environment_repository=None,
+    get_environment_handler=None,
+    compare_environments_handler=None,
     token_verifier=None,
     auth_provider=None,
     principal_factory=None,
@@ -197,6 +202,12 @@ def create_mcp_server(
             impact_repository = PostgresImpactAnalysisRepository(engine=engine)
         if memory_resource_repository is None:
             memory_resource_repository = PostgresMemoryResourceRepository(engine=engine)
+        if environment_repository is None:
+            from core.infrastructure.postgres.repositories.environment_repository import (
+                PostgresEnvironmentRepository,
+            )
+
+            environment_repository = PostgresEnvironmentRepository(engine=engine)
     context = tenant_context or TenantContextProvider()
     server.middleware.append(TelemetryMiddleware(tracer=telemetry_tracer, tenant_context=context))
     if production and context.has_fixed_context():
@@ -318,6 +329,30 @@ def create_mcp_server(
         register_project_resource(server, project_resource_handler, context)
     if snapshot_resource_handler is not None:
         register_snapshot_resource(server, snapshot_resource_handler, context)
+    if get_environment_handler is None and environment_repository is not None:
+        from core.application.environment_context.use_cases.get_environment.handler import (
+            GetEnvironmentHandler,
+        )
+
+        get_environment_handler = GetEnvironmentHandler(environment_repository)
+    if get_environment_handler is not None:
+        register_get_environment(server, get_environment_handler, context)
+
+    if (
+        compare_environments_handler is None
+        and environment_repository is not None
+        and memory_resource_repository is not None
+    ):
+        from core.application.environment_context.use_cases.compare_environments.handler import (
+            CompareEnvironmentsHandler,
+        )
+
+        compare_environments_handler = CompareEnvironmentsHandler(
+            environment_repository, memory_resource_repository
+        )
+    if compare_environments_handler is not None:
+        register_compare_environments(server, compare_environments_handler, context)
+
     register_mcp_guidance_prompts(server)
     if production:
         install_http_security_error_mapping(server)

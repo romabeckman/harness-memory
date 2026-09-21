@@ -1,0 +1,136 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from core.domain.environment.value_objects.environment_name import EnvironmentName
+from core.domain.knowledge_publication.aggregates.knowledge_publication import (
+    KnowledgePublication as DomainKnowledgePublication,
+)
+from core.domain.knowledge_publication.types.publication_status import PublicationStatus
+from core.domain.knowledge_publication.value_objects.deployment_id import DeploymentId
+from core.domain.knowledge_publication.value_objects.publication_id import PublicationId
+from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
+    ProjectKnowledgeSnapshot,
+)
+from core.domain.snapshot_publication.value_objects.generated_at import GeneratedAt
+from core.domain.snapshot_publication.value_objects.metadata_object import MetadataObject
+from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
+from core.domain.snapshot_publication.value_objects.revision import Revision
+from core.domain.snapshot_publication.value_objects.schema_version import SchemaVersion
+from core.infrastructure.postgres.models.base import Base
+from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
+from core.infrastructure.postgres.models.project import Project as ModelProject
+from core.infrastructure.postgres.repositories.knowledge_publication_repository import (
+    PostgresKnowledgePublicationRepository,
+)
+
+
+def _seed_project_and_env(engine, tenant_id: str, proj_key: str, env_name: str) -> tuple:
+    with Session(engine) as session:
+        proj = ModelProject(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            key=proj_key,
+            name=proj_key,
+        )
+        session.add(proj)
+        session.commit()
+        session.refresh(proj)
+
+        env = ModelEnvironment(
+            id=uuid4(),
+            tenant_id=tenant_id,
+            project_id=proj.id,
+            name=env_name,
+            type=env_name,
+        )
+        session.add(env)
+        session.commit()
+        session.refresh(env)
+        return proj, env
+
+
+class TestPostgresKnowledgePublicationRepository:
+    def test_saves_and_finds_publication_by_deployment(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project_and_env(engine, "tenant-a", "catalog", "staging")
+
+        repo = PostgresKnowledgePublicationRepository(engine=engine)
+        pub_id = PublicationId.generate()
+        snap_id = uuid4()
+        pub = DomainKnowledgePublication(
+            id=pub_id,
+            project_key=ProjectKey("catalog"),
+            environment_name=EnvironmentName("staging"),
+            deployment_id=DeploymentId("deploy-500"),
+            version="2.0.0",
+            status=PublicationStatus.COMPLETED,
+            snapshot_id=snap_id,
+        )
+
+        repo.save(pub, tenant_id="tenant-a")
+
+        found = repo.find_by_deployment("catalog", "staging", "deploy-500", tenant_id="tenant-a")
+        assert found is not None
+        assert found.id == pub_id
+        assert found.version == "2.0.0"
+        assert found.status == PublicationStatus.COMPLETED
+        assert found.snapshot_id == snap_id
+
+    def test_returns_none_when_deployment_not_found(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project_and_env(engine, "tenant-a", "catalog", "staging")
+
+        repo = PostgresKnowledgePublicationRepository(engine=engine)
+        assert repo.find_by_deployment("catalog", "staging", "deploy-999", tenant_id="tenant-a") is None
+        assert repo.find_by_deployment("catalog", "staging", "deploy-500", tenant_id="tenant-b") is None
+
+    def test_publish_atomically_with_environment_persists_snapshot_and_promotes_environment(
+        self,
+    ) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        proj, env = _seed_project_and_env(engine, "tenant-a", "catalog", "staging")
+
+        repo = PostgresKnowledgePublicationRepository(engine=engine)
+        pub_id = PublicationId.generate()
+        pub = DomainKnowledgePublication(
+            id=pub_id,
+            project_key=ProjectKey("catalog"),
+            environment_name=EnvironmentName("staging"),
+            deployment_id=DeploymentId("deploy-777"),
+            version="1.0.0",
+            status=PublicationStatus.PENDING,
+        )
+        snapshot = ProjectKnowledgeSnapshot(
+            schema_version=SchemaVersion("1.0"),
+            project_key=ProjectKey("catalog"),
+            project_name="catalog",
+            project_metadata=MetadataObject({}),
+            revision=Revision(1),
+            generated_at=GeneratedAt(datetime.now(timezone.utc)),
+            entities=(),
+            relations=(),
+            evidence=(),
+        )
+
+        snap_id = repo.publish_atomically_with_environment(
+            tenant_id="tenant-a",
+            publication=pub,
+            snapshot=snapshot,
+            environment_id=env.id,
+        )
+
+        assert snap_id is not None
+        found = repo.find_by_deployment("catalog", "staging", "deploy-777", tenant_id="tenant-a")
+        assert found is not None
+        assert found.status == PublicationStatus.COMPLETED
+        assert found.snapshot_id == snap_id
+
+        with Session(engine) as session:
+            updated_env = session.get(ModelEnvironment, env.id)
+            assert updated_env.current_snapshot_id == snap_id
