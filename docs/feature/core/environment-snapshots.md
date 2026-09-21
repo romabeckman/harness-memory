@@ -13,6 +13,10 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "adr:api"
+  - relation: references
+    target: "feature:api-knowledge-publication"
+    read: optional
+    when: "Read when implementing or changing the REST publication boundary."
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
@@ -117,8 +121,9 @@ tests/unit/                # Unit test suites across domain, application, infra,
 ## HOW TO PUBLISH AND COMPARE
 
 ### Prerequisites
-1. Tenant authentication token with publication or read scope.
-2. Target project and snapshot revision registered.
+1. Use an authenticated MCP identity for environment reads.
+2. Keep REST publication traffic on a trusted network until API authorization exists.
+3. Register the target project and environment before publication.
 
 ### Steps
 1. Pipeline sends deployment event via REST `POST /v1/knowledge-publications` or `harness-memory-publish` CLI.
@@ -142,11 +147,14 @@ tests/unit/                # Unit test suites across domain, application, infra,
 ## BEST PRACTICES
 
 REQUIRED: Separate CI/CD writes (REST/CLI) from interactive agent exploration (MCP read).
-REQUIRED: Scope all operations to verified authenticated tenant context.
+REQUIRED: Scope all operations to a verified tenant context.
 REQUIRED: Execute snapshot promotion and publication recording in an atomic transaction.
 REQUIRED: Sanitize database errors and stack traces before returning responses.
 PROHIBITED: Trusting tenant identity from payload bodies; derive strictly from tokens.
+PROHIBITED: Treat the current optional `X-Tenant-ID` header or default `default` tenant as trusted authorization.
 PROHIBITED: Unbounded in-memory diffing without pagination or stream limits.
+
+The current REST publication route has no authentication dependency. Add trusted tenant authorization before exposing it to untrusted callers.
 
 ## TIPS
 
@@ -160,11 +168,13 @@ graph TD
     THIS -->|tested_by| TESTS["Tests"]
     THIS -->|references| MCP["MCP"]
     THIS -->|references| API["API"]
+    THIS -->|references| PUBLICATION["API Knowledge Publication"]
     THIS -->|depends_on| SNAP["Snapshots"]
     click ARCH "../../adr/ARCHITECTURE.md"
     click TESTS "../../adr/TESTS.md"
     click MCP "../../adr/MCP.md"
     click API "../../adr/API.md"
+    click PUBLICATION "../api/knowledge-publication.md"
     click SNAP "./snapshot-publication.md"
 ```
 
@@ -174,4 +184,5 @@ graph TD
 - [**TESTS.md**](../../adr/TESTS.md): Test standards and execution tiers.
 - [**MCP.md**](../../adr/MCP.md): MCP tool and resource specifications.
 - [**API.md**](../../adr/API.md): FastAPI routes and auth handoff.
+- [**knowledge-publication.md**](../api/knowledge-publication.md): Exact REST publication request and response contract.
 - [**snapshot-publication.md**](./snapshot-publication.md): Snapshot aggregate and storage.

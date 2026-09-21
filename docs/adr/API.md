@@ -12,7 +12,13 @@ edges:
   - relation: references
     target: "adr:tests"
   - relation: references
-    target: "feature:api-users-tokens"
+    target: "feature:api-users"
+  - relation: references
+    target: "feature:api-service-accounts"
+  - relation: references
+    target: "feature:api-tokens"
+  - relation: references
+    target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
 updated: 2026-09-20
@@ -21,7 +27,7 @@ updated: 2026-09-20
 
 ## PURPOSE
 
-`api/` is the project's second application module. It exposes FastAPI endpoints for user, tenant-bound service-account, and access-token CRUD, a process health check, and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
+`api/` is the project's second application module. It exposes FastAPI endpoints for user, tenant-bound service-account, access-token, and knowledge-publication operations, plus health and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
 
 ## MODULE BOUNDARIES
 
@@ -64,9 +70,12 @@ PROHIBITED: Use API access tokens as REST API authentication credentials.
 | GET, PATCH, DELETE | `/v1/service-accounts/{account_id}` | Read, rename, or delete a service account. |
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
+| POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
+
+Publication requests use the shared environment/publication handler. The current route accepts optional `X-Tenant-ID` and defaults to `default`; keep the unauthenticated surface private until REST authorization exists.
 
 The current REST CRUD routes do not declare an authentication dependency. Do not mistake MCP bearer-token verification for protection of this management API; restrict its network exposure until a separate REST authorization mechanism is introduced.
 
@@ -83,12 +92,18 @@ graph TD
     API["API Architecture"] -->|references| ARCH["Project Architecture"]
     API -->|references| MCP["MCP Interface"]
     API -->|references| TESTS["Testing Protocol"]
-    API -->|references| USERS["API Users and Tokens"]
+    API -->|references| USERS["API Users"]
+    API -->|references| ACCOUNTS["API Service Accounts"]
+    API -->|references| TOKENS["API Tokens"]
+    API -->|references| PUBLICATION["API Knowledge Publication"]
     API -->|references| AUTH["MCP Token Authentication"]
     click ARCH "./ARCHITECTURE.md"
     click MCP "./MCP.md"
     click TESTS "./TESTS.md"
-    click USERS "../feature/api/users-and-tokens.md"
+    click USERS "../feature/api/users.md"
+    click ACCOUNTS "../feature/api/service-accounts.md"
+    click TOKENS "../feature/api/tokens.md"
+    click PUBLICATION "../feature/api/knowledge-publication.md"
     click AUTH "../feature/mcp/token-authentication.md"
 ```
 
@@ -97,5 +112,8 @@ graph TD
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): Global module and dependency rules.
 - [**MCP.md**](./MCP.md): MCP transport and authentication boundary.
 - [**TESTS.md**](./TESTS.md): Verification tiers and coverage policy.
-- [**users-and-tokens.md**](../feature/api/users-and-tokens.md): API routes and token lifecycle contract.
+- [**users.md**](../feature/api/users.md): User identity and tenant derivation contract.
+- [**service-accounts.md**](../feature/api/service-accounts.md): Tenant-bound automation identity contract.
+- [**tokens.md**](../feature/api/tokens.md): Token issuance, storage, and MCP handoff contract.
+- [**knowledge-publication.md**](../feature/api/knowledge-publication.md): CI/CD publication boundary and response contract.
 - [**token-authentication.md**](../feature/mcp/token-authentication.md): MCP verification of API-issued tokens.

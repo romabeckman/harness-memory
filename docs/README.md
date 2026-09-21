@@ -1,37 +1,39 @@
 # Project Documentation
 
-Index of project technical documentation for **harness-memory**. Use the links below to navigate the available documents and graph map topology.
+Index of project technical documentation for **harness-memory**. Use the links below to navigate project documents and graph topology.
 
 ## Documentation Index
 
 | Document | Description | Reading |
 |----------|-------------|----------|
-| [**.digest.md**](./.digest.md) | Fast-path machine-readable orientation digest for stack, commands, and constraints. | **Mandatory** |
-| [**.graph.json**](./.graph.json) | Macro relation graph index for document topology and 1-hop routing. | **Mandatory** |
-| [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Global architecture, module map, and dependency rules for the project. | **Mandatory** |
-| [**API.md**](./adr/API.md) | FastAPI architecture, shared persistence boundary, and token handoff to MCP. | Optional |
-| [**TESTS.md**](./adr/TESTS.md) | Testing strategies, patterns, and execution commands. | **Mandatory** |
-| [**MCP.md**](./adr/MCP.md) | MCP tools, resources, prompts, contracts, and security boundaries. | Optional |
-| [**users-and-tokens.md**](./feature/api/users-and-tokens.md) | FastAPI user, service-account, and MCP-token CRUD contract. | Optional |
+| [**.digest.md**](./.digest.md) | Fast-path machine-readable orientation for stack, commands, and constraints. | **Mandatory** |
+| [**.graph.json**](./.graph.json) | Macro relation graph for document topology and one-hop routing. | **Mandatory** |
+| [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Global architecture, folder organization, and dependency rules. | **Mandatory** |
+| [**API.md**](./adr/API.md) | FastAPI boundaries, route registration, persistence reuse, and token handoff. | Optional |
+| [**MCP.md**](./adr/MCP.md) | MCP tools, resources, prompts, transport, and security boundaries. | Optional |
+| [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
+| [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
+| [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication boundary for CI/CD deployments and environment snapshots. | Optional |
+| [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
+| [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
+| [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
+| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Bounded entity discovery from the active project snapshot. | Optional |
+| [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Environment context, pipeline publication, and snapshot comparison. | Optional |
+| [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis over bounded consumers. | Optional |
+| [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |
+| [**platform-foundation.md**](./feature/core/platform-foundation.md) | PostgreSQL foundation, migrations, and platform runtime boundaries. | Optional |
+| [**production-delivery.md**](./feature/core/production-delivery.md) | Containers, startup schema gates, CI, and telemetry. | Optional |
+| [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped relationship and dependency context queries. | Optional |
+| [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable snapshot publication, hashing, revision, and activation rules. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
-| [**tenant-security.md**](./feature/mcp/tenant-security.md) | MCP tenant isolation, scopes, and security audit behavior. | Optional |
-| [**token-authentication.md**](./feature/mcp/token-authentication.md) | API-issued bearer-token authentication for MCP clients. | Optional |
-| [**platform-foundation.md**](./feature/core/platform-foundation.md) | Shared PostgreSQL foundation, migrations, and platform runtime. | Optional |
-| [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Versioned knowledge snapshot publication and activation. | Optional |
-| [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Contextualize knowledge by environment and publish pipeline snapshots. | Optional |
-| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Bounded entity discovery from the active snapshot. | Optional |
-| [**relationship-context.md**](./feature/core/relationship-context.md) | Bounded relationship context and dependency queries. | Optional |
-| [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded integration path discovery. | Optional |
-| [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis. | Optional |
-| [**production-delivery.md**](./feature/core/production-delivery.md) | Project-wide containers, startup safety, CI, and telemetry. | Optional |
-| [**PLAYBOOK-DAILY-USE.md**](./workflow/PLAYBOOK-DAILY-USE.md) | Practical daily workflow for developers using Harness Memory through MCP clients. | Optional |
+| [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |
+| [**token-authentication.md**](./feature/mcp/token-authentication.md) | Database-backed bearer authentication for MCP clients. | Optional |
 
 ## Recommended Reading Order
 
-If an exact path is supplied, read that target directly. Otherwise use this order:
+If an exact path is supplied, read it directly. Otherwise use this order:
 
-1. **.digest.md** — fast AI orientation for architecture pattern, stack, and test commands.
-2. **.graph.json** — macro document graph for one-hop routing.
-3. **ARCHITECTURE.md** — global modules and dependency boundaries.
-4. **TESTS.md** — test strategy and coverage requirements.
-5. Read **API.md** or **MCP.md** for the selected interface, then the related `feature/api/`, `feature/mcp/`, or `feature/core/` document.
+1. **.digest.md** — fast AI orientation for architecture, stack, commands, and rules.
+2. **.graph.json** — macro document graph for one-hop document lookup.
+3. **ARCHITECTURE.md** and **TESTS.md** — foundational project constraints.
+4. Read the selected ADR or feature document only when its design context is required.

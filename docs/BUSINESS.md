@@ -1,61 +1,60 @@
 # Harness Memory — Product Objective
 
-## Overview
+## OVERVIEW
 
-**Harness Memory** is a corporate engineering memory platform designed to give AI agents and engineering tools a shared understanding of how software systems relate across repositories.
+Harness Memory is a corporate engineering memory platform. It connects software knowledge across repositories, projects, services, APIs, events, teams, dependencies, evidence, and ownership.
 
-In complex organizations, knowledge about services, APIs, events, ownership, dependencies, and implementation details is distributed across source code, documentation, contracts, infrastructure, and individual repositories. Most development agents operate with strong local context but limited organizational awareness.
+## PRODUCT OBJECTIVE
 
-Harness Memory addresses this gap by creating a persistent, queryable layer of knowledge that connects information across projects.
+Make organizational software knowledge **discoverable, explainable, and reusable**. Preserve not only known facts, but also their evidence, provenance, lifecycle status, and revision history.
 
-## Product Objective
+## BUSINESS VALUE
 
-The objective of Harness Memory is to make organizational software knowledge **discoverable, explainable, and reusable**.
+Use persistent corporate memory to reduce architectural rediscovery and improve engineering decisions. Support questions about API consumers, change impact, dependency ownership, evidence, and knowledge freshness.
 
-Instead of storing only isolated facts, the product maintains relationships between engineering entities such as:
+## INTERFACE RULES
 
-* Repositories
-* Projects
-* Services
-* APIs
-* Events
-* Teams
-* Dependencies
+| Consumer | Interface | Responsibility |
+|----------|-----------|----------------|
+| Developer or AI agent | MCP Read | Query, compare, and analyze contextual knowledge. |
+| CI/CD pipeline | Publish API or CLI | Declare a successful deployment and its evidence. |
+| Authorized governance agent | Future MCP Write | Propose controlled knowledge refinement. |
 
-Each relationship can include supporting **evidence, provenance, lifecycle status, and revision history**, allowing consumers to understand not only *what is known*, but also *why it is believed to be true and how it has changed over time*.
+REQUIRED: Separate interactive MCP reads from deterministic CI/CD publication.
+REQUIRED: Keep pipeline publication independent from any CI/CD provider.
+PROHIBITED: Use MCP as the initial pipeline publication path.
+PROHIBITED: Treat discovered information as trusted corporate knowledge without evidence or governance.
 
-## Business Value
+## KNOWLEDGE LIFECYCLE
 
-Harness Memory enables engineering organizations to reduce the cost of rediscovering architectural knowledge and improve the quality of automated engineering decisions.
+1. Deploy a project version to an environment.
+2. Publish the successful deployment through the Publish API or CLI.
+3. Validate project, environment, deployment identity, facts, and evidence.
+4. Create a snapshot and promote it as the environment's current state.
+5. Expose the contextual state through MCP queries and comparisons.
 
-It is intended to help answer questions such as:
+REQUIRED: Contextualize current knowledge by tenant, project, and environment.
+REQUIRED: Create a traceable snapshot for each valid publication.
+REQUIRED: Preserve publications, snapshots, evidence, provenance, status, and revision history.
+REQUIRED: Make retries idempotent by deployment identity.
+REQUIRED: Keep historical snapshots after a newer snapshot becomes current.
+PROHIBITED: Assume one global current state when environments contain different versions.
+PROHIBITED: Mutate individual graph facts outside complete publication or governed write flows.
 
-* Which services consume this API?
-* What projects may be affected by this contract change?
-* Who owns this dependency?
-* What evidence supports this relationship?
-* Has this information changed or become outdated?
+## PRODUCT BOUNDARIES
 
-This context can support impact analysis, dependency discovery, onboarding, architectural understanding, and AI-assisted software development.
+The MVP combines an MCP interface for contextual knowledge access with a persistent database-backed memory layer. MCP Write remains a future capability and is not required for initial pipeline publication.
 
-## Product Boundaries
+## CURRENT IMPLEMENTATION
 
-The MVP focuses on two core capabilities:
+The API implements `POST /v1/knowledge-publications` for CI/CD publication. The route accepts optional `X-Tenant-ID` and defaults to `default`; REST authentication is not yet wired into the API.
 
-**MCP Interface**
-A standardized interface through which AI agents and engineering tools can read and contribute corporate knowledge.
+REQUIRED: Keep management and publication routes private until trusted tenant authorization exists.
+PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trusted authorization.
 
-**Persistent Corporate Memory**
-A database-backed knowledge layer that stores entities, relationships, evidence, provenance, status, and historical revisions.
+## REFERENCES
 
-MCP operations are intentionally separated into **read** and **write** capabilities so that retrieving knowledge is distinct from proposing or changing it.
-
-## Product Principle
-
-A core principle of Harness Memory is:
-
-> **Discovered information should not automatically become trusted corporate knowledge.**
-
-A relationship may begin as a candidate, gain supporting evidence, become confirmed, and later become stale, disputed, or superseded.
-
-By preserving this lifecycle and its history, Harness Memory aims to become a reliable organizational context layer for both humans and AI systems.
+- `docs/specs/harness-memory-environment-snapshots-v2.md`: Product scope for environment snapshots and publication.
+- `docs/feature/core/environment-snapshots.md`: Environment context, publication flow, and snapshot comparison.
+- `docs/feature/core/snapshot-publication.md`: Immutable snapshot activation and history rules.
+- `docs/feature/api/knowledge-publication.md`: Implemented REST publication contract.

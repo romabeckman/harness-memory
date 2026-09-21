@@ -14,7 +14,7 @@ edges:
   - relation: references
     target: "adr:api"
   - relation: depends_on
-    target: "feature:api-users-tokens"
+    target: "feature:api-tokens"
     read: must
 updated: 2026-09-20
 ---
@@ -29,7 +29,7 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
   "references": ["adr:mcp", "adr:api"],
-  "depends_on": ["feature:api-users-tokens"],
+  "depends_on": ["feature:api-tokens"],
   "entrypoints": ["harness_memory_mcp/server/app.py"],
   "registration_files": ["harness_memory_mcp/server/factory.py", "docker-compose.yml"],
   "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py", "core/infrastructure/postgres/repositories/api_service_account_repository.py"],
@@ -87,12 +87,12 @@ graph TD
     AUTH -->|tested_by| TESTS["Testing Protocol"]
     AUTH -->|references| MCP["MCP Interface"]
     AUTH -->|references| APIARCH["API Architecture"]
-    AUTH -->|depends_on| API["API Users and Tokens"]
+    AUTH -->|depends_on| API["API Tokens"]
     click ARCH "../../adr/ARCHITECTURE.md"
     click TESTS "../../adr/TESTS.md"
     click MCP "../../adr/MCP.md"
     click APIARCH "../../adr/API.md"
-    click API "../api/users-and-tokens.md"
+    click API "../api/tokens.md"
 ```
 
 ## REFERENCES
@@ -101,4 +101,4 @@ graph TD
 - [**TESTS.md**](../../adr/TESTS.md): Defines verification tiers.
 - [**MCP.md**](../../adr/MCP.md): Defines MCP transport and component contracts.
 - [**API.md**](../../adr/API.md): Defines issuance and ownership of MCP bearer tokens.
-- [**users-and-tokens.md**](../api/users-and-tokens.md): Defines token issuance and lifecycle.
+- [**tokens.md**](../api/tokens.md): Defines token issuance and lifecycle.
