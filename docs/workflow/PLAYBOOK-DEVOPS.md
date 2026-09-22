@@ -10,12 +10,12 @@ Harness Memory has two separate boundaries:
 
 | Boundary | Main users | Responsibility | Write access |
 | --- | --- | --- | --- |
-| REST API | Platform administrators and CI/CD | Manage identities, issue tokens, and publish snapshots | Management and publication only |
+| REST API | Platform administrators and CI/CD | Manage identities, read project memory, and publish snapshots | Full admin access; scoped data access for API-issued tokens |
 | MCP over Streamable HTTP | Developers and AI agents | Search, inspect, compare, and analyze stored knowledge | Read-only |
 
-The Snapshot Publisher SDK runs in a pipeline. It collects Git context, invokes a local
-LLM, validates the generated graph, calculates a deterministic SHA-256, and publishes
-through `POST /v1/knowledge-publications`.
+The Snapshot Publisher SDK runs in a pipeline. It collects Git context, invokes a selected
+local LLM agent, validates the generated graph, calculates a deterministic SHA-256, and
+publishes through `POST /v1/knowledge-publications`.
 
 The API creates a project and environment record during the first trusted publication.
 There is no standalone project-creation route. A successful publication also creates an
@@ -70,8 +70,10 @@ the MCP server is running with production authentication enabled.
 ### 3.2 Establish tenant identity
 
 Every project, environment, snapshot, graph fact, user token, and service-account token
-belongs to one tenant. Tenant identity must come from an authenticated owner; it must
-never come from a request header, CLI flag, or graph payload.
+belongs to one tenant. User and service-account tokens inherit their owner's tenant.
+`API_ADMIN_TOKEN` has full privileges, no tenant owner, and cross-tenant data access.
+Admin publication names its destination with `tenant_id` in the request body. Do not use
+a tenant header to limit admin access.
 
 For a service account, use the tenant UUID assigned by the platform or organization.
 Do not invent a tenant UUID. A service account keeps its tenant binding for its entire
@@ -90,8 +92,9 @@ export API_BASE_URL='http://localhost:8080'
 export API_ADMIN_TOKEN='replace-with-admin-secret'
 ```
 
-Use the admin token only in the `Authorization` header for management calls. Never put
-it in an MCP client configuration or `HARNESS_MEMORY_API_TOKEN`.
+Send the admin token as a bearer credential for admin operations. It has full API
+privileges; use scoped API-issued tokens for SDK and MCP work. Never put the admin token
+in an MCP client configuration or `HARNESS_MEMORY_API_KEY`.
 
 ### 4.1 Register a human user
 
@@ -171,8 +174,9 @@ its tenant association must change.
 
 ### 4.4 Issue a publication token
 
-Issue the minimum scope required by the SDK. `memory:publish` authorizes REST publication;
-it does not grant MCP read access.
+Give SDK tokens `memory:publish` for complete snapshot publication; the baseline endpoint
+also accepts this scope. Add `memory:read` only when the pipeline needs general API or MCP
+reads. User and service-account tokens with the same scopes have equal data permissions.
 
 ```bash
 curl --fail --request POST "$API_BASE_URL/v1/tokens" \
@@ -182,13 +186,14 @@ curl --fail --request POST "$API_BASE_URL/v1/tokens" \
     "service_account_id":"<SERVICE_ACCOUNT_ID>",
     "name":"Payments CI publication",
     "expires_at":"2026-12-15T23:59:59Z",
-    "scopes":["memory:publish"]
+    "scopes":["memory:read", "memory:publish"]
   }'
 ```
 
 Service-account tokens may omit `expires_at`, but finite lifetimes are safer and remain
 subject to the 90-day policy. The plaintext token is returned once. Store it as a CI
-secret named `HARNESS_MEMORY_API_TOKEN`.
+secret named `HARNESS_MEMORY_API_KEY`. The SDK still accepts
+`HARNESS_MEMORY_API_TOKEN` as a legacy fallback.
 
 ### 4.5 Rotate and revoke credentials
 
@@ -211,8 +216,11 @@ Project and environment registration is publication-driven:
 1. Select a stable `project_key`, such as `com.example.payments`.
 2. Select a stable environment name, such as `staging` or `production`.
 3. Publish a complete graph through the API or SDK.
-4. The API creates the missing project/environment pair in the authenticated tenant.
+4. The API creates the missing project/environment pair in the token owner's tenant.
 5. The API creates and activates the immutable snapshot.
+
+For `API_ADMIN_TOKEN`, publication must include the destination `tenant_id` in the JSON
+body. The admin token retains cross-tenant access for other data actions.
 
 Use the same project key across environments. Use one environment name per deployment
 target. Do not create separate project keys for every release.
@@ -243,9 +251,11 @@ npm --prefix sdk ci
 npm --prefix sdk run build
 ```
 
-The compiled CLI is `sdk/dist/cli/index.js`. The SDK requires Node.js 20+, Git, and a
-local LLM command. Its default LLM command is `codex`; configure another executable with
-`--llm-command` or `HARNESS_MEMORY_LLM_COMMAND`.
+The compiled CLI is `sdk/dist/cli/index.js`; installed CLI aliases are `harness-memory`
+and `hrns-memo`. The SDK requires Node.js 20+, Git, and an explicit agent: `codex-cli` or
+`claude-cli`. Select it with `--agent` or `HARNESS_MEMORY_AGENT`. The runner uses the
+matching `codex` or `claude` executable by default; override it with `--llm-command` or
+`HARNESS_MEMORY_LLM_COMMAND`.
 
 ### 6.2 Required pipeline settings
 
@@ -254,16 +264,19 @@ token into `.harness-memory.json`, or echo the token in logs.
 
 ```bash
 export HARNESS_MEMORY_API_URL='https://memory-api.example.com'
-export HARNESS_MEMORY_API_TOKEN='from-ci-secret-store'
+export HARNESS_MEMORY_API_KEY='from-ci-secret-store'
+export HARNESS_MEMORY_AGENT='codex-cli'
 export HARNESS_MEMORY_ENVIRONMENT='production'
 export HARNESS_MEMORY_PROJECT_KEY='com.example.payments'
 export HARNESS_MEMORY_DEPLOYMENT_ID="$CI_PIPELINE_ID"
 export HARNESS_MEMORY_VERSION="$CI_COMMIT_SHA"
 ```
 
-Required execution values are `model`, `effort`, `environment`, `project-key`,
+Required execution values are `agent`, `model`, `effort`, `environment`, `project-key`,
 `deployment-id`, and `version`. Real publication also requires `api-url` and a token.
-Use `low`, `medium`, `high`, or `xhigh` for `effort`.
+The CLI reads `HARNESS_MEMORY_API_KEY` by default. If it is unset, put the token in
+another secret-backed environment variable and pass that variable's name with
+`--token-env`. Use `low`, `medium`, `high`, or `xhigh` for `effort`.
 
 ### 6.3 Publish from a pipeline
 
@@ -273,6 +286,7 @@ known. `--repository` points to the source checkout that the SDK must analyze.
 ```bash
 node /workspace/harness-memory/sdk/dist/cli/index.js publish \
   --repository "$CI_PROJECT_DIR" \
+  --agent "$HARNESS_MEMORY_AGENT" \
   --model gpt-5 \
   --effort high \
   --environment "$HARNESS_MEMORY_ENVIRONMENT" \
@@ -301,6 +315,7 @@ harness_memory_publish:
       artifacts: false
   variables:
     HARNESS_MEMORY_API_URL: "https://memory-api.example.com"
+    HARNESS_MEMORY_AGENT: "codex-cli"
     HARNESS_MEMORY_ENVIRONMENT: "production"
     HARNESS_MEMORY_PROJECT_KEY: "com.example.payments"
     HARNESS_MEMORY_DEPLOYMENT_ID: "$CI_PIPELINE_ID"
@@ -311,6 +326,7 @@ harness_memory_publish:
     - |
       node "$HARNESS_MEMORY_SDK_DIR/dist/cli/index.js" publish \
         --repository "$CI_PROJECT_DIR" \
+        --agent "$HARNESS_MEMORY_AGENT" \
         --model gpt-5 \
         --effort high \
         --environment "$HARNESS_MEMORY_ENVIRONMENT" \
@@ -324,12 +340,14 @@ harness_memory_publish:
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   secrets:
-    HARNESS_MEMORY_API_TOKEN:
-      vault: production/harness-memory/api-token
+    HARNESS_MEMORY_API_KEY:
+      vault: production/harness-memory/api-key
 ```
 
-The exact secret syntax depends on the CI provider. The token must be injected only into
-the publication process and must not be included in artifacts, cache keys, or debug logs.
+The exact secret syntax depends on the CI provider. Inject the token only into the
+publication process. Do not include it in artifacts, cache keys, or debug logs. A normal
+SDK run writes validated project-memory Markdown to the checkout before the API request;
+remote failure can leave those local draft files. Review and commit intended changes.
 
 ### 6.5 Dry-run validation
 
@@ -339,6 +357,7 @@ validates the graph, and computes the payload hash without changing Harness Memo
 ```bash
 node sdk/dist/cli/index.js publish \
   --repository "$CI_PROJECT_DIR" \
+  --agent codex-cli \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -350,8 +369,9 @@ node sdk/dist/cli/index.js publish \
   --verbose
 ```
 
-Dry run does not need `HARNESS_MEMORY_API_URL` or `HARNESS_MEMORY_API_TOKEN`. It still
-needs the model command, required deployment metadata, and a valid Git repository.
+Dry run does not publish or write project-memory documents. It does not need
+`HARNESS_MEMORY_API_URL` or a token unless it should read a remote baseline. It still
+requires an explicit agent, model, effort, deployment metadata, and a valid Git repository.
 
 ## 7. Tune repository collection safely
 
@@ -399,9 +419,11 @@ The REST client retries HTTP 408, 429, 5xx, and timeouts. It does not retry 400,
   secret manager.
 - Use separate admin, human, and service-account credentials.
 - Give developers `memory:read` and, only when needed, `memory:impact`.
-- Give CI publication accounts `memory:publish`; do not use admin tokens in pipelines.
+- Give SDK and direct REST publishers `memory:publish`. Add `memory:read` for general API
+  or MCP reads; do not use admin tokens in pipelines.
 - Use HTTPS outside localhost and keep PostgreSQL private.
-- Never pass tenant identity in CLI flags, HTTP headers, or payloads.
+- Never use a tenant header to scope data access. Ordinary tokens use their owner's tenant;
+  admin publication specifies destination `tenant_id` in the request body.
 - Rotate and revoke tokens after ownership, runner, or project changes.
 - Review logs for accidental token output after changing CI scripts.
 
@@ -413,10 +435,10 @@ Before enabling production publication, verify:
 - Database schema matches Alembic `head`.
 - `API_ADMIN_TOKEN` is configured separately from API-issued tokens.
 - A service account has the correct immutable tenant UUID.
-- A publication token has `memory:publish` and is stored in CI secrets.
+- The SDK token has `memory:publish` and is stored in CI secrets.
 - Project key and environment names are stable.
 - Deployment ID and version are deterministic and unique per deployment.
-- The runner has Node.js 20+, Git, and the configured LLM command.
+- The runner has Node.js 20+, Git, an explicitly selected agent, and its LLM executable.
 - Dry run succeeds from the real source checkout.
 - The pipeline publishes only after successful deployment.
 - JSON output and exit codes are captured by the pipeline.
