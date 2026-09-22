@@ -8,6 +8,13 @@ export const ALLOWED_ENTITY_TYPES = [
   "event",
   "library",
   "team",
+  "adr",
+  "feature",
+  "spec",
+  "document",
+  "document_revision",
+  "document_section",
+  "rule",
 ] as const;
 
 export type EntityType = (typeof ALLOWED_ENTITY_TYPES)[number];
@@ -21,6 +28,12 @@ export const ALLOWED_RELATION_TYPES = [
   "publishes",
   "subscribes_to",
   "implements",
+  "references",
+  "tested_by",
+  "child_of",
+  "defines",
+  "applies_to",
+  "supersedes",
 ] as const;
 
 export type RelationType = (typeof ALLOWED_RELATION_TYPES)[number];

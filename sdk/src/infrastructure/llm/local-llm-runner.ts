@@ -205,17 +205,28 @@ export class LocalLlmRunner implements LlmRunnerPort {
         if (canContinue) {
           resolve();
         } else {
-          stdin.once("drain", resolve);
-          stdin.once("error", reject);
+          const cleanup = () => {
+            stdin.removeListener("drain", drained);
+            stdin.removeListener("error", failed);
+            stdin.removeListener("close", closed);
+          };
+          const drained = () => { cleanup(); resolve(); };
+          const failed = (error: Error) => { cleanup(); reject(error); };
+          const closed = () => { cleanup(); resolve(); };
+          stdin.once("drain", drained);
+          stdin.once("error", failed);
+          stdin.once("close", closed);
         }
       });
     };
 
     const envelope = {
-      instruction:
+      instruction: options.instruction ??
         "Generate a complete environment knowledge graph for the given repository and project. Output strictly one JSON document matching schema_version 1.0.",
       project_key: options.projectKey,
       environment: options.environment,
+      baseline_graph: options.baselineGraph,
+      documentation_graph: options.documentationGraph,
       context: {
         commit_sha: options.context.commitSha,
         base_ref: options.context.baseRef,

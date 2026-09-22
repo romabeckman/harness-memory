@@ -11,6 +11,9 @@ export interface LlmInvocationOptions {
   projectKey: string;
   environment: string;
   context: RepositoryContext;
+  instruction?: string;
+  baselineGraph?: GraphDocument;
+  documentationGraph?: GraphDocument;
 }
 
 export interface LlmRunnerPort {

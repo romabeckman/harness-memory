@@ -27,6 +27,26 @@ from core.application.snapshot_publication.services.payload_hash_calculator impo
 
 
 class PostgresKnowledgePublicationRepository:
+    def load_latest_graph(self, project_key: str, environment: str, tenant_id: str) -> dict:
+        with self._session_factory() as session:
+            row = session.scalars(
+                select(ModelSnapshot)
+                .join(ModelEnvironment,
+                    (ModelEnvironment.current_snapshot_id == ModelSnapshot.id)
+                    & (ModelEnvironment.id == ModelSnapshot.environment_id)
+                    & (ModelEnvironment.project_id == ModelSnapshot.project_id)
+                    & (ModelEnvironment.tenant_id == ModelSnapshot.tenant_id))
+                .join(ModelProject,
+                    (ModelProject.id == ModelSnapshot.project_id)
+                    & (ModelProject.tenant_id == ModelSnapshot.tenant_id))
+                .where(ModelSnapshot.tenant_id == tenant_id,
+                    ModelProject.key == project_key, ModelEnvironment.name == environment)
+            ).first()
+            if row is None:
+                raise LookupError("publication baseline not found")
+            return {"snapshot_id": str(row.id), "payload_hash": row.payload_hash,
+                "graph": {key: row.payload[key] for key in ("schema_version", "entities", "relations", "evidence")}}
+
     def __init__(
         self,
         session_factory: Callable[[], Session] | None = None,

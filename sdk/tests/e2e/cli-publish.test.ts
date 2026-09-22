@@ -1,5 +1,8 @@
 import { createServer, Server } from "node:http";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it, afterEach, beforeEach, vi } from "vitest";
 import { CliApp } from "../../src/cli/cli-app.js";
 import { ExitCode } from "../../src/domain/exit-code.js";
@@ -8,12 +11,25 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   let server: Server;
   let serverUrl: string;
   let apiCalls: number;
+  let baselineCalls: number;
+  let temporary: string;
+  let repository: string;
   let lastRequestBody: any;
 
   beforeEach(async () => {
     apiCalls = 0;
+    baselineCalls = 0;
+    temporary = mkdtempSync(join(tmpdir(), "memory-cli-e2e-"));
+    repository = join(temporary, "repository");
+    execFileSync("git", ["clone", "--local", "--quiet", resolve("../"), repository]);
     server = createServer((req, res) => {
-      apiCalls++;
+      if (req.method === "GET" && req.url?.startsWith("/v1/knowledge-publications/latest?")) {
+        baselineCalls++;
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+      if (req.method === "POST") apiCalls++;
       let data = "";
       req.on("data", (chunk) => {
         data += chunk;
@@ -69,6 +85,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
   afterEach(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(temporary, { recursive: true, force: true });
   });
 
   it("AC 1: publishes valid graph through API and exits 0", async () => {
@@ -101,7 +118,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
       "--output",
@@ -110,6 +127,9 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
     expect(code).toBe(ExitCode.SUCCESS);
     expect(apiCalls).toBe(1);
+    expect(baselineCalls).toBe(1);
+    expect(lastRequestBody).not.toHaveProperty("project_memory");
+    expect(lastRequestBody.entities.some((entity: any) => entity.type === "feature" && entity.metadata.content)).toBe(true);
     const parsedStdout = JSON.parse(stdoutLines.join("\n"));
     expect(parsedStdout.status).toBe("ACTIVATED");
     expect(parsedStdout.project_key).toBe("payments");
@@ -141,7 +161,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
       "--output",
@@ -179,7 +199,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
     ]);
@@ -188,7 +208,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(stderrLines.some((l) => l.includes("Deployment conflict"))).toBe(true);
   });
 
-  it("AC 7: exits 5 without calling API when graph validation fails", async () => {
+  it("AC 7: never publishes invalid model output after reading baseline", async () => {
     const stderrLines: string[] = [];
     const app = new CliApp({
       stdout: () => {},
@@ -197,7 +217,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     });
 
     // In this test, we test that invalid graph output causes validator to reject
-    // and no API call is made
+    // and no publication POST is made
     const code = await app.run([
       "--model",
       "gpt-5",
@@ -214,14 +234,16 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       process.execPath,
     ]);
 
     // When node runs without script args, it exits with invalid JSON / error -> exits 4 or 5
-    // But API was NOT called!
+    // Baseline read is permitted, publication is not.
     expect(apiCalls).toBe(0);
+    expect(baselineCalls).toBe(1);
+    expect([ExitCode.LLM_EXECUTION, ExitCode.VALIDATION]).toContain(code);
   });
 
   it("AC 9: exits 2 on unknown or forbidden flags", async () => {

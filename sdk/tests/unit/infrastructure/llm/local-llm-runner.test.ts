@@ -2,8 +2,19 @@ import { describe, expect, it } from "vitest";
 import { LocalLlmRunner } from "../../../../src/infrastructure/llm/local-llm-runner.js";
 import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js";
 import { RepositoryContext } from "../../../../src/application/ports/git-context-collector.port.js";
+import { Writable } from "node:stream";
 
 describe("LocalLlmRunner", () => {
+  it("removes backpressure listeners after every drained write", async () => {
+    const stdin = new Writable({ highWaterMark: 1, write(_chunk, _encoding, callback) { setImmediate(callback); } });
+    const runner = new LocalLlmRunner();
+    await (runner as any).streamPayloadToStdin(stdin, {
+      projectKey: "demo", environment: "test", context: { commitSha: "a", headRef: "HEAD", diffs: [],
+        files: Array.from({ length: 30 }, (_, i) => ({ path: `${i}.ts`, content: "content", sha256: "hash" })) },
+    });
+    expect(stdin.listenerCount("error")).toBe(0);
+    expect(stdin.listenerCount("drain")).toBe(0);
+  });
   const runner = new LocalLlmRunner();
   const dummyContext: RepositoryContext = {
     commitSha: "abc1234",

@@ -5,13 +5,15 @@ import { LlmRunnerPort } from "../ports/llm-runner.port.js";
 import { GraphValidatorPort } from "../ports/graph-validator.port.js";
 import { PublicationClientPort } from "../ports/publication-client.port.js";
 import { DEFAULT_LLM_AGENT } from "../../domain/llm-agent.js";
+import { MemoryWorkflowPort } from "../ports/memory-workflow.port.js";
 
 export class PublishSnapshotUseCase {
   constructor(
     private readonly gitCollector: GitContextCollectorPort,
     private readonly llmRunner: LlmRunnerPort,
     private readonly graphValidator: GraphValidatorPort,
-    private readonly publicationClient: PublicationClientPort
+    private readonly publicationClient: PublicationClientPort,
+    private readonly memoryWorkflow?: MemoryWorkflowPort
   ) {}
 
   public async execute(options: PublishSnapshotOptions): Promise<PublicationResult> {
@@ -25,7 +27,7 @@ export class PublishSnapshotUseCase {
       maxBytes: options.maxBytes ?? 10485760,
     });
 
-    const rawDocument = await this.llmRunner.run({
+    const rawDocument = this.memoryWorkflow ? await this.memoryWorkflow.run(options, context) : await this.llmRunner.run({
       agent: options.agent ?? DEFAULT_LLM_AGENT,
       model: options.model,
       effort: options.effort,

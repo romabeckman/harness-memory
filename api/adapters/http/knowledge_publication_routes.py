@@ -14,8 +14,20 @@ from core.domain.tenant_security.value_objects.authenticated_principal import Au
 from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
 
 
-def create_knowledge_publication_router(handler, authenticate) -> APIRouter:
+def create_knowledge_publication_router(handler, authenticate, baseline_handler=None) -> APIRouter:
     router = APIRouter(tags=["knowledge-publications"])
+
+    @router.get("/knowledge-publications/latest")
+    def latest_graph(project_key: str, environment: str,
+        principal: AuthenticatedPrincipal = Depends(authenticate)):
+        if baseline_handler is None:
+            raise HTTPException(status_code=503, detail="baseline reader unavailable")
+        try:
+            return baseline_handler.execute(project_key, environment, principal.tenant_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail="publication baseline not found") from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
 
     @router.post(
         "/knowledge-publications",

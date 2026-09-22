@@ -31,7 +31,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | Database-backed bearer authentication for MCP clients. | Optional |
-| [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | Snapshot Publisher TypeScript CLI and SDK for CI/CD pipeline deployments. | Optional |
+| [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | Snapshot publication, local documentation mapping, and optional harness-kit project-memory acceleration. | Optional |
 
 ## Recommended Reading Order
 

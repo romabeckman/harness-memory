@@ -6,6 +6,9 @@ import { RestPublicationClient } from "../infrastructure/api/rest-publication-cl
 import { PublishSnapshotUseCase } from "../application/publish-snapshot/publish-snapshot.use-case.js";
 import { ExitCode } from "../domain/exit-code.js";
 import { PublisherError } from "../domain/publisher-error.js";
+import { ProjectMemoryWorkflow } from "../application/memory/project-memory-workflow.js";
+import { PublicationBaselineClient } from "../infrastructure/api/publication-baseline-client.js";
+import { LocalDocsStore } from "../infrastructure/memory/local-docs-store.js";
 
 export interface CliIo {
   stdout?: (msg: string) => void;
@@ -37,7 +40,8 @@ export class CliApp {
         new GitContextCollector(),
         new LocalLlmRunner(),
         new GraphValidator(),
-        new RestPublicationClient()
+        new RestPublicationClient(),
+        new ProjectMemoryWorkflow(new LocalLlmRunner(), new PublicationBaselineClient(), new LocalDocsStore(), new GraphValidator())
       );
 
       if (config.verbose) {

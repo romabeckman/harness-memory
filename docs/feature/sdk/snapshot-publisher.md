@@ -1,7 +1,7 @@
 ---
 doc_type: feature
 domain: snapshot_publisher
-stack: [TypeScript 5.x, Node.js 20+, Vitest 1.x, Git, REST, JSON Schema]
+stack: [TypeScript 7.x, Node.js 20+, Vitest 1.x, Git, REST, JSON Schema]
 node_id: "feature:snapshot-publisher"
 tags: [sdk, cli, publication, pipeline, snapshots]
 edges:
@@ -38,6 +38,15 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/infrastructure/validator/graph-validator.ts"
   ],
   "code_files": [
+    "sdk/src/application/memory/project-memory-workflow.ts",
+    "sdk/src/application/memory/project-memory-prompt.ts",
+    "sdk/src/application/memory/memory-graph.ts",
+    "sdk/src/application/memory/document-content-codec.ts",
+    "sdk/src/application/ports/docs-store.port.ts",
+    "sdk/src/application/ports/memory-workflow.port.ts",
+    "sdk/src/application/ports/publication-baseline.port.ts",
+    "sdk/src/infrastructure/memory/local-docs-store.ts",
+    "sdk/src/infrastructure/api/publication-baseline-client.ts",
     "sdk/src/application/ports/llm-runner.port.ts",
     "sdk/src/application/ports/publication-client.port.ts",
     "sdk/src/domain/contracts.ts",
@@ -52,6 +61,11 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/infrastructure/llm/local-llm-runner.ts"
   ],
   "test_files": [
+    "sdk/tests/unit/application/memory/memory-graph.test.ts",
+    "sdk/tests/unit/application/memory/document-content-codec.test.ts",
+    "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
+    "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
+    "sdk/tests/integration/infrastructure/memory/local-docs-store.test.ts",
     "sdk/tests/unit/application/publish-snapshot.use-case.test.ts",
     "sdk/tests/unit/cli/cli-app.test.ts",
     "sdk/tests/unit/infrastructure/api/rest-publication-client.test.ts",
@@ -86,13 +100,34 @@ sdk/
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Git Context Collector**: Collects diff between `baseRef` and `headRef`. Prevents symlink breakouts (`lstatSync`/`realpathSync`) and checks cumulative heap bounds (`maxBytes`) before loading files.
-- **LLM Agent Runners**: `--agent` selects the Codex or Claude CLI adapter. `--model` remains independent; each adapter builds its own command arguments and extracts its final response. The shared process runner sanitizes child environments and streams payload chunks with backpressure handling.
-- **Graph Validator**: Validates payload against Schema 1.0, checks non-empty collections, and calculates deterministic canonical SHA-256 (`payload_sha256`).
-- **REST Publication Client**: Posts snapshots to `POST /v1/knowledge-publications` with bearer token (`memory:publish`). Handles backoff with jitter on 429/5xx, timeouts, and idempotent activations (201/200).
-- **Exit Code Protocol**: Maps domain exceptions to stable CLI exit codes (0, 2..8, 130).
+- **Git collector**: Collects files and diffs with path and memory-budget checks.
+- **Agent runners**: `--agent` selects Codex or Claude; `--model` stays independent. Shared execution sanitizes environments and handles stream backpressure.
+- **Validator**: Checks Schema 1.0 and computes canonical SHA-256.
+- **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
+- **Exit codes**: Map domain failures to stable CLI statuses.
 
 ## HOW TO PUBLISH SNAPSHOTS
+
+### Project memory process
+
+1. Collect repository context and fetch the current graph for the authenticated tenant, project, and environment. Only HTTP 404 means no baseline.
+2. Read existing `docs/.graph.json`, complete ADR/feature/spec Markdown, digest, index, and business rules, including untracked documentation.
+3. Run the bundled **project-memory prompt** with the selected runner, previous graph, local documents, and source context. Bootstrap architecture, tests, digest, index, and at least one feature when absent.
+4. Ask the model to map rules, evidence, feature context, source/test routing, and changes while preserving stable keys. Explicit constraint lines are also extracted deterministically.
+5. Reconcile and validate graph-native documents and rules; retain complete content and archive documents replaced by model improvements.
+6. Write validated local Markdown and regenerate the compact document index, then publish the normal graph payload. Concurrent local edits and symlink paths abort writes.
+
+### Storage and history
+
+REQUIRED: Store documentation in **entities, relations, and evidence**, never an additional `project_memory` field. Documents contain `metadata.path`, complete `content`, SHA-256, source commit, and change state. Large content uses ordered `document_section` entities with `part_of` edges and checksums; decoding restores the exact text.
+
+Rules contain complete statements and document-scoped `defines` relations with evidence. Features retain their micrograph as context. Immutable snapshots preserve prior versions; changed local content is compared with the baseline. Explicit removal uses lifecycle `removed`; omission alone does not delete prior memory. Review carried-forward rules when project policy changes.
+
+### Optional harness-kit integration
+
+**harness-kit with project-memory is optional:** its prepared documents and graph accelerate publication by supplying organized project context. The SDK bundles its own adapted prompt and works without that plugin. Generated/changed document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`; these are provenance markers, not cryptographic signatures or harness-kit authorship claims.
+
+Local files are written **before the REST POST**; a remote failure leaves validated local drafts. `--dry-run` performs synthesis/validation without local writes or publication; supplied credentials still allow baseline reads. Code plus local documents obey collection budgets; baseline responses are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
 
 ### Prerequisites
 1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
@@ -102,15 +137,7 @@ sdk/
 1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
 2. Run publication via CLI or programmatic use case.
 
-```typescript
-// CORRECT: Programmatic use case invocation
-import { PublishSnapshotUseCase, GitContextCollector, LocalLlmRunner, GraphValidator, RestPublicationClient } from "@harness-memory/sdk";
-const uc = new PublishSnapshotUseCase(new GitContextCollector(), new LocalLlmRunner(), new GraphValidator(), new RestPublicationClient());
-const res = await uc.execute({ environment: "prod", projectKey: "svc", deploymentId: "d-1", version: "v1", apiUrl: "http://api/v1", token: process.env.HARNESS_MEMORY_API_TOKEN });
-
-// WRONG: Passing secrets or tenant via CLI flags
-// execSync("harness-memory --tenant acme --token secret");
-```
+For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docsStore, validator)` as the fifth `PublishSnapshotUseCase` argument. All adapters are exported from the SDK.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -129,15 +156,15 @@ const res = await uc.execute({ environment: "prod", projectKey: "svc", deploymen
 
 | Code | Name | Cause |
 |------|------|-------|
-| `0` | `SUCCESS` | Snapshot published or already active |
-| `2` | `USAGE_OR_CONFIG` | Invalid options or forbidden flags (`--tenant`, `--token`) |
-| `3` | `CONTEXT_COLLECTION` | Git error, symlink escape, or size limit |
-| `4` | `LLM_EXECUTION` | Child process failure or timeout |
-| `5` | `VALIDATION` | Schema 1.0 violation or bad counts |
-| `6` | `API_AUTH` | 401 unauthenticated or 403 scope error |
-| `7` | `CONFLICT` | 409 conflicting deployment identity |
-| `8` | `API_SERVER_OR_RETRY_EXHAUSTED` | 5xx or exhausted retries |
-| `130` | `INTERRUPTED` | SIGINT / SIGTERM signal |
+| `0` | `SUCCESS` | Published or validated |
+| `2` | `USAGE_OR_CONFIG` | Invalid options |
+| `3` | `CONTEXT_COLLECTION` | Git, path, or budget failure |
+| `4` | `LLM_EXECUTION` | Runner failure |
+| `5` | `VALIDATION` | Invalid graph |
+| `6` | `API_AUTH` | 401/403 |
+| `7` | `CONFLICT` | 409 |
+| `8` | `API_SERVER_OR_RETRY_EXHAUSTED` | Server failure |
+| `130` | `INTERRUPTED` | Signal |
 
 ## BEST PRACTICES
 
@@ -151,6 +178,7 @@ PROHIBITED: Retrying on HTTP 400, 401, 403, or 409 response codes.
 ## TIPS
 
 Run with `--dry-run` in pre-merge checks to validate LLM synthesis and schema conformance without mutating remote state.
+The CLI enables memory by default. Legacy four-argument `PublishSnapshotUseCase` construction retains graph-only behavior; inject the fifth workflow argument for memory processing.
 
 ## DOCUMENT MAP
 

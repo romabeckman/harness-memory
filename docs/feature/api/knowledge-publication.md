@@ -21,7 +21,7 @@ edges:
     target: "feature:snapshot-publication"
     read: optional
     when: "Read when changing snapshot construction, activation, idempotency, or publication persistence."
-updated: 2026-09-21
+updated: 2026-09-22
 ---
 # API Knowledge Publication
 Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate it for a project environment.
@@ -41,6 +41,8 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "core/infrastructure/postgres/repositories/environment_repository.py"
   ],
   "code_files": [
+    "core/application/knowledge_publication/ports/publication_baseline_reader.py",
+    "core/application/knowledge_publication/use_cases/get_publication_baseline.py",
     "api/adapters/http/schemas/knowledge_publication_request.py",
     "api/adapters/http/schemas/knowledge_publication_response.py",
     "core/application/knowledge_publication/use_cases/publish_knowledge/inbound.py",
@@ -55,6 +57,9 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "migrations/versions/009_token_scopes_and_environment_revisions.py"
   ],
   "test_files": [
+    "tests/unit/api/adapters/http/test_publication_baseline_routes.py",
+    "tests/unit/core/application/knowledge_publication/use_cases/test_document_graph.py",
+    "tests/integration/core/infrastructure/postgres/repositories/test_publication_baseline.py",
     "tests/unit/api/adapters/http/test_knowledge_publication_routes.py",
     "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/unit/core/application/knowledge_publication/use_cases/test_publish_knowledge.py",
@@ -93,6 +98,20 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Response | `status`, `publication_id`, `snapshot_id` |
 
 ## PUBLICATION RULES
+
+### Baseline read
+
+Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with the same publisher credential to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `entities`, `relations`, `evidence`). Resolve the environment's current snapshot, not an unrelated latest project revision.
+
+REQUIRED: Derive tenant from the authenticated token; scope all project/environment joins to that tenant. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
+
+### Graph-native documentation
+
+Accept `adr`, `feature`, `spec`, `document`, `document_revision`, `document_section`, and `rule` entity types. Store full Markdown or ordered content sections in entity metadata, plus rule statements, provenance, hashes, and feature context. Use `defines`, `applies_to`, `references`, `tested_by`, `child_of`, and `supersedes` alongside existing relation types.
+
+REQUIRED: Persist these facts in the original snapshot payload and normalized entity/relation/evidence rows. Do not create a separate `project_memory` structure. Existing immutable snapshots retain prior document/rule versions for snapshot-scoped retrieval. Content changes participate in payload hashing and deployment-conflict checks. Existing database string columns require no enum migration.
+
+### Activation
 
 REQUIRED: Resolve project and environment inside the trusted tenant context.
 REQUIRED: Derive tenant identity from the token owner; never from headers or payloads.

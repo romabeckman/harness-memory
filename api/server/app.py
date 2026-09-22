@@ -17,6 +17,7 @@ from api.application.services.user_service import UserService
 from core.application.knowledge_publication.use_cases.publish_knowledge.handler import (
     PublishKnowledgeHandler,
 )
+from core.application.knowledge_publication.use_cases.get_publication_baseline import GetPublicationBaseline
 from core.infrastructure.postgres.config import PostgresSettings
 from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
 from core.infrastructure.postgres.repositories.api_service_account_repository import (
@@ -80,7 +81,7 @@ def create_app(
         environment_repository=env_repository,
     )
     v1_router.include_router(
-        create_knowledge_publication_router(publish_handler, security.require_publisher)
+        create_knowledge_publication_router(publish_handler, security.require_publisher, GetPublicationBaseline(pub_repository))
     )
     application.include_router(v1_router)
 

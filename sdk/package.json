@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
@@ -20,6 +21,10 @@
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
+    "eslint": "^9.0.0",
+    "@babel/core": "^7.0.0",
+    "@babel/eslint-parser": "^7.0.0",
+    "@babel/plugin-syntax-typescript": "^7.0.0",
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^20.11.0",
     "typescript": "^7.0.2",
