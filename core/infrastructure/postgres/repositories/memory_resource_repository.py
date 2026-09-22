@@ -1,4 +1,6 @@
 from collections import defaultdict
+from hashlib import sha256
+import json
 from typing import Callable
 
 from sqlalchemy import and_, select
@@ -54,6 +56,32 @@ class PostgresMemoryResourceRepository:
         if session_factory is None:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
+
+    def get_snapshot_entity_fingerprints(
+        self, snapshot_id, tenant_id: str | None = None
+    ) -> dict[str, str]:
+        if tenant_id is None:
+            raise ValueError("tenant_id is required")
+        with self._session_factory() as session:
+            entities = session.scalars(
+                select(Entity)
+                .where(Entity.snapshot_id == snapshot_id, Entity.tenant_id == tenant_id)
+                .order_by(Entity.entity_key.asc())
+            ).all()
+        return {
+            entity.entity_key: sha256(
+                json.dumps(
+                    {
+                        "type": entity.entity_type,
+                        "name": entity.name,
+                        "metadata": entity.metadata_json or {},
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            for entity in entities
+        }
 
     def load_active_project(
         self,

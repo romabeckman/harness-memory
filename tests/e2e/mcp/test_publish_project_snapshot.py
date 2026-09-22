@@ -16,7 +16,7 @@ from harness_memory_mcp.services.tenant_context import TenantContextProvider
 
 
 @pytest.mark.asyncio
-async def test_publish_project_snapshot_is_registered_and_publishes_empty_snapshot():
+async def test_publish_project_snapshot_is_not_exposed_by_read_only_mcp():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -28,20 +28,4 @@ async def test_publish_project_snapshot_is_registered_and_publishes_empty_snapsh
 
     async with Client(server) as client:
         tools = await client.list_tools()
-        result = await client.call_tool(
-            "publish_project_snapshot",
-            {
-                "request": {
-                    "schema_version": "1.0",
-                    "project": {"key": "payments"},
-                    "revision": 1,
-                    "generated_at": "2026-09-17T12:00:00Z",
-                    "entities": [],
-                    "relations": [],
-                    "evidence": [],
-                }
-            },
-        )
-
-    assert [tool.name for tool in tools] == ["publish_project_snapshot"]
-    assert result.data["status"] == "ACTIVATED"
+    assert "publish_project_snapshot" not in {tool.name for tool in tools}

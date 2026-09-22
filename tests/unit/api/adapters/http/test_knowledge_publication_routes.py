@@ -9,6 +9,11 @@ from core.application.knowledge_publication.use_cases.publish_knowledge.outbound
     PublishKnowledgeOutput,
 )
 from core.domain.knowledge_publication.types.publication_status import PublicationStatus
+from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
+
+
+def authenticated_principal() -> AuthenticatedPrincipal:
+    return AuthenticatedPrincipal("pipeline", "tenant-a", frozenset({"memory:publish"}))
 
 
 class FakePublishKnowledgeHandler:
@@ -33,7 +38,9 @@ class TestKnowledgePublicationRoutes:
             )
         )
         app = FastAPI()
-        app.include_router(create_knowledge_publication_router(handler), prefix="/v1")
+        app.include_router(
+            create_knowledge_publication_router(handler, authenticated_principal), prefix="/v1"
+        )
         client = TestClient(app)
 
         response = client.post(
@@ -51,7 +58,7 @@ class TestKnowledgePublicationRoutes:
         assert data["status"] == "ACTIVATED"
         assert data["publication_id"] == str(pub_id)
         assert data["snapshot_id"] == str(snap_id)
-        assert handler.received_input.tenant_id == "default"
+        assert handler.received_input.tenant_id == "tenant-a"
 
     def test_idempotent_retry_returns_200_already_published(self) -> None:
         pub_id = uuid4()
@@ -64,7 +71,9 @@ class TestKnowledgePublicationRoutes:
             )
         )
         app = FastAPI()
-        app.include_router(create_knowledge_publication_router(handler), prefix="/v1")
+        app.include_router(
+            create_knowledge_publication_router(handler, authenticated_principal), prefix="/v1"
+        )
         client = TestClient(app)
 
         response = client.post(
@@ -83,7 +92,7 @@ class TestKnowledgePublicationRoutes:
         assert data["publication_id"] == str(pub_id)
         assert data["snapshot_id"] == str(snap_id)
 
-    def test_forwards_x_tenant_id_header(self) -> None:
+    def test_ignores_untrusted_x_tenant_id_header(self) -> None:
         pub_id = uuid4()
         snap_id = uuid4()
         handler = FakePublishKnowledgeHandler(
@@ -94,7 +103,9 @@ class TestKnowledgePublicationRoutes:
             )
         )
         app = FastAPI()
-        app.include_router(create_knowledge_publication_router(handler), prefix="/v1")
+        app.include_router(
+            create_knowledge_publication_router(handler, authenticated_principal), prefix="/v1"
+        )
         client = TestClient(app)
 
         response = client.post(
@@ -108,4 +119,4 @@ class TestKnowledgePublicationRoutes:
             },
         )
         assert response.status_code == 201
-        assert handler.received_input.tenant_id == "custom-tenant"
+        assert handler.received_input.tenant_id == "tenant-a"

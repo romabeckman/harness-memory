@@ -1,7 +1,7 @@
 ---
 doc_type: feature
 domain: snapshot_publication
-stack: [Python 3.12+, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL]
+stack: [Python 3.12+, FastAPI, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL]
 node_id: "feature:snapshot-publication"
 tags: [snapshots, publication, idempotency, tenant]
 edges:
@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:platform-foundation"
     read: must
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # Snapshot Publication
 Publish a complete immutable project snapshot and switch its active pointer atomically.
@@ -25,8 +25,8 @@ Publish a complete immutable project snapshot and switch its active pointer atom
   "domain": "snapshot_publication",
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/tools/publish_project_snapshot.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
+  "entrypoints": ["api/adapters/http/knowledge_publication_routes.py"],
+  "registration_files": ["api/server/app.py"],
   "reference_files": [
     "core/domain/snapshot_publication/aggregates/project_knowledge_snapshot.py",
     "core/infrastructure/postgres/repositories/snapshot_publication_repository.py"
@@ -46,6 +46,7 @@ Publish a complete immutable project snapshot and switch its active pointer atom
     "core/application/snapshot_publication/types/publication_context.py",
     "core/application/snapshot_publication/types/publication_record.py",
     "core/application/snapshot_publication/types/publication_status.py",
+    "core/application/snapshot_publication/services/snapshot_payload.py",
     "core/application/snapshot_publication/use_cases/publish_project_snapshot/handler.py",
     "core/application/snapshot_publication/use_cases/publish_project_snapshot/inbound.py",
     "core/application/snapshot_publication/use_cases/publish_project_snapshot/outbound.py",
@@ -87,7 +88,7 @@ Publish a complete immutable project snapshot and switch its active pointer atom
     "tests/unit/core/infrastructure/postgres/test_snapshot_write_policy.py",
     "tests/unit/mcp/services/test_publication_response_mapper.py",
     "tests/integration/core/infrastructure/postgres/repositories/test_snapshot_publication_repository.py",
-    "tests/e2e/mcp/test_publish_project_snapshot.py"
+    "tests/unit/api/adapters/http/test_api_authentication.py"
   ]
 }
 ```
@@ -102,8 +103,8 @@ Validate a complete schema `1.0` payload, build an immutable domain aggregate, c
 core/domain/snapshot_publication/        # Snapshot invariants and revision policy
 core/application/snapshot_publication/  # Contracts, hashing, and publication use case
 core/infrastructure/postgres/            # Graph mapping and atomic persistence
-harness_memory_mcp/tools/                               # Public publication adapter
-tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contracts
+api/adapters/http/                       # Authenticated publication boundary
+tests/{unit,integration,e2e}/            # Domain, persistence, API, and read-only MCP contracts
 ```
 
 ## MAIN CONCEPTS / COMPONENTS
@@ -134,10 +135,11 @@ tests/{unit,integration,e2e}/            # Domain, persistence, and MCP contract
 
 ## BEST PRACTICES
 
-REQUIRED: Hash validated canonical content, including revision and normalized timestamp, while excluding tenant context.
+REQUIRED: Hash validated canonical facts and revision while excluding generated timestamps and tenant context.
 REQUIRED: Keep Pydantic shape validation separate from domain graph invariants.
-REQUIRED: Map persistence failures to stable MCP-safe errors without SQL, credentials, or payload contents.
-REQUIRED: Keep publication authorization failures separate from graph invariant and persistence failures.
+REQUIRED: Map persistence failures to stable API errors without SQL, credentials, or payload contents.
+REQUIRED: Keep API publication authorization failures separate from graph invariant and persistence failures.
+PROHIBITED: Expose publication through MCP.
 PROHIBITED: Delete historical snapshots when activating a newer revision.
 PROHIBITED: Allow arbitrary graph mutations outside complete snapshot publication.
 

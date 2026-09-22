@@ -44,6 +44,9 @@ class FakeEnvironmentRepository:
             if env.id == env_id:
                 env.promote_snapshot(snap_id)
 
+    def resolve_or_create(self, project_key: str, name: str, tenant_id: str) -> Environment:
+        return self.resolve(project_key, name, tenant_id)
+
 
 class FakeKnowledgePublicationRepository:
     def __init__(
@@ -91,6 +94,65 @@ class FakeKnowledgePublicationRepository:
 
 
 class TestPublishKnowledge:
+    def test_exact_retry_without_relation_ref_is_idempotent(self) -> None:
+        env_repo = FakeEnvironmentRepository()
+        publication_repo = FakeKnowledgePublicationRepository(env_repo=env_repo)
+        handler = PublishKnowledgeHandler(publication_repo, env_repo)
+        request = PublishKnowledgeInput(
+            "catalog",
+            "staging",
+            "deploy-stable",
+            "1",
+            entities=(
+                {"key": "consumer", "type": "service"},
+                {"key": "provider", "type": "service"},
+            ),
+            relations=(
+                {
+                    "source_entity_key": "consumer",
+                    "type": "consumes",
+                    "target_entity_key": "provider",
+                    "provenance": "observed",
+                },
+            ),
+        )
+
+        first = handler.execute(request)
+        second = handler.execute(request)
+
+        assert first.status == PublicationStatus.COMPLETED
+        assert second.status == PublicationStatus.ALREADY_PUBLISHED
+        assert second.snapshot_id == first.snapshot_id
+    def test_rejects_unknown_entity_type(self) -> None:
+        import pytest
+
+        handler = PublishKnowledgeHandler(
+            FakeKnowledgePublicationRepository(), FakeEnvironmentRepository()
+        )
+
+        with pytest.raises(ValueError, match="unsupported entity type"):
+            handler.execute(
+                PublishKnowledgeInput(
+                    "catalog",
+                    "staging",
+                    "deploy-invalid",
+                    "1",
+                    entities=({"key": "api", "type": "typo"},),
+                )
+            )
+
+    def test_non_numeric_version_has_stable_sha256_revision(self) -> None:
+        import hashlib
+
+        handler = PublishKnowledgeHandler(
+            FakeKnowledgePublicationRepository(), FakeEnvironmentRepository()
+        )
+        request = PublishKnowledgeInput("catalog", "staging", "deploy", "1.2.3")
+
+        snapshot = handler._build_snapshot(request)
+
+        expected = int.from_bytes(hashlib.sha256(b"1.2.3").digest()[:8], "big") % 2147483647 + 1
+        assert snapshot.revision.value == expected
     def test_returns_already_published_for_idempotent_retry(self) -> None:
         existing_snapshot_id = uuid4()
         pub = KnowledgePublication(
@@ -144,9 +206,9 @@ class TestPublishKnowledge:
                 {
                     "ref": "rel-1",
                     "source_entity_key": "catalog-api",
-                    "type": "calls",
+                    "type": "consumes",
                     "target_entity_key": "db",
-                    "provenance": "verified",
+                    "provenance": "observed",
                 },
             ),
         )

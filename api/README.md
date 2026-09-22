@@ -20,7 +20,9 @@ To start the complete application, including the MCP server, run `docker compose
 
 ## HTTP endpoints
 
-All routes use JSON unless the response has no body (`204`). The API currently does not authenticate management requests. Keep it on a trusted network and do not expose it directly to the public internet.
+All routes use JSON unless the response has no body (`204`). Management routes require
+`Authorization: Bearer <API_ADMIN_TOKEN>`. Knowledge publication requires an active,
+tenant-bound API token with the exact `memory:publish` scope.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -31,8 +33,9 @@ All routes use JSON unless the response has no body (`204`). The API currently d
 | `GET`, `PATCH`, `DELETE` | `/v1/service-accounts/{account_id}` | Read, rename, or delete a service account. Deleting it also revokes its tokens. |
 | `POST`, `GET` | `/v1/tokens` | Issue a token or list token metadata. Filter with `user_id` or `service_account_id`. |
 | `GET`, `PATCH`, `DELETE` | `/v1/tokens/{token_id}` | Read metadata, update the name or expiration, or revoke a token. |
+| `POST` | `/v1/knowledge-publications` | Publish and activate a tenant-scoped environment snapshot. |
 
-Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. The token endpoints manage credentials for MCP connections only. They do not authenticate calls to this REST API.
+Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. API-issued tokens do not authorize management calls; publication derives its tenant from the authenticated token owner.
 
 ## Create an MCP credential
 
@@ -49,7 +52,7 @@ Copy the returned `id`, then issue a user token. Set `expires_at` to a future UT
 ```bash
 curl -X POST http://localhost:8080/v1/tokens \
   -H 'Content-Type: application/json' \
-  -d '{"user_id":"<USER_ID>","name":"Local MCP client","expires_at":"<FUTURE_UTC_TIMESTAMP>"}'
+  -d '{"user_id":"<USER_ID>","name":"Local MCP client","expires_at":"<FUTURE_UTC_TIMESTAMP>","scopes":["memory:read"]}'
 ```
 
 The create response contains the plaintext token once. Save it in a secret store or your MCP client's private configuration. The database stores only its SHA-256 digest. Token list and read responses never return the plaintext or digest. Delete the token to revoke it.
@@ -69,7 +72,7 @@ Copy the service account `id`, then issue a token without `expires_at` for a non
 ```bash
 curl -X POST http://localhost:8080/v1/tokens \
   -H 'Content-Type: application/json' \
-  -d '{"service_account_id":"<SERVICE_ACCOUNT_ID>","name":"CI automation"}'
+  -d '{"service_account_id":"<SERVICE_ACCOUNT_ID>","name":"CI automation","scopes":["memory:publish"]}'
 ```
 
 User tokens still require an expiration. Service-account tokens may omit `expires_at`; any finite expiration must be within 90 days. A service account's tenant binding is immutable. Create another service account to use a different tenant.
@@ -83,7 +86,10 @@ See the [MCP module README](../harness_memory_mcp/README.md) for connection and 
 
 ## Configuration
 
-`DATABASE_URL` selects the shared PostgreSQL database. Docker Compose sets it for the API service. For local development, set `DATABASE_URL` in the process environment; `.env-example` shows the expected URL format.
+`DATABASE_URL` selects the shared PostgreSQL database. `API_ADMIN_TOKEN` is the
+independent secret for management routes and is required by Docker Compose. For local
+development, set both variables in the process environment; `.env-example` shows the
+expected format.
 
 The API uses the shared database schema. Run migrations before starting it; the API does not migrate the database at runtime. Docker Compose handles this startup order for you.
 

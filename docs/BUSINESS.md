@@ -47,9 +47,12 @@ The MVP combines an MCP interface for contextual knowledge access with a persist
 
 ## CURRENT IMPLEMENTATION
 
-The API implements `POST /v1/knowledge-publications` for CI/CD publication. The route accepts optional `X-Tenant-ID` and defaults to `default`; REST authentication is not yet wired into the API.
+The API implements `POST /v1/knowledge-publications` for CI/CD publication. It requires
+an active tenant-bound service-account token with the exact `memory:publish` scope and
+derives tenant identity from that credential. A separate `API_ADMIN_TOKEN` protects all
+user, service-account, and token management routes.
 
-REQUIRED: Keep management and publication routes private until trusted tenant authorization exists.
+REQUIRED: Keep management and publication credentials separate.
 PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trusted authorization.
 
 ## REFERENCES

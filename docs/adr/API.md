@@ -21,13 +21,16 @@ edges:
     target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # API Architecture
 
 ## PURPOSE
 
-`api/` is the project's second application module. It exposes FastAPI endpoints for user, tenant-bound service-account, access-token, and knowledge-publication operations, plus health and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
+`api/` exposes FastAPI endpoints for user, tenant-bound service-account, access-token,
+and knowledge-publication operations. A static administrator bearer secret protects
+management routes. API-issued owner-bound tokens authorize MCP reads and API publication,
+but never management routes.
 
 ## MODULE BOUNDARIES
 
@@ -57,7 +60,7 @@ flowchart LR
 REQUIRED: Keep SQLAlchemy and database sessions out of `api/domain/` and `api/application/`.
 REQUIRED: Keep route functions thin and create route routers through injected application services.
 REQUIRED: Reuse `core/infrastructure/postgres` configuration, models, and repositories rather than creating an API-local database stack.
-PROHIBITED: Use API access tokens as REST API authentication credentials.
+PROHIBITED: Use API access tokens for REST management authentication.
 
 ## HTTP SURFACE
 
@@ -75,15 +78,23 @@ PROHIBITED: Use API access tokens as REST API authentication credentials.
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
-Publication requests use the shared environment/publication handler. The current route accepts optional `X-Tenant-ID` and defaults to `default`; keep the unauthenticated surface private until REST authorization exists.
+Publication requests use the shared environment/publication handler. Require an active
+owner-bound token with the exact `memory:publish` scope, derive the tenant from its owner,
+and ignore caller-supplied tenant headers. The handler creates missing project and
+environment records during the first trusted publication.
 
-The current REST CRUD routes do not declare an authentication dependency. Do not mistake MCP bearer-token verification for protection of this management API; restrict its network exposure until a separate REST authorization mechanism is introduced.
+Require `API_ADMIN_TOKEN` for every REST management route. Keep health and generated API
+documentation public. Never accept API-issued user or service-account tokens as the
+management credential.
 
 ## TOKEN HANDOFF TO MCP
 
 Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
-In database authentication mode, the MCP adapter hashes the presented bearer token and asks the shared token repository for an active record and its owner. The owner supplies the trusted MCP subject and tenant context. User tokens use the user ID as tenant ID; service-account tokens use the assigned tenant ID. Token lifecycle and consumption are split by responsibility: REST API manages credentials; MCP accepts them for MCP requests.
+The verifier hashes the presented bearer token and asks the shared token repository for
+an active record and its owner. The owner supplies trusted subject and tenant context;
+the token supplies only its explicitly persisted scopes. MCP accepts read/impact scopes,
+while the publication API accepts the exact `memory:publish` scope.
 
 ## DOCUMENT MAP
 

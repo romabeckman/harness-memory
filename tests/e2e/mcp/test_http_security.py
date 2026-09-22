@@ -11,9 +11,9 @@ from harness_memory_mcp.server.factory import create_mcp_server
 
 class StaticTokenVerifier(TokenVerifier):
     async def verify_token(self, token):
-        if token not in {"read", "publish"}:
+        if token not in {"read", "impact"}:
             return None
-        scope = "memory:read" if token == "read" else "memory:publish"
+        scope = "memory:read" if token == "read" else "memory:impact"
         return AccessToken(
             token=token,
             client_id="subject-a",
@@ -41,8 +41,8 @@ def _server_and_records():
         audit_repository=repository,
     )
 
-    @server.tool(name="publish_project_snapshot")
-    def publish_project_snapshot():
+    @server.tool(name="analyze_impact")
+    def analyze_impact():
         return {"ok": True}
 
     return server, records
@@ -96,17 +96,17 @@ def test_http_scope_filtering_and_direct_authorization_return_403():
                 "jsonrpc": "2.0",
                 "id": 3,
                 "method": "tools/call",
-                "params": {"name": "publish_project_snapshot", "arguments": {}},
+                "params": {"name": "analyze_impact", "arguments": {}},
             },
             headers=headers,
         )
 
     assert listed.status_code == 200
-    assert b"publish_project_snapshot" not in listed.content
+    assert b"analyze_impact" not in listed.content
     assert denied.status_code == 403
     assert b"insufficient" in denied.content.lower()
     assert denied.headers["www-authenticate"] == (
-        'Bearer error="insufficient_scope", scope="memory:publish"'
+        'Bearer error="insufficient_scope", scope="memory:impact"'
     )
     assert records[-1].event_type.value == "authorization_failure"
 

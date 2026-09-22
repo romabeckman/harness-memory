@@ -122,8 +122,8 @@ tests/unit/                # Unit test suites across domain, application, infra,
 
 ### Prerequisites
 1. Use an authenticated MCP identity for environment reads.
-2. Keep REST publication traffic on a trusted network until API authorization exists.
-3. Register the target project and environment before publication.
+2. Use a tenant-bound service-account token with exactly `memory:publish` for publication.
+3. Let the first trusted publication create the target project/environment when absent.
 
 ### Steps
 1. Pipeline sends deployment event via REST `POST /v1/knowledge-publications` or `harness-memory-publish` CLI.
@@ -151,10 +151,11 @@ REQUIRED: Scope all operations to a verified tenant context.
 REQUIRED: Execute snapshot promotion and publication recording in an atomic transaction.
 REQUIRED: Sanitize database errors and stack traces before returning responses.
 PROHIBITED: Trusting tenant identity from payload bodies; derive strictly from tokens.
-PROHIBITED: Treat the current optional `X-Tenant-ID` header or default `default` tenant as trusted authorization.
+PROHIBITED: Accept `X-Tenant-ID` or any payload field as tenant authorization.
 PROHIBITED: Unbounded in-memory diffing without pagination or stream limits.
 
-The current REST publication route has no authentication dependency. Add trusted tenant authorization before exposing it to untrusted callers.
+The REST publication route validates the bearer token, exact scope, active state, and
+owner before deriving tenant context.
 
 ## TIPS
 

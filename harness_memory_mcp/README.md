@@ -1,6 +1,9 @@
 # Harness Memory MCP
 
-The `harness_memory_mcp/` module exposes organizational engineering knowledge through the Model Context Protocol (MCP). AI agents and other MCP clients can publish project snapshots, query known relationships, and analyze change impact. The REST API manages users and MCP credentials; see the [`api/` module README](../api/README.md).
+The `harness_memory_mcp/` module exposes organizational engineering knowledge through
+the Model Context Protocol (MCP). It is read-only: AI agents query known relationships,
+compare environments, and analyze impact. The REST API owns publication and governance;
+see the [`api/` module README](../api/README.md).
 
 ## Start the MCP server
 
@@ -35,14 +38,15 @@ The server verifies the token against the database and derives its subject and t
 
 | Tool | Purpose |
 | --- | --- |
-| `publish_project_snapshot` | Validate and publish a versioned project knowledge snapshot. |
 | `search_entities` | Search known entities by key, name, type, or project. |
 | `get_context` | Read bounded context, relationships, and evidence for an entity. |
 | `get_dependencies` | Query inbound or outbound dependencies. |
 | `find_integration_paths` | Find known paths between engineering entities. |
 | `analyze_impact` | Identify known direct and indirect effects of a structured change. |
+| `get_environment` | Read an environment and its active snapshot. |
+| `compare_environments` | Compare active entity fingerprints between environments. |
 
-Publishing accepts a complete snapshot. Clients cannot make arbitrary graph edits. Impact results come from stored relationships and evidence; the server does not guess missing relationships.
+MCP clients cannot publish or make arbitrary graph edits. Impact results come from stored relationships and evidence; the server does not guess missing relationships.
 
 ### Resources
 

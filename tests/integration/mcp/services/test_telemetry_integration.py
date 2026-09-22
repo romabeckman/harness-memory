@@ -1,11 +1,15 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from uuid import uuid4
 import pytest
 from starlette.testclient import TestClient
 from fastmcp.server.auth import AccessToken, TokenVerifier
 
 from core.application.tenant_security.ports.security_audit_repository import AppendResult
 from core.domain.tenant_security.types.audit_event_type import AuditEventType
+from core.application.impact_analysis.use_cases.analyze_impact.outbound import AnalyzeImpactOutput
+from core.application.relationship_context.contracts.entity_context_item import EntityContextItem
+from core.domain.snapshot_publication.types.entity_type import EntityType
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
 from harness_memory_mcp.config import RuntimeSettings
 from harness_memory_mcp.server.factory import create_mcp_server
@@ -19,9 +23,9 @@ class StaticTokenVerifier(TokenVerifier):
         return AccessToken(
             token=token,
             client_id="subject-1",
-            scopes=["memory:publish", "memory:read"],
+            scopes=["memory:impact", "memory:read"],
             subject="subject-1",
-            claims={"sub": "subject-1", "tenant_id": "tenant-test", "scope": "memory:publish memory:read"},
+            claims={"sub": "subject-1", "tenant_id": "tenant-test", "scope": "memory:impact memory:read"},
         )
 
 
@@ -37,12 +41,14 @@ def test_correlate_traceparent_with_security_audit_record():
         mcp_production=True,
     )
     mock_handler = MagicMock()
-    mock_handler.execute.return_value = SimpleNamespace(
-        status="ACTIVATED",
-        project_key="test-proj",
-        revision=1,
-        entity_count=0,
-        relation_count=0,
+    entity_id = uuid4()
+    mock_handler.execute.return_value = AnalyzeImpactOutput(
+        changed_entity=EntityContextItem(
+            id=entity_id,
+            key="test-service",
+            name="Test Service",
+            type=EntityType.SERVICE,
+        )
     )
     server = create_mcp_server(
         settings=settings,
@@ -50,7 +56,7 @@ def test_correlate_traceparent_with_security_audit_record():
         verify_schema=False,
         token_verifier=StaticTokenVerifier(),
         audit_repository=repository,
-        handler=mock_handler,
+        impact_handler=mock_handler,
     )
 
     traceparent = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
@@ -75,7 +81,7 @@ def test_correlate_traceparent_with_security_audit_record():
         session_id = init_res.headers["mcp-session-id"]
         headers["Mcp-Session-Id"] = session_id
 
-        # Call publish_project_snapshot tool
+        # Call audited impact analysis tool
         call_res = client.post(
             "/mcp",
             json={
@@ -83,18 +89,8 @@ def test_correlate_traceparent_with_security_audit_record():
                 "id": 2,
                 "method": "tools/call",
                 "params": {
-                    "name": "publish_project_snapshot",
-                    "arguments": {
-                        "request": {
-                            "schema_version": "1.0",
-                            "project": {"key": "test-proj"},
-                            "revision": 1,
-                            "generated_at": "2026-09-19T00:00:00Z",
-                            "entities": [],
-                            "relations": [],
-                            "evidence": [],
-                        }
-                    },
+                    "name": "analyze_impact",
+                    "arguments": {"entity_id": str(entity_id)},
                 },
             },
             headers=headers,
@@ -102,11 +98,11 @@ def test_correlate_traceparent_with_security_audit_record():
         assert call_res.status_code == 200
 
     # Verify audit record captured trace_id
-    pub_records = [r for r in records if r.event_type == AuditEventType.PUBLICATION]
-    assert len(pub_records) >= 1
-    assert "trace_id" in pub_records[0].safe_details
-    assert pub_records[0].safe_details["trace_id"] == "4bf92f3577b34da6a3ce929d0e0e4736"
-    assert pub_records[0].safe_details["span_id"] == "00f067aa0ba902b7"
+    impact_records = [r for r in records if r.event_type == AuditEventType.IMPACT_ANALYSIS]
+    assert len(impact_records) >= 1
+    assert "trace_id" in impact_records[0].safe_details
+    assert impact_records[0].safe_details["trace_id"] == "4bf92f3577b34da6a3ce929d0e0e4736"
+    assert impact_records[0].safe_details["span_id"] == "00f067aa0ba902b7"
 
 
 def test_tool_execution_succeeds_when_telemetry_exporter_fails():

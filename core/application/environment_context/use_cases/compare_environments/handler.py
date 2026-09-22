@@ -32,25 +32,35 @@ class CompareEnvironmentsHandler:
             name=input.target_environment,
             tenant_id=input.tenant_id,
         )
+        if source_env is None or target_env is None:
+            raise LookupError("environment not found")
 
         source_entities = (
-            self._memory_repository.get_snapshot_entity_keys(
+            self._memory_repository.get_snapshot_entity_fingerprints(
                 source_env.current_snapshot_id, tenant_id=input.tenant_id
             )
             if source_env and source_env.current_snapshot_id
-            else set()
+            else {}
         )
         target_entities = (
-            self._memory_repository.get_snapshot_entity_keys(
+            self._memory_repository.get_snapshot_entity_fingerprints(
                 target_env.current_snapshot_id, tenant_id=input.tenant_id
             )
             if target_env and target_env.current_snapshot_id
-            else set()
+            else {}
         )
 
-        added_all = sorted(source_entities - target_entities)
-        removed_all = sorted(target_entities - source_entities)
-        unchanged_all = sorted(source_entities & target_entities)
+        source_keys = set(source_entities)
+        target_keys = set(target_entities)
+        shared_keys = source_keys & target_keys
+        added_all = sorted(source_keys - target_keys)
+        removed_all = sorted(target_keys - source_keys)
+        modified_all = sorted(
+            key for key in shared_keys if source_entities[key] != target_entities[key]
+        )
+        unchanged_all = sorted(
+            key for key in shared_keys if source_entities[key] == target_entities[key]
+        )
 
         offset = max(0, input.offset)
         limit = max(1, input.limit)
@@ -58,6 +68,7 @@ class CompareEnvironmentsHandler:
         added_slice = tuple(added_all[offset : offset + limit])
         removed_slice = tuple(removed_all[offset : offset + limit])
         unchanged_slice = tuple(unchanged_all[offset : offset + limit])
+        modified_slice = tuple(modified_all[offset : offset + limit])
 
         return CompareEnvironmentsOutput(
             source_environment=input.source_environment,
@@ -65,7 +76,9 @@ class CompareEnvironmentsHandler:
             added_entities=added_slice,
             removed_entities=removed_slice,
             unchanged_entities=unchanged_slice,
+            modified_entities=modified_slice,
             total_added=len(added_all),
             total_removed=len(removed_all),
             total_unchanged=len(unchanged_all),
+            total_modified=len(modified_all),
         )

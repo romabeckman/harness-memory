@@ -26,13 +26,18 @@ class Snapshot(Base):
         UniqueConstraint("id", "tenant_id", name="uq_snapshots_id_tenant"),
         UniqueConstraint("id", "project_id", "tenant_id", name="uq_snapshots_id_project_tenant"),
         UniqueConstraint(
-            "tenant_id", "project_id", "revision", name="uq_snapshots_tenant_project_revision"
+            "tenant_id",
+            "project_id",
+            "environment_id",
+            "revision",
+            name="uq_snapshots_tenant_project_environment_revision",
         ),
         UniqueConstraint(
             "tenant_id",
             "project_id",
+            "environment_id",
             "payload_hash",
-            name="uq_snapshots_tenant_project_payload_hash",
+            name="uq_snapshots_tenant_project_environment_payload_hash",
         ),
         CheckConstraint("length(trim(tenant_id)) > 0", name="ck_snapshots_tenant_id_non_empty"),
         CheckConstraint(

@@ -32,7 +32,6 @@ async def test_all_registered_tools_and_arguments_have_descriptions():
         tools = await client.list_tools()
 
     expected_tools = {
-        "publish_project_snapshot",
         "search_entities",
         "get_context",
         "get_dependencies",

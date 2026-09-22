@@ -5,7 +5,6 @@ from hashlib import sha256
 from fastmcp.server.auth import AccessToken, TokenVerifier
 
 from api.application.ports.token_repository import TokenRepository
-from core.domain.tenant_security.types.memory_scope import MemoryScope
 
 
 class DatabaseTokenVerifier(TokenVerifier):
@@ -31,7 +30,7 @@ class DatabaseTokenVerifier(TokenVerifier):
             return None
         subject = str(owner_id)
         tenant_id = str(owner_tenant_id)
-        scopes = [scope.value for scope in MemoryScope]
+        scopes = sorted(stored.scopes)
         return AccessToken(
             token=token,
             client_id=subject,

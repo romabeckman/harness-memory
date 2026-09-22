@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:mcp-access-surface"
     read: must
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # Tenant Security
 Protect the MCP surface with verified bearer identity, exact scope authorization, tenant isolation, and append-only audit facts.
@@ -87,7 +87,7 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Authenticated principal**: Build only from verified claims; require non-empty subject and tenant; store exact scopes.
-- **Component policy**: Map every tool, resource, and prompt to one of `memory:read`, `memory:publish`, or `memory:impact`; deny unmapped components.
+- **Component policy**: Map every MCP tool, resource, and prompt to `memory:read` or `memory:impact`; deny unmapped components. Reserve `memory:publish` for the API.
 - **Tenant context**: Bind and reset request-scoped identity with `ContextVar`; pass tenant scope separately from public payloads.
 - **Security audit**: Append attempted/completed operation and authentication/authorization facts with bounded safe details and idempotent identity. Apply backpressure when concurrent authentication-failure writes reach capacity; never silently discard an event because the write slots are full.
 

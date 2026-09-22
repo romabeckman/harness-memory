@@ -56,9 +56,11 @@ def register_compare_environments(
                 "added_entities": list(result.added_entities),
                 "removed_entities": list(result.removed_entities),
                 "unchanged_entities": list(result.unchanged_entities),
+                "modified_entities": list(result.modified_entities),
                 "total_added": result.total_added,
                 "total_removed": result.total_removed,
                 "total_unchanged": result.total_unchanged,
+                "total_modified": result.total_modified,
             }
         except Exception as error:
             error_str = str(error).lower()

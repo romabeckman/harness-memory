@@ -13,11 +13,11 @@ edges:
     target: "adr:tests"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # MCP Interface
 
-Define the FastMCP surface for publishing, querying, and analyzing corporate engineering knowledge.
+Define the read-only FastMCP surface for querying and analyzing corporate engineering knowledge.
 
 ## OVERVIEW
 
@@ -49,7 +49,7 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 1. Authenticate request and resolve tenant identity from authenticated context.
 2. Validate MCP arguments with Pydantic models, including snapshot schema version.
 3. Dispatch a thin handler under the selected business domain's `use_cases/` package.
-4. Enforce `core/domain` invariants and execute `core/infrastructure` PostgreSQL work in the required transaction.
+4. Execute tenant-scoped, bounded PostgreSQL reads through application ports.
 5. Return a bounded Pydantic response with provenance, evidence, and unknowns where applicable.
 
 For production Streamable HTTP, use stateless mode so each tool request can run without a prior session initialization. Keep malformed tool arguments in HTTP `200` JSON-RPC tool results with `isError: true` and stable `INVALID_ARGUMENT` text. Map authentication failures to `401` with a stable `invalid_token` body and authorization failures to `403` with an `insufficient_scope` challenge. Keep application error payloads free of verifier, persistence, tenant, and request-secret details.
@@ -60,19 +60,20 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 
 | Tool | Scope | Purpose | Input | Output |
 |------|-------|---------|-------|--------|
-| `publish_project_snapshot` | `memory:publish` | Publish a complete project snapshot and activate a newer revision idempotently. | Complete `ProjectKnowledgeSnapshot`. | Validation result, revision, activation status, and publication facts. |
 | `search_entities` | `memory:read` | Find tenant-visible entities with filters and pagination. | Key, name, type, or project filters. | Bounded matching corporate entities. |
 | `get_context` | `memory:read` | Read bounded context and evidence for one entity. | Entity identifier and result limits. | Entity, project, owner, relations, dependencies, and evidence. |
 | `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |
 | `find_integration_paths` | `memory:read` | Find bounded dependency paths between two entities. | Source and target entity identifiers and result limits. | Known paths, ownership, provenance, and evidence. |
 | `analyze_impact` | `memory:impact` | Analyze downstream consumers of a proposed change. | Structured change description and analysis limits. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
+| `get_environment` | `memory:read` | Read an environment and its active snapshot. | Project key and environment name. | Environment metadata and active snapshot. |
+| `compare_environments` | `memory:read` | Compare active entity fingerprints between environments. | Project key and two environment names. | Added, removed, modified, and unchanged entities. |
 
 REQUIRED: Give every public tool a clear purpose, required scope, and result boundaries in its FastMCP description.
 REQUIRED: Describe every tool argument and nested Pydantic input field in the generated MCP schema.
 REQUIRED: Keep each tool a thin adapter over one application use case.
 REQUIRED: Keep `harness_memory_mcp/services/` focused on MCP boundary concerns.
 REQUIRED: Bound results by query scope; include evidence for important relationships.
-PROHIBITED: Let tools mutate arbitrary graph nodes or edges outside snapshot publication.
+PROHIBITED: Let MCP tools mutate graph nodes, relationships, snapshots, or environment pointers; all publication goes through the API.
 PROHIBITED: Use an LLM to guess impact when graph relationships or evidence are absent.
 
 ## RESOURCES
@@ -112,9 +113,9 @@ PROHIBITED: Pass persistence models or unvalidated dictionaries from FastMCP han
 | Concern | Rule |
 |---------|------|
 | Authentication | Accept database-backed opaque API bearer tokens or externally verified JWTs for production MCP over HTTP. |
-| Authorization | Enforce exact `memory:read`, `memory:publish`, and `memory:impact` scopes; deny unmapped components. |
+| Authorization | Enforce exact `memory:read` and `memory:impact` scopes; deny unmapped components. |
 | Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
-| Audit | Record snapshot publication, impact analysis, authentication failures, and authorization failures. |
+| Audit | Record impact analysis, authentication failures, and authorization failures. |
 | Transport | Use in-process client for development/tests and stateless Streamable HTTP for production. |
 | HTTP errors | Keep malformed arguments as HTTP `200` JSON-RPC tool errors marked `INVALID_ARGUMENT`; map authentication to `401` and authorization to `403`. |
 

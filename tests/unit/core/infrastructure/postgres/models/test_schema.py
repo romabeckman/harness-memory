@@ -35,7 +35,13 @@ def test_project_and_snapshot_constraints_are_scoped_and_deferred():
     assert any(
         isinstance(constraint, UniqueConstraint)
         and {column.name for column in constraint.columns}
-        == {"tenant_id", "project_id", "revision"}
+        == {"tenant_id", "project_id", "environment_id", "revision"}
+        for constraint in snapshot.constraints
+    )
+    assert any(
+        isinstance(constraint, UniqueConstraint)
+        and {column.name for column in constraint.columns}
+        == {"tenant_id", "project_id", "environment_id", "payload_hash"}
         for constraint in snapshot.constraints
     )
     assert any(

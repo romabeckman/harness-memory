@@ -35,6 +35,7 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
   "entrypoints": ["api/adapters/http/knowledge_publication_routes.py"],
   "registration_files": ["api/server/app.py"],
   "reference_files": [
+    "api/adapters/http/api_security.py",
     "core/application/knowledge_publication/use_cases/publish_knowledge/handler.py",
     "core/infrastructure/postgres/repositories/knowledge_publication_repository.py",
     "core/infrastructure/postgres/repositories/environment_repository.py"
@@ -50,10 +51,12 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "core/domain/knowledge_publication/value_objects/publication_id.py",
     "core/infrastructure/postgres/models/knowledge_publication.py",
     "core/infrastructure/postgres/models/environment.py",
-    "migrations/versions/008_create_environments_and_publications.py"
+    "migrations/versions/008_create_environments_and_publications.py",
+    "migrations/versions/009_token_scopes_and_environment_revisions.py"
   ],
   "test_files": [
     "tests/unit/api/adapters/http/test_knowledge_publication_routes.py",
+    "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/unit/core/application/knowledge_publication/use_cases/test_publish_knowledge.py",
     "tests/unit/core/domain/knowledge_publication/test_knowledge_publication.py",
     "tests/unit/core/infrastructure/postgres/repositories/test_knowledge_publication_repository.py"
@@ -80,16 +83,20 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Item | Contract |
 |------|----------|
 | Method and path | `POST /v1/knowledge-publications` |
-| Header | Optional `X-Tenant-ID`; current route defaults to `default`. |
+| Header | Required `Authorization: Bearer <token>` with exact `memory:publish` scope. |
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
 | New publication | HTTP 201 with status `ACTIVATED` |
 | Completed retry | HTTP 200 with status `ALREADY_PUBLISHED` |
+| Divergent retry | HTTP 409 when the same deployment ID carries different content. |
+| Invalid facts | HTTP 422; entity, relation, and provenance fields are validated strictly. |
 | Response | `status`, `publication_id`, `snapshot_id` |
 
 ## PUBLICATION RULES
 
 REQUIRED: Resolve project and environment inside the trusted tenant context.
+REQUIRED: Derive tenant identity from the token owner; never from headers or payloads.
+REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
 REQUIRED: Create and promote the snapshot in one persistence operation.
@@ -97,9 +104,11 @@ REQUIRED: Preserve deployment ID, version, publication ID, and snapshot ID.
 PROHIBITED: Treat a deployment as active before environment resolution succeeds.
 PROHIBITED: Let callers mutate individual graph facts through this route.
 
-## SECURITY GAP
+## SECURITY BOUNDARY
 
-The current API has no REST authentication dependency. The route accepts `X-Tenant-ID` and defaults to `default`; treat this value as untrusted until REST authorization is added. Do not expose this management or publication surface publicly.
+The publication credential is separate from `API_ADMIN_TOKEN`. Only an active API token
+owned by a tenant-bound identity and carrying exactly `memory:publish` can publish. User
+input cannot select or override the tenant.
 
 ## DOCUMENT MAP
 

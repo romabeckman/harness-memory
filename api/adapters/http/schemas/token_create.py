@@ -9,6 +9,7 @@ class TokenCreate(BaseModel):
     service_account_id: UUID | None = None
     name: str = Field(min_length=1, max_length=120)
     expires_at: datetime | None = None
+    scopes: set[str] = Field(default_factory=lambda: {"memory:read"}, min_length=1)
 
     @model_validator(mode="after")
     def require_one_owner(self):

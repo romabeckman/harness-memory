@@ -55,6 +55,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       APP_PORT: "8080"
+      API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
     ports:
       - "8080:8080"
     healthcheck:

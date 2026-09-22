@@ -21,7 +21,7 @@ edges:
 updated: 2026-09-21
 ---
 # API Tokens
-Issue and revoke opaque credentials used by MCP clients while keeping plaintext outside persistence.
+Issue and revoke scoped opaque credentials while keeping plaintext outside persistence.
 
 ```graph
 {
@@ -45,11 +45,13 @@ Issue and revoke opaque credentials used by MCP clients while keeping plaintext 
     "api/adapters/http/schemas/token_response.py",
     "api/adapters/http/schemas/token_created_response.py",
     "core/infrastructure/postgres/models/api_access_token.py",
-    "migrations/versions/005_api_users_and_tokens.py"
+    "migrations/versions/005_api_users_and_tokens.py",
+    "migrations/versions/009_token_scopes_and_environment_revisions.py"
   ],
   "test_files": [
     "tests/unit/api/domain/test_token_policy.py",
     "tests/unit/api/application/test_token_service.py",
+    "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/integration/api/infrastructure/test_repositories.py",
     "tests/e2e/api/test_user_token_crud.py",
     "tests/e2e/mcp/test_api_token_authentication.py"
@@ -59,7 +61,9 @@ Issue and revoke opaque credentials used by MCP clients while keeping plaintext 
 
 ## OVERVIEW
 
-Expose token lifecycle operations under `/v1/tokens`. The API owns issuance, metadata updates, and revocation; MCP owns credential verification and consumption.
+Expose token lifecycle operations under `/v1/tokens`. The API owns issuance, explicit
+scope assignment, metadata updates, and revocation. MCP consumes read/impact credentials;
+the publication API consumes tenant-bound `memory:publish` credentials.
 
 ## FOLDER STRUCTURE
 
@@ -88,6 +92,7 @@ REQUIRED: Require `expires_at` for user tokens.
 REQUIRED: Allow a null `expires_at` only for service-account tokens.
 REQUIRED: Keep every finite lifetime between one second and 90 days from issuance.
 REQUIRED: Generate opaque plaintext with the `hm_` prefix.
+REQUIRED: Persist and return only explicitly requested valid scopes.
 REQUIRED: Persist only the 64-character SHA-256 digest.
 REQUIRED: Return plaintext only in the successful create response.
 REQUIRED: Return metadata without plaintext or digest from list, get, and update responses.
@@ -96,7 +101,9 @@ PROHIBITED: Accept a second owner or silently select an owner.
 
 ## MCP HANDOFF
 
-The token repository locates active records by digest and expiry. User ownership supplies the user UUID as tenant identity; service-account ownership supplies its assigned tenant UUID.
+The token repository locates active records by digest and expiry. User ownership supplies
+the user UUID as tenant identity; service-account ownership supplies its assigned tenant
+UUID. The verifier grants only persisted scopes; it never expands them implicitly.
 
 ## DOCUMENT MAP
 

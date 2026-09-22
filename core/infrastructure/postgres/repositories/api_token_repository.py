@@ -37,6 +37,7 @@ class ApiTokenRepository:
                     token_hash=token.token_hash,
                     expires_at=token.expires_at,
                     created_at=token.created_at or datetime.now(UTC),
+                    scopes=sorted(token.scopes),
                 )
             )
             session.commit()
@@ -117,6 +118,7 @@ class ApiTokenRepository:
             id=row.id,
             user_id=row.user_id,
             service_account_id=row.service_account_id,
+            scopes=frozenset(row.scopes or ()),
             name=row.name,
             token_hash=row.token_hash,
             expires_at=(
