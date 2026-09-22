@@ -11,6 +11,9 @@ from .knowledge_publication import KnowledgePublication
 from .project import Project
 from .relation import Relation
 from .snapshot import Snapshot
+from .tenant import Tenant
+from .tenant_id import TenantId
+from .tenant_uuid import TenantUUID
 
 __all__ = [
     "ApiAccessToken",
@@ -26,6 +29,9 @@ __all__ = [
     "Project",
     "Relation",
     "Snapshot",
+    "Tenant",
+    "TenantId",
+    "TenantUUID",
     "SecurityAuditEvent",
 ]
 

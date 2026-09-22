@@ -224,3 +224,4 @@ docs/qa
 .claude
 docs/product
 .codebase-memory
+node_modules/

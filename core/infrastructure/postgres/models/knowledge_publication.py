@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     String,
@@ -16,6 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+from .tenant_id import TenantId
 from .types import JSON_OBJECT
 
 
@@ -31,15 +33,18 @@ class KnowledgePublication(Base):
             name="uq_knowledge_publications_tenant_project_env_deploy",
         ),
         CheckConstraint(
-            "length(trim(tenant_id)) > 0", name="ck_knowledge_publications_tenant_id_non_empty"
-        ),
-        CheckConstraint(
             "length(trim(deployment_id)) > 0",
             name="ck_knowledge_publications_deployment_id_non_empty",
         ),
         CheckConstraint(
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_knowledge_publications_metadata_object",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_knowledge_publications_tenant_id",
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["project_id", "tenant_id"],
@@ -69,7 +74,7 @@ class KnowledgePublication(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(TenantId(as_uuid=True), nullable=False)
     project_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     environment_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     deployment_id: Mapped[str] = mapped_column(String(255), nullable=False)

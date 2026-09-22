@@ -13,6 +13,9 @@ from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.snapshot import Snapshot
 
 
+from core.infrastructure.postgres.models.tenant import Tenant
+
+
 def _client(scopes: tuple[str, ...]) -> tuple[TestClient, str, str, sessionmaker]:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -24,6 +27,14 @@ def _client(scopes: tuple[str, ...]) -> tuple[TestClient, str, str, sessionmaker
     plaintext = "hm_publication_secret"
     account_id = uuid4()
     with Session(engine) as session:
+        session.add(
+            Tenant(
+                id=tenant_uuid,
+                key=f"tenant-{tenant_uuid.hex[:8]}",
+                name="Test Tenant",
+                status="active",
+            )
+        )
         session.add(ApiServiceAccount(id=account_id, tenant_id=tenant_uuid, name="pipeline"))
         session.add(
             ApiAccessToken(

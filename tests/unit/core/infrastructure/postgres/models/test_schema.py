@@ -18,6 +18,7 @@ def test_metadata_contains_all_registered_tables():
         "users",
         "tokens",
         "service_accounts",
+        "tenants",
         "environments",
         "knowledge_publications",
     }

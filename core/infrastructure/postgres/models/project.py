@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     String,
@@ -16,6 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+from .tenant_id import TenantId
 from .types import JSON_OBJECT
 
 
@@ -24,7 +26,10 @@ class Project(Base):
     __table_args__ = (
         UniqueConstraint("id", "tenant_id", name="uq_projects_id_tenant"),
         UniqueConstraint("tenant_id", "key", name="uq_projects_tenant_key"),
-        CheckConstraint("length(trim(tenant_id)) > 0", name="ck_projects_tenant_id_non_empty"),
+        CheckConstraint(
+            "length(trim(CAST(tenant_id AS TEXT))) > 0",
+            name="ck_projects_tenant_id_non_empty",
+        ),
         CheckConstraint(
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_projects_metadata_object",
@@ -48,7 +53,11 @@ class Project(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        TenantId(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT", name="fk_projects_tenant_id"),
+        nullable=False,
+    )
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active_snapshot_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)

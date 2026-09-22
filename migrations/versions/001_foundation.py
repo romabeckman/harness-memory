@@ -23,9 +23,30 @@ def _metadata_check(name: str, column: str = "metadata") -> sa.CheckConstraint:
 
 def upgrade() -> None:
     op.create_table(
+        "tenants",
+        sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("key", sa.String(length=255), nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False, server_default="active"),
+        sa.Column("metadata", _json_object(), server_default=sa.text("'{}'"), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("key", name="uq_tenants_key"),
+        sa.CheckConstraint("length(trim(key)) > 0", name="ck_tenants_key_non_empty"),
+        sa.CheckConstraint("status IN ('active', 'disabled')", name="ck_tenants_status_valid"),
+        _metadata_check("ck_tenants_metadata_object"),
+    )
+    op.create_index("ix_tenants_key", "tenants", ["key"])
+
+    op.create_table(
         "projects",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("key", sa.String(length=255), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=True),
         sa.Column("active_snapshot_id", sa.Uuid(as_uuid=True), nullable=True),
@@ -39,7 +60,9 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id", "tenant_id", name="uq_projects_id_tenant"),
         sa.UniqueConstraint("tenant_id", "key", name="uq_projects_tenant_key"),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_projects_tenant_id_non_empty"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_projects_tenant_id", ondelete="RESTRICT"
+        ),
         _metadata_check("ck_projects_metadata_object"),
     )
     op.create_index("ix_projects_tenant_key", "projects", ["tenant_id", "key"])
@@ -47,7 +70,7 @@ def upgrade() -> None:
     op.create_table(
         "snapshots",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("project_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("revision", sa.Integer(), nullable=False),
         sa.Column("schema_version", sa.String(length=64), nullable=False),
@@ -69,7 +92,9 @@ def upgrade() -> None:
             "payload_hash",
             name="uq_snapshots_tenant_project_payload_hash",
         ),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_snapshots_tenant_id_non_empty"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_snapshots_tenant_id", ondelete="RESTRICT"
+        ),
         _metadata_check("ck_snapshots_metadata_object"),
         _metadata_check("ck_snapshots_payload_object", "payload"),
     )
@@ -87,7 +112,7 @@ def upgrade() -> None:
     op.create_table(
         "entities",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("project_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("snapshot_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("entity_key", sa.String(length=255), nullable=False),
@@ -104,7 +129,9 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "tenant_id", "snapshot_id", "entity_key", name="uq_entities_snapshot_key"
         ),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_entities_tenant_id_non_empty"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_entities_tenant_id", ondelete="RESTRICT"
+        ),
         _metadata_check("ck_entities_metadata_object"),
     )
     op.create_index(
@@ -115,7 +142,7 @@ def upgrade() -> None:
     op.create_table(
         "relations",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("snapshot_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("source_entity_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("target_entity_id", sa.Uuid(as_uuid=True), nullable=False),
@@ -129,10 +156,12 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "id", "snapshot_id", "tenant_id", name="uq_relations_id_snapshot_tenant"
         ),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_relations_tenant_id_non_empty"),
         sa.CheckConstraint(
             "provenance_kind IN ('declared', 'inferred', 'observed', 'manual')",
             name="ck_relations_provenance_kind",
+        ),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_relations_tenant_id", ondelete="RESTRICT"
         ),
         _metadata_check("ck_relations_metadata_object"),
     )
@@ -147,7 +176,7 @@ def upgrade() -> None:
     op.create_table(
         "evidence",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("snapshot_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("relation_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("source", sa.String(length=1024), nullable=False),
@@ -157,7 +186,9 @@ def upgrade() -> None:
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
         ),
         sa.PrimaryKeyConstraint("id"),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_evidence_tenant_id_non_empty"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_evidence_tenant_id", ondelete="RESTRICT"
+        ),
         _metadata_check("ck_evidence_metadata_object"),
     )
     op.create_index("ix_evidence_snapshot", "evidence", ["tenant_id", "snapshot_id"])
@@ -258,3 +289,5 @@ def downgrade() -> None:
     op.drop_table("snapshots")
     op.drop_index("ix_projects_tenant_key", table_name="projects")
     op.drop_table("projects")
+    op.drop_index("ix_tenants_key", table_name="tenants")
+    op.drop_table("tenants")
