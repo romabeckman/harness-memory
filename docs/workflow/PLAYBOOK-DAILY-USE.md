@@ -1,104 +1,148 @@
 # Daily Use Playbook
 
-Use Harness Memory from Claude Code, Codex, Antigravity, or another MCP client to look up engineering context, assess changes, and publish verified project knowledge.
+Use Harness Memory as a two-boundary system: the **API** governs users, tokens, tenants,
+and CI/CD publication; the **MCP server** provides read-only engineering context to
+developers and agents.
 
-## Start the server
+For first-time installation, follow [SETUP.md](./SETUP.md). This playbook assumes the
+local or remote MCP endpoint and a valid token already exist.
 
-For local work, start PostgreSQL, migrations, and the MCP server with:
+## AUTHENTICATION MODEL
 
-```sh
-docker compose up --build
-```
+The API uses two credential classes:
 
-The local MCP endpoint is `http://localhost:8000/mcp`. Before first use, replace the example `MCP_ISSUER`, `MCP_JWKS_URI`, and `MCP_AUDIENCE` values in `docker-compose.yml` with your identity provider's settings. For a remote deployment, use its reachable HTTPS endpoint.
+| Credential | Scope | Use |
+| --- | --- | --- |
+| `API_ADMIN_TOKEN` | Management only | Create users, service accounts, and tokens. |
+| API-issued token | Persisted exact scopes | Read MCP data or publish through the API. |
 
-Configure the client with the endpoint and a bearer token. See the client examples in the root [README](../../README.md).
+MCP derives `sub` and tenant identity from the token owner. Never send `tenant_id` in a
+tool argument. Request only the scopes required for the task:
 
-## Obtain an access token
-
-Harness Memory does not issue tokens or provide a login page. Obtain an access token from the identity provider configured by `MCP_ISSUER` and `MCP_JWKS_URI`.
-
-1. Register an OAuth client or service identity in your identity provider.
-2. Grant the client only the Harness Memory scopes it needs.
-3. Use the provider's supported flow to request an access token. Use the client credentials flow for unattended service automation when your provider allows it; use your organization's interactive flow for developer sessions. The exact command and token endpoint depend on the provider.
-4. Configure the provider to issue `aud` matching `MCP_AUDIENCE`, a tenant identifier under the configured tenant claim, and the requested `scope` values. The provider must sign the JWT with RS256 and publish the matching public key through its JWKS endpoint.
-5. Keep the token private. Put it in your client's secret store or environment variable; do not commit it to the repository.
-
-The verified token needs a non-empty `sub`, a non-empty tenant claim, an accepted `iss` and `aud`, a valid expiry, and the scope claim. The default tenant claim is `tenant_id`; set `MCP_TENANT_CLAIM` when your provider uses another claim name.
-
-| Scope | Use |
+| Scope | Operations |
 | --- | --- |
-| `memory:read` | Search entities, read context, dependencies, paths, resources, and read prompts. |
-| `memory:impact` | Analyze changes and review impact. |
-| `memory:publish` | Publish project snapshots. |
+| `memory:read` | Search, context, dependencies, paths, environments, resources, and prompts. |
+| `memory:impact` | Analyze downstream consumers and change impact. |
+| `memory:publish` | REST publication only; MCP does not expose a write tool. |
 
-Send the token as `Authorization: Bearer <access-token>`. Client configuration steps for Claude Code, Codex, and Antigravity are in the root [README](../../README.md).
+## TOKEN TYPES AND BOUNDARIES
 
-## Read memory during a task
+The codebase has one persisted **API access-token model** and one separate configuration
+secret. “MCP token” describes where an API-issued token is used; it is not a third token
+class in the database.
 
-1. Search with `search_entities`. Supply at least one filter: entity `key`, name prefix, type, or project key. Use the returned entity UUID for follow-up calls.
-2. Call `get_context` to inspect project, owner, relations, provenance, and evidence.
-3. Call `get_dependencies` with `inbound`, `outbound`, or `both` to inspect direct dependency relations.
-4. Call `find_integration_paths` with source and target entity UUIDs to trace a cross-project connection.
-5. Call `analyze_impact` with the changed entity, change type, description, and affected fields before changing a shared contract or dependency.
+| Name | Where it is defined | Owner and tenant | Intended use |
+| --- | --- | --- | --- |
+| **User token** | `POST /v1/tokens` with `user_id`; stored in `tokens` | `User.id` is also the user tenant | Developer MCP reads and impact analysis; request an expiry. |
+| **MCP token** | No separate model; any active API token sent as `Authorization: Bearer` to `/mcp` | `DatabaseTokenVerifier` loads the stored owner and scopes | Read-only MCP catalog access according to persisted scopes. |
+| **Service-account token** | `POST /v1/tokens` with `service_account_id` | Immutable `ServiceAccount.tenant_id` | CI/CD publication with `memory:publish`; expiry may be omitted. |
+| **`API_ADMIN_TOKEN`** | Environment configuration, compared by `ApiSecurity` | No database owner or tenant | REST management routes only; never use it for MCP or publication. |
 
-Search returns entity identity, not relationship context. Search requires at least one filter. Follow `next_cursor` with the same filters when more results are available.
+The boundary is enforced in code: `api/server/app.py` applies `require_admin` to user,
+service-account, and token management routers; `ApiSecurity.require_publisher` performs
+an active database-token lookup and requires `memory:publish`; and
+`DatabaseTokenVerifier` copies only the scopes persisted on the API token into the MCP
+principal. `API_ADMIN_TOKEN` is not persisted and is not accepted by the MCP verifier.
 
-Review provenance and evidence before using a relationship to justify a decision. Treat an empty path as no known path in the active graph, not proof that no integration exists. Treat `unknowns` as knowledge gaps and `truncated: true` as incomplete analysis.
+REQUIRED: Use a user token with `memory:read` for interactive development.
+REQUIRED: Use a tenant-bound service-account token with `memory:publish` for CI/CD writes.
+PROHIBITED: Treat “MCP token” as an independent credential or use `API_ADMIN_TOKEN` in a
+client configuration.
 
-## Send project data to memory
+## READ MEMORY DURING DEVELOPMENT
 
-Use `publish_project_snapshot` after verifying a change in the project's source records. Publication replaces the project's active snapshot atomically; send the complete current project snapshot, not only the changed rows. The authenticated token supplies tenant identity. Never add `tenant_id` to the request.
+1. Start with `search_entities`. Supply `key`, `name_prefix`, `entity_type`, or
+   `project_key`; the query must include at least one filter.
+2. Pass a returned entity UUID to `get_context` to inspect ownership, relations,
+   provenance, and evidence.
+3. Use `get_dependencies` with `inbound`, `outbound`, or `both` for direct relations.
+4. Use `find_integration_paths` to trace a bounded route between two entity UUIDs.
+5. Call `analyze_impact` before changing a shared contract, API, library, or dependency.
+6. Use `get_environment` for one environment and `compare_environments` to inspect
+   added, removed, modified, and unchanged entity fingerprints.
 
-Call the tool with one `request` object. This example records an API-to-service dependency and links evidence to that relation:
+Search returns entity identity, not full relationship context. Follow `next_cursor` with
+the same filters when a page is truncated. Treat `unknowns` or `truncated: true` as
+missing evidence, never as proof that no impact exists.
 
-```json
+## REVIEW EVIDENCE
+
+- Confirm that the entity belongs to the expected project and tenant.
+- Read provenance and evidence before treating a relationship as authoritative.
+- Distinguish an empty path from an unavailable or truncated result.
+- Verify important relationships in the source repository or contract before publication.
+- Record the source, excerpt, and relation reference when publishing evidence.
+
+## PUBLISH PROJECT KNOWLEDGE
+
+Publish through `POST /v1/knowledge-publications` using a tenant-bound service-account
+token with exactly `memory:publish`. Do not call a publication MCP tool and do not write
+directly to PostgreSQL from a developer workflow.
+
+1. Collect the complete current entity, relation, and evidence set from the project.
+2. Choose a unique `deployment_id`, the target `environment`, and the artifact `version`.
+3. Send the payload through the API without `tenant_id` or `X-Tenant-ID`.
+4. Confirm the response status before retrying.
+
+```jsonc
+// CORRECT: REST publication owns tenant and environment governance
 {
-  "request": {
-    "schema_version": "1.0",
-    "project": {"key": "payments", "name": "Payments"},
-    "revision": 2,
-    "generated_at": "2026-09-20T12:00:00Z",
-    "entities": [
-      {"key": "payments-api", "type": "api", "name": "Payments API"},
-      {"key": "billing-service", "type": "service", "name": "Billing Service"}
-    ],
-    "relations": [
-      {
-        "ref": "payments-api-consumes-billing",
-        "source_entity_key": "payments-api",
-        "type": "consumes",
-        "target_entity_key": "billing-service",
-        "provenance": "declared"
-      }
-    ],
-    "evidence": [
-      {
-        "source": "openapi.yaml",
-        "excerpt": "Payments API calls Billing Service to create charges.",
-        "relation_ref": "payments-api-consumes-billing"
-      }
-    ]
-  }
+  "project_key": "payments",
+  "environment": "staging",
+  "deployment_id": "build-2026-09-21-001",
+  "version": "1.4.0",
+  "entities": [
+    {"key": "payments-api", "type": "api", "name": "Payments API"}
+  ],
+  "relations": [],
+  "evidence": []
 }
 ```
 
-Use a positive revision, an offset-aware `generated_at` timestamp, supported entity and relation types, and evidence references that match relation `ref` values. Include all current entities, relations, and evidence for the project. The full request is limited to 10 MiB.
+The first trusted publication provisions a missing project/environment pair. An equivalent
+retry returns `ALREADY_PUBLISHED`. Reusing a deployment ID with different facts returns
+`409 Conflict`; fix the payload or use a new deployment ID.
 
-Check the result before retrying. `ACTIVATED` means the new snapshot became active. `ALREADY_PUBLISHED` means the same revision and content were already published. A stale revision or a changed payload at the same revision needs correction before publishing again.
+## INTERPRET RESPONSES
 
-## Use workflow prompts
-
-Ask for `load_corporate_context` when starting work in an unfamiliar project. Use `analyze_integration` to trace a relationship and `review_change_impact` before a cross-project change. These prompts guide the assistant; the assistant still needs to call the tools and inspect their results.
-
-## Troubleshoot common responses
-
-| Result | Check |
+| Result | Meaning and next action |
 | --- | --- |
-| `401 Unauthorized` | Token expiry, issuer, audience, RS256 signing key, and JWKS URL. |
-| `403 Forbidden` | The token lacks the scope required by that tool or resource. |
-| No search results | Confirm a required filter and use the project's exact key or a name prefix. The entity may not exist in the active snapshot. |
-| Entity not found | Confirm the UUID came from current search results; stale and inaccessible entities are intentionally indistinguishable. |
-| `truncated: true` | The result is bounded. Narrow the query or raise supported limits, then rerun the analysis. |
+| `401 Unauthorized` | Token is missing, expired, revoked, or not recognized. Issue a new token. |
+| `403 Forbidden` | The token lacks the exact scope required by the operation. |
+| `404 Not Found` | The entity, environment, or snapshot is absent or outside the tenant. |
+| `409 Conflict` | Deployment identity was reused with different content. Do not overwrite silently. |
+| `422 Unprocessable Entity` | Correct unsupported entity/relation/provenance data or missing references. |
+| `truncated: true` | Narrow filters or inspect another bounded page before making a decision. |
 
-Never report "no impact" when required graph data is missing or the result is truncated. Verify a relationship in its source system before publishing it as project knowledge.
+Never report “no impact” when graph data is missing, unknown, or truncated.
+
+## LOCAL DEVELOPMENT LOOP
+
+1. Start or reuse the Compose stack from [SETUP.md](./SETUP.md).
+2. Query the current graph with a read-only `memory:read` token.
+3. Implement the change in the project repository.
+4. Run the matching unit, integration, and E2E tests.
+5. Publish a complete snapshot from CI/CD when the project state is verified.
+6. Compare staging and production, then run `analyze_impact` for changed shared entities.
+
+```bash
+# CORRECT: run the complete local test suite through the project virtual environment
+./venv/bin/python -m pytest -q -p no:cacheprovider
+```
+
+## TROUBLESHOOTING
+
+| Symptom | Check |
+| --- | --- |
+| Empty search page | Add a required filter, verify the project key, and check tenant ownership. |
+| Environment appears empty | Confirm the environment has an active snapshot and the token can read it. |
+| Modified content is not found | Compare the correct environment snapshots and inspect `modified_entities`. |
+| Publication is rejected | Validate enums, entity keys, relation endpoints, evidence references, and token scope. |
+| Client cannot connect | Confirm the `/mcp` URL, `Authorization` header, and server health endpoint. |
+
+## REFERENCES
+
+- [Developer Setup](./SETUP.md): first-time local installation and credential bootstrap.
+- [API README](../../api/README.md): management and publication route contracts.
+- [MCP README](../../harness_memory_mcp/README.md): catalog, resources, and authentication.
+- [Project README](../../README.md): architecture, commands, and client configuration.

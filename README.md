@@ -132,6 +132,10 @@ See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and 
 
 ## Getting Started
 
+For a community-friendly first run, follow the [developer setup guide](docs/workflow/SETUP.md)
+and then use the [daily-use playbook](docs/workflow/PLAYBOOK-DAILY-USE.md). It covers local
+credentials, read-only MCP access, governed API publication, and the test loop.
+
 ### Requirements
 
 - Docker
@@ -153,7 +157,7 @@ PostgreSQL
     ↓
 Alembic migrations
     ↓
-MCP server
+REST API and MCP server
 ```
 
 The MCP server is exposed at:
@@ -161,6 +165,8 @@ The MCP server is exposed at:
 ```text
 http://localhost:8000
 ```
+
+The REST API is exposed at `http://localhost:8080`; use `/health` for a readiness check.
 
 ### Stop the services
 
@@ -177,7 +183,7 @@ docker compose down -v
 > This permanently removes the local database data stored by Docker Compose.
 
 The production image runs as `appuser` (UID `10001`). The `migrate` service runs
-`alembic upgrade head` before the MCP service accepts traffic. The server checks
+`alembic upgrade head` before the API and MCP services accept traffic. The server checks
 that the database revision equals Alembic `head`; it never runs implicit migrations.
 
 ## Database Migrations
@@ -261,7 +267,8 @@ The Compose configuration enables database authentication with
 `Authorization: Bearer <API_ADMIN_TOKEN>`. Create a user through
 `POST http://localhost:8080/v1/users`, then create its token through
 `POST http://localhost:8080/v1/tokens` and request only the required scopes. Save the
-plaintext token returned once by the creation response.
+plaintext token returned once by the creation response. The complete bootstrap sequence
+is in the [developer setup guide](docs/workflow/SETUP.md).
 
 For automation, create a tenant-bound service account through `POST /v1/service-accounts`,
 then issue its token through `POST /v1/tokens` with `service_account_id`. Omit `expires_at`
