@@ -125,6 +125,7 @@ Example `.harness-memory.json`:
 
 ```json
 {
+  "agent": "codex-cli",
   "model": "gpt-5",
   "effort": "high",
   "environment": "production",
@@ -136,7 +137,6 @@ Example `.harness-memory.json`:
   "repository": ".",
   "baseRef": "origin/main",
   "headRef": "HEAD",
-  "llmCommand": "codex",
   "timeout": 600,
   "maxFiles": 2000,
   "maxBytes": 10485760,
@@ -164,7 +164,8 @@ When values are absent, the resolver uses these fallbacks:
 
 | Flag | Environment variable | Required | Description |
 | --- | --- | --- | --- |
-| `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the LLM command. |
+| `--agent` | `HARNESS_MEMORY_AGENT` | No | Runner: `codex-cli` or `claude-cli`. Default: `codex-cli`. |
+| `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the selected runner. |
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Stable project identifier. |
@@ -175,7 +176,7 @@ When values are absent, the resolver uses these fallbacks:
 | `--repository` | `HARNESS_MEMORY_REPOSITORY` | No | Repository path. Default: `.`. |
 | `--base-ref` | `HARNESS_MEMORY_BASE_REF` | No | Git ref used to calculate the diff. |
 | `--head-ref` | `HARNESS_MEMORY_HEAD_REF` | No | Git ref to publish. Default: `HEAD`. |
-| `--llm-command` | `HARNESS_MEMORY_LLM_COMMAND` | No | LLM executable. Default: `codex`. |
+| `--llm-command` | `HARNESS_MEMORY_LLM_COMMAND` | No | Executable override for the selected runner. |
 | `--config` | `HARNESS_MEMORY_CONFIG` | No | JSON configuration path. |
 | `--timeout` | `HARNESS_MEMORY_TIMEOUT` | No | LLM timeout in seconds, from 1 to 3,600. |
 | `--max-files` | `HARNESS_MEMORY_MAX_FILES` | No | Maximum tracked files loaded into context. |
@@ -242,7 +243,7 @@ node sdk/dist/cli/index.js publish \
   --dry-run
 ```
 
-The child LLM process receives a sanitized environment. Variables whose names contain `TOKEN`, `SECRET`, `PASSWORD`, `KEY`, or `AUTH` are removed. The LLM must write one JSON graph document to stdout. Markdown fences, explanatory text, or empty stdout fail validation.
+The child LLM process receives a sanitized environment. Variables whose names contain `TOKEN`, `SECRET`, `PASSWORD`, `KEY`, or `AUTH` are removed. The selected runner extracts one final response, which must contain a JSON graph document. Markdown fences, explanatory text, or empty output fail validation.
 
 ## Graph contract
 
@@ -350,6 +351,7 @@ const result = await publisher.execute({
   environment: "production",
   deploymentId: "deploy-123",
   version: "v1.2.3",
+  agent: "codex-cli",
   model: "gpt-5",
   effort: "high",
   headRef: "HEAD",

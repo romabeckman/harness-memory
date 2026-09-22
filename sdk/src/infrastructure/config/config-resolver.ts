@@ -2,8 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
+import { DEFAULT_LLM_AGENT, isLlmAgentType } from "../../domain/llm-agent.js";
 
 const ALLOWED_FLAGS = new Set([
+  "--agent",
   "--model",
   "--effort",
   "--environment",
@@ -60,6 +62,17 @@ export class ConfigResolver {
       env.HARNESS_MEMORY_MODEL ||
       fileConfig.model ||
       "";
+
+    const agent =
+      parsedCli["--agent"] ||
+      env.HARNESS_MEMORY_AGENT ||
+      fileConfig.agent ||
+      DEFAULT_LLM_AGENT;
+    if (!isLlmAgentType(agent)) {
+      throw new ConfigurationError(
+        `agent must be one of: codex-cli, claude-cli; received '${agent}'`
+      );
+    }
 
     const effort =
       (parsedCli["--effort"] ||
@@ -134,8 +147,7 @@ export class ConfigResolver {
     const llmCommand =
       parsedCli["--llm-command"] ||
       env.HARNESS_MEMORY_LLM_COMMAND ||
-      fileConfig.llmCommand ||
-      "codex";
+      fileConfig.llmCommand;
 
     const rawTimeout =
       parsedCli["--timeout"] ||
@@ -180,6 +192,7 @@ export class ConfigResolver {
     const outputFormat = outputRaw === "text" ? "text" : "json";
 
     return {
+      agent,
       model,
       effort,
       environment,

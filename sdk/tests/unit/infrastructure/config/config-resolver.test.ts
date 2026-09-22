@@ -32,6 +32,50 @@ describe("ConfigResolver", () => {
     expect(config.deploymentId).toBe("deploy-123");
     expect(config.version).toBe("v1.0.0");
     expect(config.dryRun).toBe(true);
+    expect(config.agent).toBe("codex-cli");
+    expect(config.llmCommand).toBeUndefined();
+  });
+
+  it("selects an agent runner from CLI arguments independently of the model", () => {
+    const config = resolver.resolve(
+      [
+        "--agent", "claude-cli",
+        "--model", "gpt-5",
+        "--effort", "high",
+        "--environment", "staging",
+        "--project-key", "payments",
+        "--deployment-id", "deploy-123",
+        "--version", "v1.0.0",
+        "--dry-run",
+      ],
+      {}
+    );
+
+    expect(config.agent).toBe("claude-cli");
+    expect(config.model).toBe("gpt-5");
+  });
+
+  it("resolves the agent runner from environment when CLI flag is absent", () => {
+    const config = resolver.resolve(
+      [
+        "--model", "gpt-5",
+        "--effort", "high",
+        "--environment", "staging",
+        "--project-key", "payments",
+        "--deployment-id", "deploy-123",
+        "--version", "v1.0.0",
+        "--dry-run",
+      ],
+      { HARNESS_MEMORY_AGENT: "claude-cli" }
+    );
+
+    expect(config.agent).toBe("claude-cli");
+  });
+
+  it("rejects unsupported agent runner names", () => {
+    expect(() => resolver.resolve(["--agent", "unknown-cli"], {})).toThrow(
+      ConfigurationError
+    );
   });
 
   it("rejects unknown flags with ConfigurationError", () => {

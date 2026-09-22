@@ -6,6 +6,8 @@ import {
   LlmInvocationOptions,
   LlmRunnerPort,
 } from "../../application/ports/llm-runner.port.js";
+import { DEFAULT_LLM_AGENT } from "../../domain/llm-agent.js";
+import { AgentRunnerFactory } from "./agent-runner-factory.js";
 
 const MAX_STDOUT_BYTES = 50 * 1024 * 1024;
 const MAX_STDERR_BYTES = 1 * 1024 * 1024;
@@ -15,8 +17,11 @@ export interface ExtendedLlmInvocationOptions extends LlmInvocationOptions {
 }
 
 export class LocalLlmRunner implements LlmRunnerPort {
+  constructor(private readonly agentRunnerFactory = new AgentRunnerFactory()) {}
+
   public async run(options: ExtendedLlmInvocationOptions): Promise<GraphDocument> {
-    let execPath = options.llmCommand.trim();
+    const agentRunner = this.agentRunnerFactory.create(options.agent ?? DEFAULT_LLM_AGENT);
+    let execPath = options.llmCommand?.trim() || agentRunner.command;
     let baseArgs: string[] = [];
 
     if (!existsSync(execPath)) {
@@ -31,13 +36,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
       }
     }
 
-    const args = options.commandArgs ?? [
-      ...baseArgs,
-      "--model",
-      options.model,
-      "--effort",
-      options.effort,
-    ];
+    const args = options.commandArgs ?? [...baseArgs, ...agentRunner.buildArgs(options)];
 
     // Minimal sanitized environment strictly excluding tokens and secrets
     const safeEnv: Record<string, string> = {};
@@ -149,7 +148,16 @@ export class LocalLlmRunner implements LlmRunnerPort {
           );
         }
 
-        const trimmed = stdout.trim();
+        let trimmed: string;
+        try {
+          trimmed = agentRunner.parseOutput(stdout).trim();
+        } catch (err: any) {
+          return reject(
+            err instanceof LlmExecutionError
+              ? err
+              : new LlmExecutionError(`Failed to read ${agentRunner.type} output`)
+          );
+        }
         if (!trimmed) {
           return reject(new LlmExecutionError("LLM process emitted empty stdout"));
         }

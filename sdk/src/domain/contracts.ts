@@ -1,3 +1,5 @@
+import { LlmAgentType } from "./llm-agent.js";
+
 export const ALLOWED_ENTITY_TYPES = [
   "project",
   "system",
@@ -69,6 +71,7 @@ export interface PublishSnapshotOptions {
   environment: string;
   deploymentId: string;
   version: string;
+  agent?: LlmAgentType;
   model: string;
   effort: "low" | "medium" | "high" | "xhigh";
   baseRef?: string;

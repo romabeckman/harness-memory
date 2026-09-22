@@ -110,6 +110,7 @@ describe("PublishSnapshotUseCase", () => {
       environment: "staging",
       deploymentId: "dep-1",
       version: "1.0.0",
+      agent: "claude-cli",
       model: "gpt-5",
       effort: "high",
       headRef: "HEAD",
@@ -119,6 +120,9 @@ describe("PublishSnapshotUseCase", () => {
     });
 
     expect(result.status).toBe("ACTIVATED");
+    expect(mockLlm.run).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: "claude-cli", model: "gpt-5" })
+    );
     expect(mockClient.publish).toHaveBeenCalledWith(
       expect.objectContaining({
         apiUrl: "https://api.example.com",

@@ -27,19 +27,28 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
   "entrypoints": ["sdk/src/cli/index.ts", "sdk/src/index.ts"],
-  "registration_files": ["sdk/package.json", "sdk/src/cli/cli-app.ts"],
+  "registration_files": [
+    "sdk/package.json",
+    "sdk/src/cli/cli-app.ts",
+    "sdk/src/infrastructure/llm/agent-runner-factory.ts"
+  ],
   "reference_files": [
     "sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts",
     "sdk/src/infrastructure/api/rest-publication-client.ts",
     "sdk/src/infrastructure/validator/graph-validator.ts"
   ],
   "code_files": [
+    "sdk/src/application/ports/llm-runner.port.ts",
     "sdk/src/application/ports/publication-client.port.ts",
     "sdk/src/domain/contracts.ts",
     "sdk/src/domain/exit-code.ts",
+    "sdk/src/domain/llm-agent.ts",
     "sdk/src/domain/publisher-error.ts",
     "sdk/src/infrastructure/config/config-resolver.ts",
     "sdk/src/infrastructure/git/git-context-collector.ts",
+    "sdk/src/infrastructure/llm/llm-agent-runner.ts",
+    "sdk/src/infrastructure/llm/codex-cli-runner.ts",
+    "sdk/src/infrastructure/llm/claude-cli-runner.ts",
     "sdk/src/infrastructure/llm/local-llm-runner.ts"
   ],
   "test_files": [
@@ -47,6 +56,9 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/tests/unit/cli/cli-app.test.ts",
     "sdk/tests/unit/infrastructure/api/rest-publication-client.test.ts",
     "sdk/tests/unit/infrastructure/git/git-context-collector.test.ts",
+    "sdk/tests/unit/infrastructure/llm/agent-runner-factory.test.ts",
+    "sdk/tests/unit/infrastructure/llm/codex-cli-runner.test.ts",
+    "sdk/tests/unit/infrastructure/llm/claude-cli-runner.test.ts",
     "sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts",
     "sdk/tests/unit/infrastructure/validator/graph-validator.test.ts",
     "sdk/tests/integration/child-process-llm.test.ts",
@@ -75,7 +87,7 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Git Context Collector**: Collects diff between `baseRef` and `headRef`. Prevents symlink breakouts (`lstatSync`/`realpathSync`) and checks cumulative heap bounds (`maxBytes`) before loading files.
-- **Local LLM Runner**: Invokes local model command (`codex`). Sanitizes environment and stdin secrets; streams payload chunks with `drain` backpressure handling.
+- **LLM Agent Runners**: `--agent` selects the Codex or Claude CLI adapter. `--model` remains independent; each adapter builds its own command arguments and extracts its final response. The shared process runner sanitizes child environments and streams payload chunks with backpressure handling.
 - **Graph Validator**: Validates payload against Schema 1.0, checks non-empty collections, and calculates deterministic canonical SHA-256 (`payload_sha256`).
 - **REST Publication Client**: Posts snapshots to `POST /v1/knowledge-publications` with bearer token (`memory:publish`). Handles backoff with jitter on 429/5xx, timeouts, and idempotent activations (201/200).
 - **Exit Code Protocol**: Maps domain exceptions to stable CLI exit codes (0, 2..8, 130).
@@ -83,11 +95,11 @@ sdk/
 ## HOW TO PUBLISH SNAPSHOTS
 
 ### Prerequisites
-1. Node.js 20+ with local LLM (`codex`) in path.
+1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
 2. Token with `memory:publish` in `HARNESS_MEMORY_API_TOKEN`.
 
 ### Steps
-1. Set configuration flags or environment variables.
+1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
 2. Run publication via CLI or programmatic use case.
 
 ```typescript

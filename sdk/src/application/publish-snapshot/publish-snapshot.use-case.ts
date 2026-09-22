@@ -4,6 +4,7 @@ import { GitContextCollectorPort } from "../ports/git-context-collector.port.js"
 import { LlmRunnerPort } from "../ports/llm-runner.port.js";
 import { GraphValidatorPort } from "../ports/graph-validator.port.js";
 import { PublicationClientPort } from "../ports/publication-client.port.js";
+import { DEFAULT_LLM_AGENT } from "../../domain/llm-agent.js";
 
 export class PublishSnapshotUseCase {
   constructor(
@@ -25,9 +26,10 @@ export class PublishSnapshotUseCase {
     });
 
     const rawDocument = await this.llmRunner.run({
+      agent: options.agent ?? DEFAULT_LLM_AGENT,
       model: options.model,
       effort: options.effort,
-      llmCommand: options.llmCommand ?? "codex",
+      llmCommand: options.llmCommand,
       timeoutSeconds: options.timeout ?? 600,
       projectKey: options.projectKey,
       environment: options.environment,
