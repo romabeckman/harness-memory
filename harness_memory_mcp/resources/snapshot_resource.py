@@ -31,7 +31,7 @@ def register_snapshot_resource(
         try:
             context = tenant_context.require_scope("memory:read")
             request = SnapshotResourceInput(snapshot_id=snapshot_id)
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

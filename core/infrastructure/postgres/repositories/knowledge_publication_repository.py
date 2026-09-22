@@ -4,6 +4,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from core.application.snapshot_publication.services.payload_hash_calculator import (
+    PayloadHashCalculator,
+)
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.domain.environment.value_objects.environment_name import EnvironmentName
 from core.domain.knowledge_publication.aggregates.knowledge_publication import (
     KnowledgePublication as DomainKnowledgePublication,
@@ -20,16 +24,17 @@ from core.infrastructure.postgres.models.knowledge_publication import (
     KnowledgePublication as ModelKnowledgePublication,
 )
 from core.infrastructure.postgres.models.project import Project as ModelProject
-from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import SnapshotPersistenceMapper
-from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.infrastructure.postgres.models.snapshot import Snapshot as ModelSnapshot
-from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
+from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import (
+    SnapshotPersistenceMapper,
+)
 
 
 class PostgresKnowledgePublicationRepository:
-    def load_latest_graph(self, project_key: str, environment: str, tenant_id: str) -> dict:
+    def load_latest_graph(self, project_key: str, environment: str,
+                          tenant_id: str | None = None) -> dict:
         with self._session_factory() as session:
-            row = session.scalars(
+            statement = (
                 select(ModelSnapshot)
                 .join(ModelEnvironment,
                     (ModelEnvironment.current_snapshot_id == ModelSnapshot.id)
@@ -39,13 +44,24 @@ class PostgresKnowledgePublicationRepository:
                 .join(ModelProject,
                     (ModelProject.id == ModelSnapshot.project_id)
                     & (ModelProject.tenant_id == ModelSnapshot.tenant_id))
-                .where(ModelSnapshot.tenant_id == tenant_id,
-                    ModelProject.key == project_key, ModelEnvironment.name == environment)
-            ).first()
-            if row is None:
+                .where(ModelProject.key == project_key, ModelEnvironment.name == environment)
+            )
+            if tenant_id is not None:
+                statement = statement.where(ModelSnapshot.tenant_id == tenant_id)
+            rows = session.scalars(statement).all()
+            if not rows:
                 raise LookupError("publication baseline not found")
-            return {"snapshot_id": str(row.id), "payload_hash": row.payload_hash,
-                "graph": {key: row.payload[key] for key in ("schema_version", "entities", "relations", "evidence")}}
+            if len(rows) > 1:
+                raise ValueError("publication baseline matches multiple tenants; provide tenant_id")
+            row = rows[0]
+            return {
+                "snapshot_id": str(row.id),
+                "payload_hash": row.payload_hash,
+                "graph": {
+                    key: row.payload[key]
+                    for key in ("schema_version", "entities", "relations", "evidence")
+                },
+            }
 
     def __init__(
         self,

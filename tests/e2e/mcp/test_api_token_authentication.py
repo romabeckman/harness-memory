@@ -144,3 +144,49 @@ def test_service_account_token_authenticates_with_its_bound_tenant():
         )
 
     assert response.status_code == 200
+
+
+def test_admin_mcp_authenticates_without_tenant_header():
+    audit_repository = SimpleNamespace(
+        append=lambda record: AppendResult(record.event_id)
+    )
+    settings = RuntimeSettings(
+        mcp_issuer="https://issuer.example",
+        mcp_jwks_uri="https://issuer.example/jwks",
+        mcp_audience="harness-memory",
+        mcp_production=True,
+    )
+    server = create_mcp_server(
+        settings, production=True,
+        token_verifier=DatabaseTokenVerifier(Mock(), admin_token="admin-secret"),
+        audit_repository=audit_repository, handler=Mock(), verify_schema=False,
+    )
+    request = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+               "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                          "clientInfo": {"name": "admin-test", "version": "1"}}}
+    with TestClient(server.http_app()) as client:
+        response = client.post(
+            "/mcp", headers={"Authorization": "Bearer admin-secret"}, json=request
+        )
+    assert response.status_code == 200
+
+
+def test_admin_mcp_authenticates_in_jwt_mode():
+    settings = RuntimeSettings(
+        mcp_issuer="https://issuer.example",
+        mcp_jwks_uri="https://issuer.example/jwks",
+        mcp_audience="harness-memory",
+        mcp_production=True,
+        api_admin_token="admin-secret",
+    )
+    server = create_mcp_server(
+        settings, production=True,
+        audit_repository=SimpleNamespace(append=lambda record: AppendResult(record.event_id)),
+        handler=Mock(), verify_schema=False,
+    )
+    with TestClient(server.http_app()) as client:
+        response = client.post("/mcp", headers={"Authorization": "Bearer admin-secret"},
+            json={"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                  "params": {"protocolVersion": "2025-03-26", "capabilities": {},
+                             "clientInfo": {"name": "jwt-admin-test", "version": "1"}}})
+    assert response.status_code == 200

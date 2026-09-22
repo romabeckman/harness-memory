@@ -9,6 +9,19 @@ from api.domain.entities.user import User
 from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
 
 
+def test_admin_token_is_global_and_keeps_all_mcp_scopes():
+    repository = Mock()
+    verified = asyncio.run(
+        DatabaseTokenVerifier(repository, admin_token="admin-secret").verify_token(
+            "admin-secret"
+        )
+    )
+    assert verified.claims["tenant_id"] == "*"
+    assert verified.claims["is_admin"] is True
+    assert set(verified.scopes) == {"memory:read", "memory:impact", "memory:publish"}
+    repository.find_active_by_hash.assert_not_called()
+
+
 def test_database_token_verifier_maps_active_api_token_to_mcp_identity():
     user = User(uuid4(), "Ada", "ada@example.com")
     stored = DomainAccessToken(

@@ -27,7 +27,8 @@ def register_get_environment(
     def get_environment(
         project_key: Annotated[str, Field(description="Key of the project to inspect.")],
         environment: Annotated[
-            str, Field(description="Name of the environment (e.g. development, staging, production).")
+            str,
+            Field(description="Environment name, such as development, staging, or production."),
         ],
     ):
         try:
@@ -35,7 +36,7 @@ def register_get_environment(
             input_data = GetEnvironmentInput(
                 project_key=project_key,
                 environment_name=environment,
-                tenant_id=ctx.tenant_id,
+                tenant_id=None if ctx.is_admin else ctx.tenant_id,
             )
             result = handler.execute(input_data)
             return {

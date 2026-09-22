@@ -21,7 +21,7 @@ The SDK is the deterministic publication client. MCP is the read-only interface 
 - A Git repository.
 - A local LLM command. The default command is `codex`.
 - A running Harness Memory API for a real publication.
-- An active tenant-bound service-account token with the exact `memory:publish` scope.
+- An active tenant-bound user or service-account token with `memory:publish`.
 
 For local development, start the API from the repository root with Docker Compose:
 
@@ -54,7 +54,7 @@ The compiled CLI is `sdk/dist/cli/index.js`. To use the command name locally aft
 cd sdk
 npm link
 cd ..
-harness-memory publish \
+hrns-memo publish \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -69,7 +69,7 @@ harness-memory publish \
 Set the publication token in the environment. Never put it in a command argument, config file, source file, or log.
 
 ```bash
-export HARNESS_MEMORY_API_TOKEN='replace-with-service-account-token'
+export HARNESS_MEMORY_API_KEY='replace-with-issued-token'
 
 node sdk/dist/cli/index.js publish \
   --model gpt-5 \
@@ -133,7 +133,7 @@ Example `.harness-memory.json`:
   "deploymentId": "deploy-123",
   "version": "v1.2.3",
   "apiUrl": "https://memory.example.com",
-  "tokenEnv": "HARNESS_MEMORY_API_TOKEN",
+  "tokenEnv": "HARNESS_MEMORY_API_KEY",
   "repository": ".",
   "baseRef": "origin/main",
   "headRef": "HEAD",
@@ -154,7 +154,7 @@ When values are absent, the resolver uses these fallbacks:
 - `base-ref`: `CI_MERGE_REQUEST_DIFF_BASE_SHA`, then `GITHUB_BASE_REF`.
 - `head-ref`: `HEAD`.
 - `llm-command`: `codex`.
-- `token-env`: `HARNESS_MEMORY_API_TOKEN`.
+- `token-env`: `HARNESS_MEMORY_API_KEY`. Legacy `HARNESS_MEMORY_API_TOKEN` remains a fallback.
 - `timeout`: 600 seconds.
 - `max-files`: 2,000.
 - `max-bytes`: 10,485,760 bytes.
@@ -172,7 +172,7 @@ When values are absent, the resolver uses these fallbacks:
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | CI deployment execution identifier. |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version or commit identifier. |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Real publish only | API origin. |
-| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Environment variable containing token. Default: `HARNESS_MEMORY_API_TOKEN`. |
+| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Environment variable containing token. Default: `HARNESS_MEMORY_API_KEY`. |
 | `--repository` | `HARNESS_MEMORY_REPOSITORY` | No | Repository path. Default: `.`. |
 | `--base-ref` | `HARNESS_MEMORY_BASE_REF` | No | Git ref used to calculate the diff. |
 | `--head-ref` | `HARNESS_MEMORY_HEAD_REF` | No | Git ref to publish. Default: `HEAD`. |
@@ -199,7 +199,7 @@ The publication step is independent of the CI provider. The pipeline must provid
 - name: Publish Harness Memory snapshot
   env:
     HARNESS_MEMORY_API_URL: ${{ secrets.HARNESS_MEMORY_API_URL }}
-    HARNESS_MEMORY_API_TOKEN: ${{ secrets.HARNESS_MEMORY_API_TOKEN }}
+    HARNESS_MEMORY_API_KEY: ${{ secrets.HARNESS_MEMORY_API_KEY }}
     HARNESS_MEMORY_ENVIRONMENT: production
     HARNESS_MEMORY_PROJECT_KEY: payments
     HARNESS_MEMORY_DEPLOYMENT_ID: ${{ github.run_id }}
@@ -332,10 +332,10 @@ import {
 } from "@harness-memory/sdk";
 
 const apiUrl = process.env.HARNESS_MEMORY_API_URL;
-const token = process.env.HARNESS_MEMORY_API_TOKEN;
+const token = process.env.HARNESS_MEMORY_API_KEY;
 
 if (!apiUrl || !token) {
-  throw new Error("HARNESS_MEMORY_API_URL and HARNESS_MEMORY_API_TOKEN are required");
+  throw new Error("HARNESS_MEMORY_API_URL and HARNESS_MEMORY_API_KEY are required");
 }
 
 const publisher = new PublishSnapshotUseCase(

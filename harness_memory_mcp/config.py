@@ -39,6 +39,7 @@ class RuntimeSettings(BaseSettings):
     mcp_host: str = "127.0.0.1"
     mcp_port: int = 8000
     database_url: SecretStr | None = None
+    api_admin_token: SecretStr | None = None
     mcp_issuer: AnyHttpUrl | None = None
     mcp_jwks_uri: AnyHttpUrl | None = None
     mcp_audience: str | None = None

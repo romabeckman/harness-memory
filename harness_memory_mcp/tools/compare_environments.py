@@ -20,7 +20,8 @@ def register_compare_environments(
     @server.tool(
         name="compare_environments",
         description=(
-            "Compare current snapshots between two environments of a project (e.g. staging vs production) "
+            "Compare current snapshots between two project environments "
+            "(e.g. staging vs production) "
             "to identify added, removed, and unchanged entities. Requires memory:read."
         ),
     )
@@ -33,7 +34,8 @@ def register_compare_environments(
             str, Field(description="Target environment name (e.g. production).")
         ],
         limit: Annotated[
-            int, Field(description="Maximum number of entities per list to return (bounds payload).")
+            int,
+            Field(description="Maximum entities per list to return (bounds payload)."),
         ] = 500,
         offset: Annotated[
             int, Field(description="Offset for pagination.")
@@ -45,7 +47,7 @@ def register_compare_environments(
                 project_key=project_key,
                 source_environment=source_environment,
                 target_environment=target_environment,
-                tenant_id=ctx.tenant_id,
+                tenant_id=None if ctx.is_admin else ctx.tenant_id,
                 limit=limit,
                 offset=offset,
             )

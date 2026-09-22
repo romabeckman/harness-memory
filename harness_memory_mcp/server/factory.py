@@ -49,6 +49,7 @@ from harness_memory_mcp.services.component_scope_policy import (
     component_scope_auth,
 )
 from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.services.admin_token_verifier import AdminTokenVerifier
 from harness_memory_mcp.services.security_audit_middleware import (
     AuditingTokenVerifier,
     SecurityAuditMiddleware,
@@ -129,7 +130,8 @@ def create_mcp_server(
                 postgres = PostgresSettings(database_url=settings.database_url)
                 engine = PostgresEngineFactory.create(postgres)
                 api_token_repository = ApiTokenRepository(engine=engine)
-            auth_provider = DatabaseTokenVerifier(api_token_repository)
+            auth_provider = DatabaseTokenVerifier(api_token_repository,
+                admin_token=settings.api_admin_token.get_secret_value() if settings.api_admin_token else None)
         else:
             auth_provider = JWTVerifier(
                 jwks_uri=str(settings.mcp_jwks_uri),
@@ -138,6 +140,9 @@ def create_mcp_server(
                 algorithm="RS256",
             )
             auth_provider.logger.disabled = True
+            if settings.api_admin_token:
+                auth_provider = AdminTokenVerifier(
+                    auth_provider, settings.api_admin_token.get_secret_value())
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )

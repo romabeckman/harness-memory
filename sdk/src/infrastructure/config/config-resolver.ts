@@ -120,9 +120,10 @@ export class ConfigResolver {
       parsedCli["--token-env"] ||
       env.HARNESS_MEMORY_TOKEN_ENV ||
       fileConfig.tokenEnv ||
-      "HARNESS_MEMORY_API_TOKEN";
+      "HARNESS_MEMORY_API_KEY";
 
-    const token = env[tokenEnv] || undefined;
+    const token = env[tokenEnv] ||
+      (tokenEnv === "HARNESS_MEMORY_API_KEY" ? env.HARNESS_MEMORY_API_TOKEN : undefined);
 
     const repository =
       parsedCli["--repository"] ||

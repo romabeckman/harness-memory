@@ -40,23 +40,22 @@ persisted credential type.
 
 | Credential | Source and storage | Identity and lifetime | Allowed boundary |
 | --- | --- | --- | --- |
-| **User token** | `POST /v1/tokens` with `user_id`; stored as a SHA-256 digest in `tokens` | Owner is `User`; `User.id` supplies tenant identity; expiration is required | MCP reads/impact according to exact scopes; never REST management |
-| **Service-account token** | `POST /v1/tokens` with `service_account_id`; stored in `tokens` | Owner is `ServiceAccount`; immutable `tenant_id`; expiration may be omitted | CI/CD publication with `memory:publish`; MCP reads only when registered scopes permit |
+| **User token** | `POST /v1/tokens` with `user_id`; stored as a SHA-256 digest in `tokens` | Owner is `User`; its tenant binding supplies tenant identity; expiration is required | Tenant data reads and publication according to scopes; never REST management |
+| **Service-account token** | `POST /v1/tokens` with `service_account_id`; stored in `tokens` | Owner is `ServiceAccount`; immutable `tenant_id`; expiration may be omitted | Same eligible permissions as user tokens, according to scopes; never REST management |
 | **MCP token** | No separate model; an active API token presented to `/mcp` | `DatabaseTokenVerifier` loads owner, expiry, and persisted scopes | Read-only tools, resources, and prompts through `ComponentScopePolicy` |
-| **`API_ADMIN_TOKEN`** | Environment variable passed to the API; never persisted in PostgreSQL | Compared with constant-time `compare_digest`; no owner or tenant | User, service-account, and token management routes only |
+| **`API_ADMIN_TOKEN`** | Environment variable passed to API and MCP; never persisted in PostgreSQL | Compared with constant-time `compare_digest`; no owner or tenant | All REST privileges and cross-tenant data access; MCP component scope checks remain |
 
 REQUIRED: Request the smallest valid scope set: `memory:read` for exploration,
-`memory:impact` for impact analysis, and `memory:publish` only for the REST publication
-pipeline.
-PROHIBITED: Treat `API_ADMIN_TOKEN` as an MCP token or send it to the publication route.
+`memory:impact` for impact analysis, and `memory:publish` for complete REST publication.
+ALLOWED: Use `API_ADMIN_TOKEN` for cross-tenant reads and REST management. Publication body `tenant_id` selects only the write destination.
 PROHIBITED: Assume that “MCP token” grants publication; the MCP catalog has no publication
 registration and its scope matrix denies unmapped components.
 
 ## AUTHENTICATION AND AUTHORIZATION
 
 1. `api/server/app.py` applies `ApiSecurity.require_admin` to management routers.
-2. `ApiSecurity.require_publisher` hashes the bearer value, loads an active token and
-   owner, checks `memory:publish`, and derives the tenant from the owner.
+2. `ApiSecurity` accepts the admin token globally or hashes an ordinary bearer, loads its
+   active owner, checks the operation scope, and derives its tenant.
 3. `DatabaseTokenVerifier` performs the same active digest/owner lookup for MCP and copies
    only the token’s persisted scopes into the MCP principal.
 4. `ComponentScopePolicy` maps every public MCP tool, resource, and prompt to
@@ -64,22 +63,23 @@ registration and its scope matrix denies unmapped components.
 
 REQUIRED: Reject missing, blank, unknown, deleted, or expired bearer credentials with
 `401`; return `403` for a known principal without the required scope.
-REQUIRED: Keep tenant identity in the authenticated principal and apply it in repository
-predicates; do not accept tenant identity from request bodies, URI arguments, or headers.
+REQUIRED: Keep ordinary-token tenant identity in the authenticated principal and apply it
+in repository predicates. Admin data reads span tenants without tenant headers.
 
 ## TENANT AND DATA ISOLATION
 
-- **User access** derives tenant identity from the user UUID.
+- **User access** derives tenant identity from the user's tenant binding.
 - **Service-account access** derives tenant identity from its immutable service-account
   binding; create another account to publish to another tenant.
-- **Graph reads and writes** carry tenant predicates across projects, environments,
-  snapshots, entities, relations, evidence, and token-owner lookups.
+- **Ordinary graph reads and writes** carry tenant predicates across projects,
+  environments, snapshots, entities, relations, evidence, and token-owner lookups.
+- **Admin graph reads** span tenants. Admin publication supplies the destination tenant.
 - **Not-found responses** must not reveal whether an identifier exists in another tenant.
 
 REQUIRED: Keep publication, environment promotion, and snapshot facts in one tenant-scoped
 transaction.
-PROHIBITED: Trust `X-Tenant-ID`, `tenant_id` payload fields, or a default tenant as
-authorization.
+PROHIBITED: Trust caller-supplied `tenant_id` as authorization for ordinary tokens. Only
+the verified admin token may choose the publication destination; this does not limit its reads.
 
 ## SECRET AND TOKEN PROTECTION
 

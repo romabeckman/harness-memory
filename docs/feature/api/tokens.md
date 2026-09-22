@@ -101,9 +101,9 @@ PROHIBITED: Accept a second owner or silently select an owner.
 
 ## MCP HANDOFF
 
-The token repository locates active records by digest and expiry. User ownership supplies
-the user UUID as tenant identity; service-account ownership supplies its assigned tenant
-UUID. The verifier grants only persisted scopes; it never expands them implicitly.
+The token repository locates active records by digest and expiry. Either owner's tenant
+binding supplies tenant identity. User and service-account tokens have the same eligible
+scopes. The verifier grants only persisted scopes; it never expands them implicitly.
 
 ## DOCUMENT MAP
 

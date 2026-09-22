@@ -122,7 +122,7 @@ tests/unit/                # Unit test suites across domain, application, infra,
 
 ### Prerequisites
 1. Use an authenticated MCP identity for environment reads.
-2. Use a tenant-bound service-account token with exactly `memory:publish` for publication.
+2. Use a tenant-bound user or service-account token with `memory:publish` for publication.
 3. Let the first trusted publication create the target project/environment when absent.
 
 ### Steps
@@ -151,7 +151,7 @@ REQUIRED: Scope all operations to a verified tenant context.
 REQUIRED: Execute snapshot promotion and publication recording in an atomic transaction.
 REQUIRED: Sanitize database errors and stack traces before returning responses.
 PROHIBITED: Trusting tenant identity from payload bodies; derive strictly from tokens.
-PROHIBITED: Accept `X-Tenant-ID` or any payload field as tenant authorization.
+PROHIBITED: Accept payload tenant fields as tenant authorization for ordinary tokens. Admin publication may use the body `tenant_id` only as its write destination; admin reads span tenants.
 PROHIBITED: Unbounded in-memory diffing without pagination or stream limits.
 
 The REST publication route validates the bearer token, exact scope, active state, and

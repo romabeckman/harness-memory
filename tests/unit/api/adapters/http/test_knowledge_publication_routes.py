@@ -1,4 +1,5 @@
 from uuid import uuid4
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -92,7 +93,7 @@ class TestKnowledgePublicationRoutes:
         assert data["publication_id"] == str(pub_id)
         assert data["snapshot_id"] == str(snap_id)
 
-    def test_ignores_untrusted_x_tenant_id_header(self) -> None:
+    def test_ordinary_publisher_ignores_body_tenant_override(self) -> None:
         pub_id = uuid4()
         snap_id = uuid4()
         handler = FakePublishKnowledgeHandler(
@@ -110,12 +111,12 @@ class TestKnowledgePublicationRoutes:
 
         response = client.post(
             "/v1/knowledge-publications",
-            headers={"X-Tenant-ID": "custom-tenant"},
             json={
                 "project_key": "catalog",
                 "environment": "staging",
                 "deployment_id": "deploy-1",
                 "version": "1.0.0",
+                "tenant_id": str(uuid4()),
             },
         )
         assert response.status_code == 201

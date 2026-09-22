@@ -14,6 +14,10 @@ from core.application.knowledge_publication.use_cases.publish_knowledge.inbound 
 from core.application.knowledge_publication.use_cases.publish_knowledge.outbound import (
     PublishKnowledgeOutput,
 )
+from core.application.snapshot_publication.services.payload_hash_calculator import (
+    PayloadHashCalculator,
+)
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.domain.environment.value_objects.environment_name import EnvironmentName
 from core.domain.knowledge_publication.aggregates.knowledge_publication import (
     KnowledgePublication,
@@ -27,6 +31,7 @@ from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot impo
 from core.domain.snapshot_publication.entities.entity_fact import EntityFact
 from core.domain.snapshot_publication.entities.evidence_fact import EvidenceFact
 from core.domain.snapshot_publication.entities.relation_fact import RelationFact
+from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
 from core.domain.snapshot_publication.types.entity_type import EntityType
 from core.domain.snapshot_publication.types.provenance_kind import ProvenanceKind
 from core.domain.snapshot_publication.types.relation_type import RelationType
@@ -37,9 +42,6 @@ from core.domain.snapshot_publication.value_objects.project_key import ProjectKe
 from core.domain.snapshot_publication.value_objects.relation_reference import RelationReference
 from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.domain.snapshot_publication.value_objects.schema_version import SchemaVersion
-from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
-from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
-from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 
 
 def _normalize_entity(item: Any) -> EntityFact:
@@ -158,7 +160,11 @@ class PublishKnowledgeHandler:
         try:
             revision_val = int(input.version)
         except (ValueError, TypeError):
-            revision_val = int.from_bytes(sha256(input.version.encode()).digest()[:8], "big") % 2147483647 + 1
+            revision_val = (
+                int.from_bytes(sha256(input.version.encode()).digest()[:8], "big")
+                % 2147483647
+                + 1
+            )
 
         return ProjectKnowledgeSnapshot(
             schema_version=SchemaVersion("1.0"),

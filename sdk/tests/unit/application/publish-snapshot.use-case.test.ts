@@ -132,4 +132,17 @@ describe("PublishSnapshotUseCase", () => {
       })
     );
   });
+
+  it("uses the global API key when a programmatic caller omits a token", async () => {
+    vi.stubEnv("HARNESS_MEMORY_API_KEY", "global-key");
+    try {
+      const useCase = new PublishSnapshotUseCase(mockCollector, mockLlm, mockValidator, mockClient);
+      await useCase.execute({ repository: "/repo", projectKey: "catalog", environment: "staging",
+        deploymentId: "dep-1", version: "1", model: "gpt-5", effort: "high",
+        headRef: "HEAD", dryRun: false, apiUrl: "https://api.example.com" });
+      expect(mockClient.publish).toHaveBeenCalledWith(expect.objectContaining({ token: "global-key" }));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

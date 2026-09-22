@@ -84,7 +84,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
 
 ## OVERVIEW
 
-The Snapshot Publisher SDK is a provider-independent TypeScript library and CLI (`harness-memory`). It runs in CI/CD pipelines to collect Git context, synthesize knowledge via local LLM, validate schema compliance, and publish snapshots to the REST API.
+The Snapshot Publisher SDK is a provider-independent TypeScript library and CLI (`harness-memory` or `hrns-memo`). It runs in CI/CD pipelines to collect Git context, synthesize knowledge via local LLM, validate schema compliance, and publish snapshots to the REST API.
 
 ## FOLDER STRUCTURE
 
@@ -131,7 +131,7 @@ Local files are written **before the REST POST**; a remote failure leaves valida
 
 ### Prerequisites
 1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
-2. Token with `memory:publish` in `HARNESS_MEMORY_API_TOKEN`.
+2. User or service-account token with `memory:publish` in `HARNESS_MEMORY_API_KEY`, or supply a token through `--token-env` or the programmatic `token` option.
 
 ### Steps
 1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
@@ -148,7 +148,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | Deployment execution ID | CI fallback |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version / git SHA | CI fallback |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Yes | Harness Memory API endpoint | — |
-| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_TOKEN` |
+| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_KEY` |
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
 
@@ -168,7 +168,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 
 ## BEST PRACTICES
 
-REQUIRED: Provide credentials via `HARNESS_MEMORY_API_TOKEN`; forbidden flags (`--tenant`, `--token`) exit with code 2.
+REQUIRED: Use `HARNESS_MEMORY_API_KEY` by default. When absent, provide another credential through `--token-env` or the programmatic `token` option. Legacy `HARNESS_MEMORY_API_TOKEN` remains a CLI fallback. Forbidden flags (`--tenant`, `--token`) exit with code 2.
 REQUIRED: Sanitize child LLM process environment and stdin to prevent token leakage.
 REQUIRED: Check symlink targets before reading file contents to prevent filesystem traversal.
 REQUIRED: Handle backpressure on stdin stream using `drain` events during chunked transfer.

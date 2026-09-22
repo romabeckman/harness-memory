@@ -50,7 +50,7 @@ def register_get_context(
             request = GetContextInput(
                 entity_id=entity_id, limit=limit, evidence_limit=evidence_limit
             )
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

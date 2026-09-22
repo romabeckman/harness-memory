@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ConfigResolver } from "../../../../src/infrastructure/config/config-resolver.js";
 import { ConfigurationError } from "../../../../src/domain/configuration-error.js";
+import packageJson from "../../../../package.json";
 
 describe("ConfigResolver", () => {
   const resolver = new ConfigResolver();
@@ -124,6 +125,19 @@ describe("ConfigResolver", () => {
 
     const config = resolver.resolve(rawArgs, env);
     expect(config.token).toBe("my-custom-token-secret");
+  });
+
+  it("uses HARNESS_MEMORY_API_KEY by default and accepts an explicit credential environment", () => {
+    const args = ["--model", "gpt-5", "--effort", "high", "--environment", "production",
+      "--project-key", "payments", "--deployment-id", "deploy-1", "--version", "1",
+      "--api-url", "http://localhost:8000"];
+    expect(resolver.resolve(args, { HARNESS_MEMORY_API_KEY: "default-key" }).token).toBe("default-key");
+    expect(resolver.resolve([...args, "--token-env", "SUPPLIED_KEY"],
+      { SUPPLIED_KEY: "user-key" }).token).toBe("user-key");
+  });
+
+  it("exposes hrns-memo as an alias of harness-memory", () => {
+    expect(packageJson.bin["hrns-memo"]).toBe(packageJson.bin["harness-memory"]);
   });
 
   it("infers version and deployment-id from CI environment if not provided in CLI", () => {

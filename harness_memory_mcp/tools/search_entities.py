@@ -43,7 +43,7 @@ def register_search_entities(
 
         try:
             context = tenant_context.require_scope("memory:read")
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

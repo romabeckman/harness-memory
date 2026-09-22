@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "harness-memory": "dist/cli/index.js"
+    "harness-memory": "dist/cli/index.js",
+    "hrns-memo": "dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc",

@@ -18,6 +18,8 @@ export class PublishSnapshotUseCase {
 
   public async execute(options: PublishSnapshotOptions): Promise<PublicationResult> {
     this.validateOptions(options);
+    const token = options.token || process.env.HARNESS_MEMORY_API_KEY;
+    const resolvedOptions = { ...options, token };
 
     const context = await this.gitCollector.collect({
       repository: options.repository,
@@ -27,7 +29,7 @@ export class PublishSnapshotUseCase {
       maxBytes: options.maxBytes ?? 10485760,
     });
 
-    const rawDocument = this.memoryWorkflow ? await this.memoryWorkflow.run(options, context) : await this.llmRunner.run({
+    const rawDocument = this.memoryWorkflow ? await this.memoryWorkflow.run(resolvedOptions, context) : await this.llmRunner.run({
       agent: options.agent ?? DEFAULT_LLM_AGENT,
       model: options.model,
       effort: options.effort,
@@ -53,7 +55,6 @@ export class PublishSnapshotUseCase {
     }
 
     const apiUrl = options.apiUrl;
-    const token = options.token;
     if (!apiUrl || !token) {
       throw new ConfigurationError("apiUrl and token are required when dryRun is false");
     }

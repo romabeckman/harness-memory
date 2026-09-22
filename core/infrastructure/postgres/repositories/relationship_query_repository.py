@@ -36,6 +36,7 @@ from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresRelationshipQueryRepository:
@@ -175,7 +176,7 @@ class PostgresRelationshipQueryRepository:
                 Project,
                 and_(
                     Project.id == Entity.project_id,
-                    Project.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Project.tenant_id),
                 ),
             )
             .join(
@@ -183,12 +184,12 @@ class PostgresRelationshipQueryRepository:
                 and_(
                     Snapshot.id == Entity.snapshot_id,
                     Snapshot.project_id == Entity.project_id,
-                    Snapshot.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Snapshot.tenant_id),
                 ),
             )
             .where(
                 or_(Entity.id == entity_id, Entity.identity_id == entity_id),
-                Entity.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Entity.tenant_id),
                 Project.active_snapshot_id == Entity.snapshot_id,
             )
         ).first()
@@ -218,15 +219,15 @@ class PostgresRelationshipQueryRepository:
         else:
             direction_match = or_(source_match, target_match)
         predicates = [
-            Relation.tenant_id == scope.tenant_id,
+            tenant_scope_predicate(scope, Relation.tenant_id),
             Relation.snapshot_id == snapshot_id,
             direction_match,
             source.id == Relation.source_entity_id,
             source.snapshot_id == snapshot_id,
-            source.tenant_id == scope.tenant_id,
+            tenant_scope_predicate(scope, source.tenant_id),
             target.id == Relation.target_entity_id,
             target.snapshot_id == snapshot_id,
-            target.tenant_id == scope.tenant_id,
+            tenant_scope_predicate(scope, target.tenant_id),
         ]
         if dependency_only:
             predicates.append(Relation.relation_type.in_(cls._DEPENDENCY_TYPES))
@@ -286,7 +287,7 @@ class PostgresRelationshipQueryRepository:
                 rank,
             )
             .where(
-                Evidence.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Evidence.tenant_id),
                 Evidence.snapshot_id == snapshot_id,
                 Evidence.relation_id.in_(relation_ids),
             )

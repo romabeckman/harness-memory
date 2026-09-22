@@ -36,6 +36,7 @@ from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresIntegrationPathRepository:
@@ -158,7 +159,7 @@ class PostgresIntegrationPathRepository:
                 Project,
                 and_(
                     Project.id == Entity.project_id,
-                    Project.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Project.tenant_id),
                 ),
             )
             .join(
@@ -166,12 +167,12 @@ class PostgresIntegrationPathRepository:
                 and_(
                     Snapshot.id == Entity.snapshot_id,
                     Snapshot.project_id == Entity.project_id,
-                    Snapshot.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Snapshot.tenant_id),
                 ),
             )
             .where(
                 or_(Entity.id == entity_id, Entity.identity_id == entity_id),
-                Entity.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Entity.tenant_id),
                 Project.active_snapshot_id == Entity.snapshot_id,
             )
         ).first()
@@ -344,7 +345,7 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type.in_(eligible_types),
                 or_(
                     source_node_id.in_(current_ids),
@@ -425,7 +426,7 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type.in_(eligible_types),
                 *( 
                     [Relation.id.in_(tuple(relation_ids))]
@@ -569,7 +570,7 @@ class PostgresIntegrationPathRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type == RelationType.OWNED_BY.value,
                 Relation.source_entity_id.in_(tuple(entity_by_id)),
                 ranked_target.entity_type == EntityType.TEAM.value,
@@ -599,7 +600,7 @@ class PostgresIntegrationPathRepository:
                 )
                 .join(ranked_relation_ids, ranked_relation_ids.c.relation_id == Relation.id)
                 .where(
-                    Relation.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Relation.tenant_id),
                     ranked_relation_ids.c.owner_rank <= owner_limit,
                 )
                 .order_by(
@@ -629,7 +630,7 @@ class PostgresIntegrationPathRepository:
                 evidence_rank,
             )
             .where(
-                Evidence.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Evidence.tenant_id),
                 Evidence.relation_id.in_(tuple(set(relation_ids))),
             )
             .subquery()

@@ -6,6 +6,7 @@ from typing import FrozenSet
 class PublicationContext:
     tenant_id: str
     scopes: FrozenSet[str] | None = None
+    is_admin: bool = False
 
     def __post_init__(self) -> None:
         value = self.tenant_id.strip() if isinstance(self.tenant_id, str) else ""

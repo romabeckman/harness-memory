@@ -32,17 +32,17 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
   "depends_on": ["feature:api-tokens"],
   "entrypoints": ["harness_memory_mcp/server/app.py"],
   "registration_files": ["harness_memory_mcp/server/factory.py", "docker-compose.yml"],
-  "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py", "core/infrastructure/postgres/repositories/api_service_account_repository.py"],
+  "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "harness_memory_mcp/services/admin_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py", "core/infrastructure/postgres/repositories/api_service_account_repository.py"],
   "code_files": ["harness_memory_mcp/config.py", "api/application/ports/token_repository.py", "api/domain/entities/service_account.py", "api/domain/entities/access_token.py", "core/infrastructure/postgres/models/api_service_account.py", "core/domain/tenant_security/types/memory_scope.py"],
-  "test_files": ["tests/unit/mcp/services/test_database_token_verifier.py", "tests/unit/mcp/server/test_factory.py", "tests/unit/mcp/test_config.py", "tests/integration/api/infrastructure/test_repositories.py", "tests/e2e/api/test_user_token_crud.py", "tests/e2e/mcp/test_api_token_authentication.py"]
+  "test_files": ["tests/unit/mcp/services/test_database_token_verifier.py", "tests/unit/mcp/services/test_admin_token_verifier.py", "tests/unit/mcp/server/test_factory.py", "tests/unit/mcp/test_config.py", "tests/integration/api/infrastructure/test_repositories.py", "tests/e2e/api/test_user_token_crud.py", "tests/e2e/mcp/test_api_token_authentication.py"]
 }
 ```
 
 ## OVERVIEW
 
-Use API-issued tokens as owner-bound bearer credentials. MCP accepts their read and
-impact scopes; the publication API accepts `memory:publish`. Neither surface exposes the
-stored digest.
+Use API-issued user or service-account tokens as owner-bound bearer credentials. Both
+owner types have the same eligible permissions. MCP keeps its read and impact scope
+checks. MCP also accepts `API_ADMIN_TOKEN` for cross-tenant data reads in both auth modes.
 
 ## FOLDER STRUCTURE
 
@@ -63,9 +63,10 @@ core/infrastructure/postgres/ # Active-token lookup
 3. Configure the MCP client with `Authorization: Bearer <token>`.
 4. Connect the client to `http://localhost:8000/mcp`.
 
-The verifier maps the token owner's ID to `sub`. User tokens use the user ID as
-`tenant_id`; service-account tokens use the service account's assigned tenant. A
-principal receives exactly the scopes persisted for that token.
+The verifier maps the token owner's ID to `sub` and the owner's tenant binding to
+`tenant_id`. A principal receives exactly the scopes persisted for that token.
+An admin principal receives all current memory scopes with global tenant access. Existing
+MCP component scope checks remain active.
 
 ## CONFIGURATION
 
@@ -73,6 +74,7 @@ principal receives exactly the scopes persisted for that token.
 |------|------|----------|-------------|---------|
 | `MCP_AUTH_MODE` | `database` or `jwt` | No | Select opaque database tokens or external JWT verification. | `jwt` |
 | `DATABASE_URL` | PostgreSQL URL | Database mode: Yes | Load active token and its user or service-account owner. | None |
+| `API_ADMIN_TOKEN` | Secret | No | Grant cross-tenant MCP access while preserving component scope checks. | None |
 
 ## SECURITY RULES
 

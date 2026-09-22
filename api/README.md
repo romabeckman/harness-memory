@@ -21,8 +21,10 @@ To start the complete application, including the MCP server, run `docker compose
 ## HTTP endpoints
 
 All routes use JSON unless the response has no body (`204`). Management routes require
-`Authorization: Bearer <API_ADMIN_TOKEN>`. Knowledge publication requires an active,
-tenant-bound API token with the exact `memory:publish` scope.
+`Authorization: Bearer <API_ADMIN_TOKEN>`. User and service-account tokens have the same
+eligible permissions: `memory:read` for data reads and `memory:publish` for publication.
+Admin data reads span all tenants. Admin publication requires a `tenant_id` destination
+in the JSON body; it does not restrict other admin requests.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -34,8 +36,11 @@ tenant-bound API token with the exact `memory:publish` scope.
 | `POST`, `GET` | `/v1/tokens` | Issue a token or list token metadata. Filter with `user_id` or `service_account_id`. |
 | `GET`, `PATCH`, `DELETE` | `/v1/tokens/{token_id}` | Read metadata, update the name or expiration, or revoke a token. |
 | `POST` | `/v1/knowledge-publications` | Publish and activate a tenant-scoped environment snapshot. |
+| `GET` | `/v1/tenants`, `/v1/tenants/current` | List accessible tenants or read authenticated tenant metadata. |
+| `GET` | `/v1/projects`, `/v1/projects/{project_key}` | List or read tenant projects. |
+| `GET` | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history or one stored payload. |
 
-Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. API-issued tokens do not authorize management calls; publication derives its tenant from the authenticated token owner.
+Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. API-issued tokens do not authorize management calls. Ordinary data calls derive tenant from the authenticated owner. Admin data reads span all tenants; `?tenant_id=` can disambiguate duplicate project keys or publication baselines. Ordinary tokens cannot use that parameter to change their tenant.
 
 ## Create an MCP credential
 

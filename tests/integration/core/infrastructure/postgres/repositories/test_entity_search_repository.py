@@ -123,6 +123,16 @@ def test_repository_returns_active_tenant_rows_with_exact_and_prefix_filters():
     assert [item.key for item in project_prefix.items] == ["payments-api"]
 
 
+def test_admin_scope_searches_across_tenants():
+    session_factory, _ = _repository()
+    _seed(session_factory)
+    result = PostgresEntitySearchRepository(session_factory).search(
+        TenantScope("*", is_admin=True), EntitySearchCriteria(key="payments-api"), None, 25
+    )
+
+    assert len(result.items) == 2
+
+
 def test_repository_escapes_name_wildcards_and_paginates_without_duplicates():
     session_factory, _ = _repository()
     with session_factory() as session:

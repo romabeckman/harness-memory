@@ -1,6 +1,6 @@
+import json
 from collections import defaultdict
 from hashlib import sha256
-import json
 from typing import Callable
 
 from sqlalchemy import and_, select
@@ -34,6 +34,7 @@ from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresMemoryResourceRepository:
@@ -60,13 +61,12 @@ class PostgresMemoryResourceRepository:
     def get_snapshot_entity_fingerprints(
         self, snapshot_id, tenant_id: str | None = None
     ) -> dict[str, str]:
-        if tenant_id is None:
-            raise ValueError("tenant_id is required")
+        statement = select(Entity).where(Entity.snapshot_id == snapshot_id)
+        if tenant_id is not None:
+            statement = statement.where(Entity.tenant_id == tenant_id)
         with self._session_factory() as session:
             entities = session.scalars(
-                select(Entity)
-                .where(Entity.snapshot_id == snapshot_id, Entity.tenant_id == tenant_id)
-                .order_by(Entity.entity_key.asc())
+                statement.order_by(Entity.entity_key.asc())
             ).all()
         return {
             entity.entity_key: sha256(
@@ -97,7 +97,7 @@ class PostgresMemoryResourceRepository:
         try:
             with self._session_factory() as session:
                 with session.begin():
-                    row = session.execute(
+                    rows = session.execute(
                         select(Project, Snapshot)
                         .join(
                             Snapshot,
@@ -108,17 +108,20 @@ class PostgresMemoryResourceRepository:
                             ),
                         )
                         .where(
-                            Project.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Project.tenant_id),
                             Project.key == query.project_key,
                         )
-                    ).first()
-                    if row is None:
+                    ).all()
+                    if not rows:
                         raise ResourceNotFound()
+                    if len(rows) > 1:
+                        raise ValueError("project key matches multiple tenants")
+                    row = rows[0]
                     project, snapshot = row
                     entities = session.execute(
                         select(Entity)
                         .where(
-                            Entity.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Entity.tenant_id),
                             Entity.project_id == project.id,
                             Entity.snapshot_id == snapshot.id,
                         )
@@ -162,7 +165,7 @@ class PostgresMemoryResourceRepository:
                         )
                         .where(
                             Snapshot.id == query.snapshot_id,
-                            Snapshot.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Snapshot.tenant_id),
                         )
                     ).first()
                     if row is None:
@@ -171,7 +174,7 @@ class PostgresMemoryResourceRepository:
                     entity_rows = session.execute(
                         select(Entity)
                         .where(
-                            Entity.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Entity.tenant_id),
                             Entity.snapshot_id == snapshot.id,
                         )
                         .order_by(Entity.entity_key.asc(), Entity.id.asc())
@@ -202,7 +205,7 @@ class PostgresMemoryResourceRepository:
                             ),
                         )
                         .where(
-                            Relation.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Relation.tenant_id),
                             Relation.snapshot_id == snapshot.id,
                         )
                         .order_by(
@@ -217,7 +220,7 @@ class PostgresMemoryResourceRepository:
                     evidence_rows = session.execute(
                         select(Evidence)
                         .where(
-                            Evidence.tenant_id == tenant.tenant_id,
+                            tenant_scope_predicate(tenant, Evidence.tenant_id),
                             Evidence.snapshot_id == snapshot.id,
                         )
                         .order_by(Evidence.id.asc())

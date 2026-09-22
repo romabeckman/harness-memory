@@ -14,6 +14,7 @@ from core.application.entity_discovery.value_objects.search_cursor import Search
 from ..models.entity import Entity
 from ..models.project import Project
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresEntitySearchRepository:
@@ -68,9 +69,9 @@ class PostgresEntitySearchRepository:
     ):
         stable_entity_id = func.coalesce(Entity.identity_id, Entity.id)
         predicates = [
-            Project.tenant_id == scope.tenant_id,
-            Entity.tenant_id == scope.tenant_id,
-            Snapshot.tenant_id == scope.tenant_id,
+            tenant_scope_predicate(scope, Project.tenant_id),
+            tenant_scope_predicate(scope, Entity.tenant_id),
+            tenant_scope_predicate(scope, Snapshot.tenant_id),
             Entity.project_id == Project.id,
             Entity.snapshot_id == Project.active_snapshot_id,
             Entity.snapshot_id == Snapshot.id,

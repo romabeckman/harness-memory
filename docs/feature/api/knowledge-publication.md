@@ -88,8 +88,9 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Item | Contract |
 |------|----------|
 | Method and path | `POST /v1/knowledge-publications` |
-| Header | Required `Authorization: Bearer <token>` with exact `memory:publish` scope. |
+| Header | `Authorization: Bearer <token>` with `memory:publish`, or the admin bearer. |
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
+| Admin destination | `tenant_id` in the JSON body; required only for `API_ADMIN_TOKEN` |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
 | New publication | HTTP 201 with status `ACTIVATED` |
 | Completed retry | HTTP 200 with status `ALREADY_PUBLISHED` |
@@ -101,7 +102,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 
 ### Baseline read
 
-Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with the same publisher credential to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `entities`, `relations`, `evidence`). Resolve the environment's current snapshot, not an unrelated latest project revision.
+Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with `memory:read` or `memory:publish` to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `entities`, `relations`, `evidence`). Resolve the environment's current snapshot.
 
 REQUIRED: Derive tenant from the authenticated token; scope all project/environment joins to that tenant. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
 
@@ -114,7 +115,7 @@ REQUIRED: Persist these facts in the original snapshot payload and normalized en
 ### Activation
 
 REQUIRED: Resolve project and environment inside the trusted tenant context.
-REQUIRED: Derive tenant identity from the token owner; never from headers or payloads.
+REQUIRED: Derive ordinary-token tenant identity from the owner. Admin publication requires a destination `tenant_id` in the body.
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
@@ -125,9 +126,9 @@ PROHIBITED: Let callers mutate individual graph facts through this route.
 
 ## SECURITY BOUNDARY
 
-The publication credential is separate from `API_ADMIN_TOKEN`. Only an active API token
-owned by a tenant-bound identity and carrying exactly `memory:publish` can publish. User
-input cannot select or override the tenant.
+An active user or service-account token with `memory:publish` may publish for its bound
+tenant. `API_ADMIN_TOKEN` may publish to any tenant by setting the body `tenant_id`.
+Ordinary token callers cannot select or override their tenant.
 
 ## DOCUMENT MAP
 

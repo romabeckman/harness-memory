@@ -60,7 +60,7 @@ flowchart LR
 REQUIRED: Keep SQLAlchemy and database sessions out of `api/domain/` and `api/application/`.
 REQUIRED: Keep route functions thin and create route routers through injected application services.
 REQUIRED: Reuse `core/infrastructure/postgres` configuration, models, and repositories rather than creating an API-local database stack.
-PROHIBITED: Use API access tokens for REST management authentication.
+PROHIBITED: Use ordinary API access tokens for REST management authentication.
 
 ## HTTP SURFACE
 
@@ -74,27 +74,30 @@ PROHIBITED: Use API access tokens for REST management authentication.
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
 | POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
+| GET | `/v1/tenants`, `/v1/tenants/current`, `/v1/projects`, `/v1/projects/{project_key}` | Read tenant and project data. |
+| GET | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read tenant-scoped snapshot history and payloads. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
 Publication requests use the shared environment/publication handler. Require an active
-owner-bound token with the exact `memory:publish` scope, derive the tenant from its owner,
-and ignore caller-supplied tenant headers. The handler creates missing project and
-environment records during the first trusted publication.
+user or service-account token with `memory:publish`, or the admin token. Ordinary tokens
+derive tenant from their owner. Admin publication requires body `tenant_id` as its write
+destination. The handler creates missing project and environment records on first publication.
 
-Require `API_ADMIN_TOKEN` for every REST management route. Keep health and generated API
-documentation public. Never accept API-issued user or service-account tokens as the
-management credential.
+Require `API_ADMIN_TOKEN` for every REST management route. Admin data requests require
+no tenant selection; reads span all tenants. Keep health and generated API documentation public. Never
+accept API-issued user or service-account tokens as the management credential.
 
 ## TOKEN HANDOFF TO MCP
 
 Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
-The verifier hashes the presented bearer token and asks the shared token repository for
-an active record and its owner. The owner supplies trusted subject and tenant context;
-the token supplies only its explicitly persisted scopes. MCP accepts read/impact scopes,
-while the publication API accepts the exact `memory:publish` scope.
+The verifier hashes an ordinary bearer token and asks the shared token repository for
+an active record and owner. Owner type does not change eligible permissions. The owner
+supplies tenant context; the token supplies its persisted scopes. Reads require
+`memory:read`; publication requires `memory:publish`. The baseline also accepts
+`memory:publish` for existing publishers.
 
 ## DOCUMENT MAP
 

@@ -47,12 +47,12 @@ The MVP combines an MCP interface for contextual knowledge access with a persist
 
 ## CURRENT IMPLEMENTATION
 
-The API implements `POST /v1/knowledge-publications` for CI/CD publication. It requires
-an active tenant-bound service-account token with the exact `memory:publish` scope and
-derives tenant identity from that credential. A separate `API_ADMIN_TOKEN` protects all
-user, service-account, and token management routes.
+The API accepts active user or service-account tokens for tenant-scoped reads and
+complete snapshot publication. `memory:read` grants data reads; `memory:publish`
+grants publication. Existing MCP tool scopes remain enforced. `API_ADMIN_TOKEN`
+grants all privileges and requires an explicit target tenant for data actions.
 
-REQUIRED: Keep management and publication credentials separate.
+REQUIRED: Keep ordinary tokens tenant-bound and reserve management for the admin token.
 PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trusted authorization.
 
 ## REFERENCES

@@ -38,7 +38,7 @@ LLM client; CI/CD publishes verified project snapshots through the REST API or S
 | Explainable AI assistance | Preserve provenance and evidence so answers can be reviewed instead of accepted as guesses. |
 | Environment awareness | Compare staging and production snapshots and identify active project state. |
 | Repeatable delivery knowledge | Publish complete snapshots from CI/CD with version, deployment identity, and idempotent retries. |
-| Governed access | Separate administration, publication, and read-only MCP access with tenant-scoped tokens. |
+| Governed access | Separate administration, publication, and read-only MCP access with tenant-scoped user tokens and global admin access. |
 
 ## Core capabilities
 
@@ -71,8 +71,11 @@ docker compose up --build -d
 curl --fail http://localhost:8080/health
 ```
 
-Connect an MCP client at `http://localhost:8000/mcp`. Use an API-issued token with the
-minimum required scope; keep `API_ADMIN_TOKEN` for REST management only.
+Connect an MCP client at `http://localhost:8000/mcp`. Use an API-issued user or
+service-account token with the required scope. Set `HARNESS_MEMORY_API_KEY` as the
+default client credential, or supply a bearer token directly. Admin data calls require
+no tenant header and can read across tenants. Admin snapshot publication requires a
+`tenant_id` destination in the request body.
 
 Build and test the SDK:
 
@@ -373,7 +376,7 @@ to create a non-expiring service-account token. See the [API guide](api/README.m
 Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
 value, accepts only an active stored token, and derives subject and tenant identity
 from its owner. API-issued tokens authenticate MCP reads and, for tenant-bound service
-accounts with the exact `memory:publish` scope, API publication requests. They never
+accounts or users with the `memory:publish` scope, API publication requests. They never
 authenticate REST management endpoints.
 
 ### Set the MCP token environment variable

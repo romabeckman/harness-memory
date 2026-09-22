@@ -6,7 +6,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.application.ports.token_repository import TokenRepository
-from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
+from core.domain.tenant_security.value_objects.authenticated_principal import (
+    ADMIN_TENANT_ID,
+    AuthenticatedPrincipal,
+)
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -21,7 +24,10 @@ class ApiSecurity:
         credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     ) -> None:
         if self._admin_token is None:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="API administration is not configured")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="API administration is not configured",
+            )
         if credentials is None or not compare_digest(credentials.credentials, self._admin_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -33,11 +39,37 @@ class ApiSecurity:
         self,
         credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
     ) -> AuthenticatedPrincipal:
+        return self._require_scope(credentials, "memory:publish")
+
+    def require_reader(
+        self,
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    ) -> AuthenticatedPrincipal:
+        return self._require_scope(credentials, "memory:read")
+
+    def require_baseline_reader(
+        self,
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    ) -> AuthenticatedPrincipal:
+        return self._require_scope(credentials, "memory:read memory:publish")
+
+    def _require_scope(
+        self,
+        credentials: HTTPAuthorizationCredentials | None,
+        required_scope: str,
+    ) -> AuthenticatedPrincipal:
         if credentials is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
+            )
+        if self._admin_token and compare_digest(credentials.credentials, self._admin_token):
+            return AuthenticatedPrincipal(
+                subject="admin",
+                tenant_id=ADMIN_TENANT_ID,
+                scopes=frozenset({"memory:read", "memory:impact", "memory:publish"}),
+                is_admin=True,
             )
         token_hash = sha256(credentials.credentials.encode()).hexdigest()
         identity = self._token_repository.find_active_by_hash(token_hash, now=datetime.now(UTC))
@@ -48,11 +80,11 @@ class ApiSecurity:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         token, owner = identity
-        if "memory:publish" not in token.scopes:
+        if not any(scope in token.scopes for scope in required_scope.split()):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="insufficient scope",
-                headers={"WWW-Authenticate": 'Bearer scope="memory:publish"'},
+                headers={"WWW-Authenticate": f'Bearer scope="{required_scope}"'},
             )
         return AuthenticatedPrincipal(
             subject=str(owner.id),

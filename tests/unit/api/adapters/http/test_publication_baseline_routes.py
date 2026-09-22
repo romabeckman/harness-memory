@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -9,17 +10,29 @@ from api.adapters.http.knowledge_publication_routes import create_knowledge_publ
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
 
 
-def test_baseline_uses_authenticated_tenant_not_header():
+def test_baseline_uses_authenticated_tenant_not_query_override():
     execute = Mock(return_value={"graph": {"entities": []}})
     app = FastAPI()
     app.include_router(create_knowledge_publication_router(None,
         lambda: AuthenticatedPrincipal("pipeline", "trusted", frozenset({"memory:publish"})),
         SimpleNamespace(execute=execute)), prefix="/v1")
     response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production"},
-        headers={"X-Tenant-ID": "foreign"})
+        params={"project_key": "orders", "environment": "production", "tenant_id": str(uuid4())})
     assert response.status_code == 200
     execute.assert_called_once_with("orders", "production", "trusted")
+
+
+def test_admin_baseline_reads_all_tenants_by_default():
+    execute = Mock(return_value={"graph": {"entities": []}})
+    admin = AuthenticatedPrincipal("admin", "*", frozenset({"memory:read"}), is_admin=True)
+    app = FastAPI()
+    app.include_router(create_knowledge_publication_router(None, lambda: admin,
+        SimpleNamespace(execute=execute)), prefix="/v1")
+    response = TestClient(app).get("/v1/knowledge-publications/latest",
+        params={"project_key": "orders", "environment": "production"})
+
+    assert response.status_code == 200
+    execute.assert_called_once_with("orders", "production", None)
 
 
 @pytest.mark.parametrize("status", [401, 403])

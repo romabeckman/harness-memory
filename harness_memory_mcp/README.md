@@ -83,7 +83,7 @@ Production HTTP requests require bearer authentication. Docker Compose uses data
 | `MCP_AUDIENCE` | Expected JWT audience. |
 | `MCP_TENANT_CLAIM` | JWT claim containing tenant identity. Defaults to `tenant_id`. |
 
-When using JWT mode, configure the issuer, JWKS URL, audience, and tenant claim. Never trust tenant identity from a request payload. Database tokens currently include the `memory:read`, `memory:publish`, and `memory:impact` scopes.
+When using JWT mode, configure the issuer, JWKS URL, audience, and tenant claim. Never trust tenant identity from a request payload. Database-mode MCP accepts user or service-account tokens with their issued scopes. `API_ADMIN_TOKEN` works in both modes with cross-tenant reads; existing MCP tool permissions remain enforced.
 
 The startup migration service applies schema changes before the server starts. The MCP server checks the schema version and does not run migrations automatically.
 
