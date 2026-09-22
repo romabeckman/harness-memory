@@ -169,5 +169,5 @@ docker compose down -v
 
 - [API README](../../api/README.md): REST routes, credential lifecycle, and configuration.
 - [MCP README](../../harness_memory_mcp/README.md): MCP catalog and client authentication.
-- [Daily Use Playbook](./PLAYBOOK-DAILY-USE.md): day-to-day search, analysis, and publication workflow.
+- [Workflow README](./README.md): day-to-day search, analysis, and publication workflow.
 - [Project README](../../README.md): repository overview and development commands.

@@ -2,34 +2,127 @@
 
 # Harness Memory
 
-**Harness Memory** is an open-source MCP server for sharing structured engineering knowledge across software projects.
+**Harness Memory** is an open-source engineering memory platform for making software
+knowledge discoverable, explainable, and reusable across teams and repositories.
 
-It gives AI agents and engineering tools organization-level context about projects, services, APIs, events, teams, dependencies, ownership, and change impact — instead of limiting them to the repository currently in context.
+It gives developers and AI agents organization-level context about projects, services,
+APIs, events, teams, dependencies, ownership, environments, and change impact. It
+connects the knowledge that normally remains scattered across repositories, deployment
+pipelines, and individual experts.
 
-> A repository explains itself. Harness Memory helps explain how repositories relate to each other.
+> A repository explains itself. Harness Memory explains how repositories relate to each other.
 
-## Why Harness Memory?
+## Why teams use Harness Memory
 
-Development agents are usually effective inside a single codebase, but cross-project questions are harder:
+Engineering teams lose time when answers depend on architectural rediscovery or one
+person's memory. Harness Memory creates a shared, evidence-backed context for questions
+that cross project boundaries:
 
 - Which services consume this API?
 - What depends on this library or contract?
-- How does Project A integrate with Service B?
-- Which projects may be affected by this change?
-- Who owns this dependency?
-- What evidence supports a known relationship?
+- How does one project integrate with another?
+- Which projects, teams, and services may be affected by a change?
+- Which environment currently contains a version?
+- What evidence supports a relationship?
 
-Harness Memory stores these relationships as structured, versioned knowledge and exposes them through the **Model Context Protocol (MCP)**.
+Harness Memory stores answers as structured, versioned knowledge and exposes them through
+the **Model Context Protocol (MCP)**. Developers ask questions through their preferred
+LLM client; CI/CD publishes verified project snapshots through the REST API or SDK.
 
-## Core Capabilities
+## Business benefits
 
-The initial scope focuses on three capabilities:
+| Benefit | Outcome |
+| --- | --- |
+| Faster engineering decisions | Find ownership, dependencies, consumers, and integration paths without searching many repositories. |
+| Safer change planning | Analyze known downstream impact before changing shared APIs, events, or libraries. |
+| Explainable AI assistance | Preserve provenance and evidence so answers can be reviewed instead of accepted as guesses. |
+| Environment awareness | Compare staging and production snapshots and identify active project state. |
+| Repeatable delivery knowledge | Publish complete snapshots from CI/CD with version, deployment identity, and idempotent retries. |
+| Governed access | Separate administration, publication, and read-only MCP access with tenant-scoped tokens. |
 
-1. **Publish project knowledge** as immutable, versioned snapshots.
-2. **Query relationships** between projects and engineering entities.
-3. **Analyze change impact** across project boundaries.
+## Core capabilities
+
+Harness Memory provides a focused workflow:
+
+1. **Publish project knowledge** as immutable, versioned environment snapshots.
+2. **Discover entities and relationships** across projects, services, APIs, events, teams, and libraries.
+3. **Inspect dependencies and integration paths** with ownership, provenance, and evidence.
+4. **Analyze change impact** across project boundaries without allowing an LLM to invent missing relationships.
+5. **Compare environments** and inspect active or historical snapshots.
 
 Knowledge can represent entities such as projects, systems, services, APIs, events, libraries, and teams, connected through relationships such as `depends_on`, `consumes`, `provides`, `publishes`, `subscribes_to`, and `owned_by`.
+
+## Who benefits
+
+| Audience | Value |
+| --- | --- |
+| DevOps and platform teams | Configure credentials, publish deployment knowledge, and operate a provider-independent pipeline. |
+| Developers and architects | Query dependencies, ownership, evidence, and impact from an MCP-enabled LLM. |
+| Engineering managers and technical leaders | Improve decision context, reduce rediscovery, and compare environment state. |
+| Common users | Ask natural-language questions about software systems without learning graph or database syntax. |
+
+## Main commands
+
+Start the local platform:
+
+```bash
+export API_ADMIN_TOKEN='replace-with-a-high-entropy-secret'
+docker compose up --build -d
+curl --fail http://localhost:8080/health
+```
+
+Connect an MCP client at `http://localhost:8000/mcp`. Use an API-issued token with the
+minimum required scope; keep `API_ADMIN_TOKEN` for REST management only.
+
+Build and test the SDK:
+
+```bash
+npm --prefix sdk ci
+npm --prefix sdk run build
+npm --prefix sdk test
+```
+
+Run an SDK dry run against a checked-out repository:
+
+```bash
+node sdk/dist/cli/index.js publish \
+  --repository /path/to/project \
+  --model gpt-5 \
+  --effort medium \
+  --environment staging \
+  --project-key com.example.project \
+  --deployment-id dry-run-001 \
+  --version HEAD \
+  --dry-run \
+  --output text
+```
+
+Run the backend test tiers:
+
+```bash
+./venv/bin/python -m pytest tests/unit
+./venv/bin/python -m pytest tests/integration
+./venv/bin/python -m pytest tests/e2e
+```
+
+Stop local services:
+
+```bash
+docker compose down
+```
+
+## Learn more
+
+Start with the [Harness Memory Workflow README](docs/workflow/README.md). It routes each
+audience to the right guide:
+
+- [DevOps Playbook](docs/workflow/PLAYBOOK-DEVOPS.md): platform bootstrap, tokens, CI/CD, and SDK publication.
+- [Developer Playbook](docs/workflow/PLAYBOOK-DEVELOPER.md): MCP configuration, LLM conversations, tools, resources, and impact analysis.
+- [User Playbook](docs/workflow/PLAYBOOK-USER.md): onboarding, projects, resources, tokens, and everyday questions.
+- [Setup guide](docs/workflow/SETUP.md): local installation and credential bootstrap.
+- [SDK guide](sdk/README.md): full CLI, configuration, graph contract, and programmatic API.
+- [API guide](api/README.md): REST management and publication endpoints.
+- [MCP guide](harness_memory_mcp/README.md): server configuration and catalog.
 
 ## How It Works
 
@@ -133,8 +226,8 @@ See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and 
 ## Getting Started
 
 For a community-friendly first run, follow the [developer setup guide](docs/workflow/SETUP.md)
-and then use the [daily-use playbook](docs/workflow/PLAYBOOK-DAILY-USE.md). It covers local
-credentials, read-only MCP access, governed API publication, and the test loop.
+and then use the [workflow README](docs/workflow/README.md). It links role-specific guides
+for local credentials, read-only MCP access, governed API publication, and the test loop.
 
 ### Requirements
 
@@ -249,7 +342,10 @@ After startup, an MCP client can discover the catalog with `tools/list`, then ca
   "jsonrpc": "2.0",
   "id": 1,
   "method": "tools/call",
-  "params": {"name": "search_entities", "arguments": {"query": "billing"}}
+  "params": {
+    "name": "search_entities",
+    "arguments": {"request": {"project": "payments"}}
+  }
 }
 ```
 
