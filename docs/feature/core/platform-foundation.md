@@ -11,7 +11,9 @@ edges:
     target: "adr:tests"
   - relation: references
     target: "adr:mcp"
-updated: 2026-09-20
+  - relation: references
+    target: "feature:tenant-foundation"
+updated: 2026-09-22
 ---
 # Platform Foundation
 Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
@@ -93,7 +95,7 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 - **Runtime boundary**: Build the FastMCP server without database connections, migrations, or transport startup.
 - **Persistence boundary**: Keep five tenant-scoped foundation tables: projects, snapshots, entities, relations, and evidence.
 - **Migration boundary**: Use explicit Alembic revisions through the CLI; keep startup schema creation disabled.
-- **Default workspace seed**: Revision 006 inserts an `Admin` API user and a `Default Project`; `tenant_id` is the user UUID because token verification derives tenant identity from user ownership. Tenant is an identity value rather than a separate table; the seed creates no API token or admin role.
+- **Default workspace seed**: Revision 006 inserts an `Admin` API user and a `Default Project`. Revision 010 establishes first-class tenant records and UUID foreign keys in the `tenants` table (see [tenant foundation](./tenant-foundation.md)).
 - **Service accounts**: Revision 007 adds tenant-bound API service accounts and permits tokens without expiration for those accounts.
 - **Dependency boundary**: Let `mcp` call application code, application code use domain rules and ports, and infrastructure implement ports.
 
@@ -133,9 +135,11 @@ graph TD
     THIS["Platform Foundation"] -->|implements| ARCH["Project Architecture"]
     THIS -->|tested_by| TESTS["Testing Protocol"]
     THIS -->|references| MCP["MCP Interface"]
+    THIS -->|references| TF["Tenant Foundation"]
     click ARCH "../../adr/ARCHITECTURE.md"
     click TESTS "../../adr/TESTS.md"
     click MCP "../../adr/MCP.md"
+    click TF "./tenant-foundation.md"
 ```
 
 ## REFERENCES
@@ -143,3 +147,4 @@ graph TD
 - [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Defines layer ownership and dependency direction.
 - [**TESTS.md**](../../adr/TESTS.md): Defines test tiers and coverage policy.
 - [**MCP.md**](../../adr/MCP.md): Defines server and adapter boundaries.
+- [**tenant-foundation.md**](./tenant-foundation.md): Establishes first-class tenant records, UUID foreign keys, and isolated provisioning.

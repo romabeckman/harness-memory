@@ -26,9 +26,11 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**production-delivery.md**](./feature/core/production-delivery.md) | Containers, startup schema gates, CI, and telemetry. | Optional |
 | [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped relationship and dependency context queries. | Optional |
 | [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable snapshot publication, hashing, revision, and activation rules. | Optional |
+| [**tenant-foundation.md**](./feature/core/tenant-foundation.md) | First-class tenant persistence, strict UUID foreign keys, and isolated provisioning. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | Database-backed bearer authentication for MCP clients. | Optional |
+| [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | Snapshot Publisher TypeScript CLI and SDK for CI/CD pipeline deployments. | Optional |
 
 ## Recommended Reading Order
 
