@@ -19,7 +19,7 @@ The SDK is the deterministic publication client. MCP is the read-only interface 
 - Node.js 20 or newer.
 - npm.
 - A Git repository.
-- A local LLM command. The default command is `codex`.
+- The selected local LLM command (`codex` or `claude`).
 - A running Harness Memory API for a real publication.
 - An active tenant-bound user or service-account token with `memory:publish`.
 
@@ -55,6 +55,7 @@ cd sdk
 npm link
 cd ..
 hrns-memo publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -72,6 +73,7 @@ Set the publication token in the environment. Never put it in a command argument
 export HARNESS_MEMORY_API_KEY='replace-with-issued-token'
 
 node sdk/dist/cli/index.js publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort high \
   --environment production \
@@ -97,6 +99,7 @@ Use dry run in pull-request or pre-merge validation. It collects the repository,
 
 ```bash
 node sdk/dist/cli/index.js publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -108,7 +111,7 @@ node sdk/dist/cli/index.js publish \
   --verbose
 ```
 
-Dry run still requires `model`, `effort`, `environment`, `project-key`, `deployment-id`, and `version`. It does not require `api-url` or a token.
+Dry run still requires `agent`, `model`, `effort`, `environment`, `project-key`, `deployment-id`, and `version`. It does not require `api-url` or a token.
 
 ## Configuration
 
@@ -153,7 +156,7 @@ When values are absent, the resolver uses these fallbacks:
 - `version`: `CI_COMMIT_SHA`, `GITHUB_SHA`, then `GIT_COMMIT`.
 - `base-ref`: `CI_MERGE_REQUEST_DIFF_BASE_SHA`, then `GITHUB_BASE_REF`.
 - `head-ref`: `HEAD`.
-- `llm-command`: `codex`.
+- `llm-command`: selected runner command (`codex` or `claude`).
 - `token-env`: `HARNESS_MEMORY_API_KEY`. Legacy `HARNESS_MEMORY_API_TOKEN` remains a fallback.
 - `timeout`: 600 seconds.
 - `max-files`: 2,000.
@@ -164,7 +167,7 @@ When values are absent, the resolver uses these fallbacks:
 
 | Flag | Environment variable | Required | Description |
 | --- | --- | --- | --- |
-| `--agent` | `HARNESS_MEMORY_AGENT` | No | Runner: `codex-cli` or `claude-cli`. Default: `codex-cli`. |
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli` or `claude-cli`; JSON config may also supply `agent`. |
 | `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the selected runner. |
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |
@@ -208,6 +211,7 @@ The publication step is independent of the CI provider. The pipeline must provid
     npm --prefix sdk ci
     npm --prefix sdk run build
     node sdk/dist/cli/index.js publish \
+      --agent codex-cli \
       --model gpt-5 \
       --effort high \
       --output json
@@ -234,6 +238,7 @@ Default collection limits are 2,000 files and 10 MiB. Increase them only when th
 node sdk/dist/cli/index.js publish \
   --max-files 5000 \
   --max-bytes 52428800 \
+  --agent codex-cli \
   --model gpt-5 \
   --effort high \
   --environment production \

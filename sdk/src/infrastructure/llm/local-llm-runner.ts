@@ -6,7 +6,6 @@ import {
   LlmInvocationOptions,
   LlmRunnerPort,
 } from "../../application/ports/llm-runner.port.js";
-import { DEFAULT_LLM_AGENT } from "../../domain/llm-agent.js";
 import { AgentRunnerFactory } from "./agent-runner-factory.js";
 
 const MAX_STDOUT_BYTES = 50 * 1024 * 1024;
@@ -20,7 +19,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
   constructor(private readonly agentRunnerFactory = new AgentRunnerFactory()) {}
 
   public async run(options: ExtendedLlmInvocationOptions): Promise<GraphDocument> {
-    const agentRunner = this.agentRunnerFactory.create(options.agent ?? DEFAULT_LLM_AGENT);
+    const agentRunner = this.agentRunnerFactory.create(options.agent);
     let execPath = options.llmCommand?.trim() || agentRunner.command;
     let baseArgs: string[] = [];
 

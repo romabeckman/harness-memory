@@ -34,13 +34,21 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
   ],
   "reference_files": [
     "sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts",
+    "sdk/src/application/publish-snapshot/phases/abstract-publication-phase.ts",
     "sdk/src/infrastructure/api/rest-publication-client.ts",
     "sdk/src/infrastructure/validator/graph-validator.ts"
   ],
   "code_files": [
+    "sdk/src/application/publish-snapshot/phases/publication-phase-context.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-options-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/collect-context-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/generate-document-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/publish-phase.ts",
     "sdk/src/application/memory/project-memory-workflow.ts",
     "sdk/src/application/memory/project-memory-prompt.ts",
     "sdk/src/application/memory/memory-graph.ts",
+    "sdk/src/application/memory/memory-document-validator.ts",
     "sdk/src/application/memory/document-content-codec.ts",
     "sdk/src/application/ports/docs-store.port.ts",
     "sdk/src/application/ports/memory-workflow.port.ts",
@@ -61,7 +69,9 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/infrastructure/llm/local-llm-runner.ts"
   ],
   "test_files": [
+    "sdk/tests/unit/application/publish-snapshot/publish-snapshot-phases.test.ts",
     "sdk/tests/unit/application/memory/memory-graph.test.ts",
+    "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
     "sdk/tests/unit/application/memory/document-content-codec.test.ts",
     "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
     "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
@@ -84,7 +94,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
 
 ## OVERVIEW
 
-The Snapshot Publisher SDK is a provider-independent TypeScript library and CLI (`harness-memory` or `hrns-memo`). It runs in CI/CD pipelines to collect Git context, synthesize knowledge via local LLM, validate schema compliance, and publish snapshots to the REST API.
+The SDK and CLI collect Git context, synthesize knowledge, validate graphs, and publish through REST.
 
 ## FOLDER STRUCTURE
 
@@ -100,8 +110,11 @@ sdk/
 
 ## MAIN CONCEPTS / COMPONENTS
 
+- **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers. Each passes shared state onward.
+- **Memory workflow**: Separate baseline loading, context budgeting, generation, and publication preparation. Validate documents and rule evidence in `MemoryDocumentValidator`.
+- **Dry run**: The publication handler returns validation metadata without calling the REST client. A failed phase stops the chain and preserves its existing error.
 - **Git collector**: Collects files and diffs with path and memory-budget checks.
-- **Agent runners**: `--agent` selects Codex or Claude; `--model` stays independent. Shared execution sanitizes environments and handles stream backpressure.
+- **Agent runners**: Select `codex-cli` or `claude-cli` explicitly through CLI, environment, JSON config, or SDK options. `--model` stays independent. Shared execution sanitizes environments and handles stream backpressure.
 - **Validator**: Checks Schema 1.0 and computes canonical SHA-256.
 - **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
 - **Exit codes**: Map domain failures to stable CLI statuses.
@@ -112,9 +125,9 @@ sdk/
 
 1. Collect repository context and fetch the current graph for the authenticated tenant, project, and environment. Only HTTP 404 means no baseline.
 2. Read existing `docs/.graph.json`, complete ADR/feature/spec Markdown, digest, index, and business rules, including untracked documentation.
-3. Run the bundled **project-memory prompt** with the selected runner, previous graph, local documents, and source context. Bootstrap architecture, tests, digest, index, and at least one feature when absent.
-4. Ask the model to map rules, evidence, feature context, source/test routing, and changes while preserving stable keys. Explicit constraint lines are also extracted deterministically.
-5. Reconcile and validate graph-native documents and rules; retain complete content and archive documents replaced by model improvements.
+3. Run the bundled **project-memory prompt** with baseline, documents, and source context. Bootstrap architecture, tests, digest, index, and one feature when absent.
+4. Map rules, evidence, feature context, source/test routing, and changes while preserving keys. Extract explicit constraints deterministically.
+5. Reconcile documents and rules; retain content and archive replaced documents.
 6. Write validated local Markdown and regenerate the compact document index, then publish the normal graph payload. Concurrent local edits and symlink paths abort writes.
 
 ### Storage and history
@@ -125,9 +138,9 @@ Rules contain complete statements and document-scoped `defines` relations with e
 
 ### Optional harness-kit integration
 
-**harness-kit with project-memory is optional:** its prepared documents and graph accelerate publication by supplying organized project context. The SDK bundles its own adapted prompt and works without that plugin. Generated/changed document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`; these are provenance markers, not cryptographic signatures or harness-kit authorship claims.
+**harness-kit project-memory is optional.** The SDK bundles its own prompt. Document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1` as provenance markers.
 
-Local files are written **before the REST POST**; a remote failure leaves validated local drafts. `--dry-run` performs synthesis/validation without local writes or publication; supplied credentials still allow baseline reads. Code plus local documents obey collection budgets; baseline responses are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
+Local files are written **before the REST POST**. Remote failure leaves local drafts. `--dry-run` validates without local writes or publication; credentials still allow baseline reads. Collection budgets apply; baseline responses are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
 
 ### Prerequisites
 1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
@@ -143,6 +156,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 
 | Option | Env Var | Required | Description | Default |
 |--------|---------|----------|-------------|---------|
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli` or `claude-cli`; JSON config may supply it | — |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target deployment environment | — |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Target project identifier | — |
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | Deployment execution ID | CI fallback |
@@ -177,8 +191,7 @@ PROHIBITED: Retrying on HTTP 400, 401, 403, or 409 response codes.
 
 ## TIPS
 
-Run with `--dry-run` in pre-merge checks to validate LLM synthesis and schema conformance without mutating remote state.
-The CLI enables memory by default. Legacy four-argument `PublishSnapshotUseCase` construction retains graph-only behavior; inject the fifth workflow argument for memory processing.
+Use `--dry-run` to validate without publication. The CLI enables memory by default. A four-argument `PublishSnapshotUseCase` retains graph-only behavior; the fifth argument enables memory processing.
 
 ## DOCUMENT MAP
 

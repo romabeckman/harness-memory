@@ -8,6 +8,7 @@ describe("ConfigResolver", () => {
 
   it("resolves valid CLI arguments", () => {
     const rawArgs = [
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -79,6 +80,10 @@ describe("ConfigResolver", () => {
     );
   });
 
+  it("requires an explicit agent from CLI, environment, or config", () => {
+    expect(() => resolver.resolve(["--model", "gpt-5"], {})).toThrow("agent is required");
+  });
+
   it("rejects unknown flags with ConfigurationError", () => {
     expect(() =>
       resolver.resolve(["--unknown-flag", "val"], {})
@@ -101,6 +106,7 @@ describe("ConfigResolver", () => {
 
   it("reads token from environment variable specified by token-env", () => {
     const rawArgs = [
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -128,7 +134,7 @@ describe("ConfigResolver", () => {
   });
 
   it("uses HARNESS_MEMORY_API_KEY by default and accepts an explicit credential environment", () => {
-    const args = ["--model", "gpt-5", "--effort", "high", "--environment", "production",
+    const args = ["--agent", "codex-cli", "--model", "gpt-5", "--effort", "high", "--environment", "production",
       "--project-key", "payments", "--deployment-id", "deploy-1", "--version", "1",
       "--api-url", "http://localhost:8000"];
     expect(resolver.resolve(args, { HARNESS_MEMORY_API_KEY: "default-key" }).token).toBe("default-key");
@@ -142,6 +148,7 @@ describe("ConfigResolver", () => {
 
   it("infers version and deployment-id from CI environment if not provided in CLI", () => {
     const rawArgs = [
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",

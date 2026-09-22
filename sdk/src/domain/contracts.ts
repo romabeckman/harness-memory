@@ -84,7 +84,7 @@ export interface PublishSnapshotOptions {
   environment: string;
   deploymentId: string;
   version: string;
-  agent?: LlmAgentType;
+  agent: LlmAgentType;
   model: string;
   effort: "low" | "medium" | "high" | "xhigh";
   baseRef?: string;

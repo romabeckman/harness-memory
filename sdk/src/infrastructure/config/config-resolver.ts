@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
-import { DEFAULT_LLM_AGENT, isLlmAgentType } from "../../domain/llm-agent.js";
+import { isLlmAgentType } from "../../domain/llm-agent.js";
 
 const ALLOWED_FLAGS = new Set([
   "--agent",
@@ -66,8 +66,8 @@ export class ConfigResolver {
     const agent =
       parsedCli["--agent"] ||
       env.HARNESS_MEMORY_AGENT ||
-      fileConfig.agent ||
-      DEFAULT_LLM_AGENT;
+      fileConfig.agent;
+    if (!agent) throw new ConfigurationError("agent is required");
     if (!isLlmAgentType(agent)) {
       throw new ConfigurationError(
         `agent must be one of: codex-cli, claude-cli; received '${agent}'`

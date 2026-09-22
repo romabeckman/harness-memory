@@ -26,6 +26,7 @@ describe("LocalLlmRunner", () => {
   it("fails with LlmExecutionError when executable is not found", async () => {
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "gpt-5",
         effort: "high",
         llmCommand: "non-existent-executable-987654321",
@@ -54,6 +55,7 @@ describe("LocalLlmRunner", () => {
     `;
 
     const doc = await runner.run({
+      agent: "codex-cli",
       model: "test-model",
       effort: "medium",
       llmCommand: process.execPath, // node
@@ -76,6 +78,7 @@ describe("LocalLlmRunner", () => {
 
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "test-model",
         effort: "low",
         llmCommand: process.execPath,
@@ -96,6 +99,7 @@ describe("LocalLlmRunner", () => {
 
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "test-model",
         effort: "low",
         llmCommand: process.execPath,
@@ -136,6 +140,7 @@ describe("LocalLlmRunner", () => {
     };
 
     const doc = await runner.run({
+      agent: "codex-cli",
       model: "test-model",
       effort: "medium",
       llmCommand: process.execPath,

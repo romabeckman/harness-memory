@@ -103,6 +103,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
     const code = await app.run([
       "publish",
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -146,6 +147,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
 
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -184,6 +186,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
 
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -219,6 +222,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     // In this test, we test that invalid graph output causes validator to reject
     // and no publication POST is made
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",

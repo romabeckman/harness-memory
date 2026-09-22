@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ProjectMemoryWorkflow } from "../../../../src/application/memory/project-memory-workflow.js";
 import { GraphValidator } from "../../../../src/infrastructure/validator/graph-validator.js";
 
-const options = { repository: "/repo", projectKey: "demo", environment: "production", deploymentId: "d1", version: "1", model: "test", effort: "high" as const, headRef: "HEAD", dryRun: false, apiUrl: "https://example.test", token: "secret" };
+const options = { repository: "/repo", projectKey: "demo", environment: "production", deploymentId: "d1", version: "1", agent: "codex-cli" as const, model: "test", effort: "high" as const, headRef: "HEAD", dryRun: false, apiUrl: "https://example.test", token: "secret" };
 const context = { commitSha: "a".repeat(40), headRef: "HEAD", files: [], diffs: [] };
 const generated = () => ({ schema_version: "1.0", entities: [
   ["adr:architecture", "adr", "docs/adr/ARCHITECTURE.md"],

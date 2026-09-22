@@ -65,6 +65,7 @@ describe("Child process LLM integration", () => {
 
     try {
       const doc = await runner.run({
+        agent: "codex-cli",
         model: "codex",
         effort: "high",
         llmCommand: process.execPath,

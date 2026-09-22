@@ -58,6 +58,7 @@ describe("PublishSnapshotUseCase", () => {
 
     await expect(
       useCase.execute({
+        agent: "codex-cli",
         repository: "",
         projectKey: "",
         environment: "staging",
@@ -80,6 +81,7 @@ describe("PublishSnapshotUseCase", () => {
     );
 
     const result = await useCase.execute({
+      agent: "codex-cli",
       repository: "/repo",
       projectKey: "catalog",
       environment: "staging",
@@ -133,11 +135,20 @@ describe("PublishSnapshotUseCase", () => {
     );
   });
 
+  it("rejects a programmatic call without an agent before collecting context", async () => {
+    const collector = { collect: vi.fn() };
+    const useCase = new PublishSnapshotUseCase(collector, mockLlm, mockValidator, mockClient);
+    await expect(useCase.execute({ repository: "/repo", projectKey: "catalog",
+      environment: "staging", deploymentId: "dep-1", version: "1", model: "gpt-5",
+      effort: "high", headRef: "HEAD", dryRun: true })).rejects.toThrow("agent is required");
+    expect(collector.collect).not.toHaveBeenCalled();
+  });
+
   it("uses the global API key when a programmatic caller omits a token", async () => {
     vi.stubEnv("HARNESS_MEMORY_API_KEY", "global-key");
     try {
       const useCase = new PublishSnapshotUseCase(mockCollector, mockLlm, mockValidator, mockClient);
-      await useCase.execute({ repository: "/repo", projectKey: "catalog", environment: "staging",
+      await useCase.execute({ agent: "codex-cli", repository: "/repo", projectKey: "catalog", environment: "staging",
         deploymentId: "dep-1", version: "1", model: "gpt-5", effort: "high",
         headRef: "HEAD", dryRun: false, apiUrl: "https://api.example.com" });
       expect(mockClient.publish).toHaveBeenCalledWith(expect.objectContaining({ token: "global-key" }));
