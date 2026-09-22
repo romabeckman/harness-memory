@@ -10,6 +10,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**.graph.json**](./.graph.json) | Macro relation graph for document topology and one-hop routing. | **Mandatory** |
 | [**ARCHITECTURE.md**](./adr/ARCHITECTURE.md) | Global architecture, folder organization, and dependency rules. | **Mandatory** |
 | [**API.md**](./adr/API.md) | FastAPI boundaries, route registration, persistence reuse, and token handoff. | Optional |
+| [**SECURITY.md**](./adr/SECURITY.md) | Authentication, token boundaries, tenant isolation, and operational security controls. | Optional |
 | [**MCP.md**](./adr/MCP.md) | MCP tools, resources, prompts, transport, and security boundaries. | Optional |
 | [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
 | [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
