@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:tenant-security"
     read: must
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # Production Delivery
 Package and operate Harness Memory as a non-root, migration-gated, observable MCP HTTP service.
@@ -76,7 +76,8 @@ Package and operate Harness Memory as a non-root, migration-gated, observable MC
 
 ## OVERVIEW
 
-Build a Python 3.12 slim image with `appuser` UID `10001`. Compose separates PostgreSQL, explicit migration, and MCP services.
+Build a Python 3.12 slim image with `appuser` UID `10001`. Compose separates PostgreSQL,
+explicit migration, API, and MCP services.
 
 Check Alembic compatibility during server lifespan startup. Keep startup fail-closed and never run implicit migrations.
 
@@ -112,6 +113,7 @@ tests/{unit,integration,e2e}/           # Delivery, startup, telemetry, and Dock
 |------|------|----------|-------------|---------|
 | `MCP_PRODUCTION` | boolean | Production only | Enables production runtime validation. | `false` |
 | `DATABASE_URL` | secret URL | Production only | PostgreSQL connection used by lifespan and migrations. | unset |
+| `API_ADMIN_TOKEN` | secret string | API management | Independent bearer secret for management routes. | unset |
 | `MCP_HOST` | string | No | HTTP bind host. | `0.0.0.0` in production |
 | `MCP_PORT` | integer | No | HTTP bind port. | `8000` |
 

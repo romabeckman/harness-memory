@@ -27,7 +27,7 @@ def upgrade() -> None:
     op.create_table(
         "environments",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("project_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("name", sa.String(length=64), nullable=False),
         sa.Column("type", sa.String(length=32), nullable=False, server_default="other"),
@@ -44,9 +44,14 @@ def upgrade() -> None:
         sa.UniqueConstraint(
             "tenant_id", "project_id", "name", name="uq_environments_tenant_project_name"
         ),
-        sa.CheckConstraint("length(trim(tenant_id)) > 0", name="ck_environments_tenant_id_non_empty"),
         sa.CheckConstraint("length(trim(name)) > 0", name="ck_environments_name_non_empty"),
         _metadata_check("ck_environments_metadata_object"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_environments_tenant_id",
+            ondelete="RESTRICT",
+        ),
         sa.ForeignKeyConstraint(
             ["project_id", "tenant_id"],
             ["projects.id", "projects.tenant_id"],
@@ -70,7 +75,7 @@ def upgrade() -> None:
     op.create_table(
         "knowledge_publications",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.String(length=255), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("project_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("environment_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("deployment_id", sa.String(length=255), nullable=False),
@@ -91,13 +96,16 @@ def upgrade() -> None:
             name="uq_knowledge_publications_tenant_project_env_deploy",
         ),
         sa.CheckConstraint(
-            "length(trim(tenant_id)) > 0", name="ck_knowledge_publications_tenant_id_non_empty"
-        ),
-        sa.CheckConstraint(
             "length(trim(deployment_id)) > 0",
             name="ck_knowledge_publications_deployment_id_non_empty",
         ),
         _metadata_check("ck_knowledge_publications_metadata_object"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_knowledge_publications_tenant_id",
+            ondelete="RESTRICT",
+        ),
         sa.ForeignKeyConstraint(
             ["project_id", "tenant_id"],
             ["projects.id", "projects.tenant_id"],

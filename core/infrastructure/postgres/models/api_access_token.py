@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -31,6 +31,9 @@ class ApiAccessToken(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+    scopes: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=lambda: ["memory:read"]
     )
     user = relationship("ApiUser", back_populates="tokens")
     service_account = relationship("ApiServiceAccount", back_populates="tokens")

@@ -9,6 +9,7 @@ from api.application.ports.user_repository import UserRepository
 from api.domain.entities.access_token import AccessToken
 from api.domain.entities.issued_token import IssuedToken
 from api.domain.services.token_expiration_policy import TokenExpirationPolicy
+from core.domain.tenant_security.types.memory_scope import MemoryScope
 
 
 class TokenService:
@@ -32,6 +33,7 @@ class TokenService:
         service_account_id: UUID | None = None,
         name: str,
         expires_at: datetime | None = None,
+        scopes: set[str] | frozenset[str] | None = None,
         now: datetime | None = None,
     ) -> IssuedToken:
         if (user_id is None) == (service_account_id is None):
@@ -53,6 +55,10 @@ class TokenService:
             else None
         )
         token_id = uuid4()
+        normalized_scopes = frozenset(scopes or {MemoryScope.READ.value})
+        supported_scopes = {scope.value for scope in MemoryScope}
+        if not normalized_scopes or not normalized_scopes <= supported_scopes:
+            raise ValueError("unsupported token scope")
         plaintext = f"hm_{token_id.hex}.{token_urlsafe(32)}"
         token = AccessToken(
             id=token_id,
@@ -62,6 +68,7 @@ class TokenService:
             token_hash=sha256(plaintext.encode()).hexdigest(),
             expires_at=expiration,
             created_at=created_at,
+            scopes=normalized_scopes,
         )
         return IssuedToken(self._repository.add(token), plaintext)
 

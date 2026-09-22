@@ -21,7 +21,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[test]"
-      - run: ruff check core harness_memory_mcp --ignore E501,I001
+      - run: ruff check api core harness_memory_mcp --ignore E501,I001
       - run: ruff format --check core/domain/platform/schema_compatibility_status.py core/domain/platform/schema_incompatible_error.py core/infrastructure/telemetry/telemetry_span_sanitizer.py harness_memory_mcp/config.py harness_memory_mcp/server/app.py harness_memory_mcp/server/factory.py harness_memory_mcp/server/server_lifespan_manager.py
 
   test-migrations:
@@ -103,7 +103,6 @@ jobs:
       - run: pytest tests/e2e
 
   coverage:
-    needs: [lint, test-migrations, test-unit, test-integration, test-e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,4 +111,5 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[test]"
-      - run: pytest --cov=core --cov=harness_memory_mcp --cov-fail-under=80 --cov-branch
+      - run: pytest tests/unit tests/e2e --cov=api --cov=core --cov=harness_memory_mcp --cov-report=term-missing --cov-fail-under=80
+

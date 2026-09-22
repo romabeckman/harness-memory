@@ -29,6 +29,7 @@ class KnowledgePublication:
         version: str,
         status: PublicationStatus = PublicationStatus.PENDING,
         snapshot_id: UUID | None = None,
+        payload_hash: str | None = None,
     ) -> None:
         self.id = id
         self.project_key = project_key
@@ -37,6 +38,7 @@ class KnowledgePublication:
         self.version = version
         self.status = status
         self.snapshot_id = snapshot_id
+        self.payload_hash = payload_hash
         self._events = []
 
     @property

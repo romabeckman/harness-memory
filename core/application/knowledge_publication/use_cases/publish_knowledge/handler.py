@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
-from uuid import uuid4
 
 from core.application.environment_context.ports.environment_repository import (
     EnvironmentRepository,
@@ -37,6 +37,9 @@ from core.domain.snapshot_publication.value_objects.project_key import ProjectKe
 from core.domain.snapshot_publication.value_objects.relation_reference import RelationReference
 from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.domain.snapshot_publication.value_objects.schema_version import SchemaVersion
+from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
+from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 
 
 def _normalize_entity(item: Any) -> EntityFact:
@@ -44,11 +47,9 @@ def _normalize_entity(item: Any) -> EntityFact:
         return item
     if isinstance(item, dict):
         raw_type = item.get("type", "service")
-        entity_type = (
-            EntityType(raw_type)
-            if raw_type in EntityType._value2member_map_
-            else EntityType.SERVICE
-        )
+        if raw_type not in EntityType._value2member_map_:
+            raise ValueError(f"unsupported entity type: {raw_type}")
+        entity_type = EntityType(raw_type)
         return EntityFact(
             EntityKey(item["key"]),
             entity_type,
@@ -57,11 +58,9 @@ def _normalize_entity(item: Any) -> EntityFact:
             item.get("canonical_key"),
         )
     raw_type = getattr(item, "type", "service")
-    entity_type = (
-        EntityType(raw_type)
-        if raw_type in EntityType._value2member_map_
-        else EntityType.SERVICE
-    )
+    if raw_type not in EntityType._value2member_map_:
+        raise ValueError(f"unsupported entity type: {raw_type}")
+    entity_type = EntityType(raw_type)
     return EntityFact(
         EntityKey(getattr(item, "key")),
         entity_type,
@@ -76,19 +75,23 @@ def _normalize_relation(item: Any) -> RelationFact:
         return item
     if isinstance(item, dict):
         raw_type = item.get("type", "depends_on")
-        relation_type = (
-            RelationType(raw_type)
-            if raw_type in RelationType._value2member_map_
-            else RelationType.DEPENDS_ON
-        )
+        if raw_type not in RelationType._value2member_map_:
+            raise ValueError(f"unsupported relation type: {raw_type}")
+        relation_type = RelationType(raw_type)
         raw_prov = item.get("provenance", "declared")
-        provenance = (
-            ProvenanceKind(raw_prov)
-            if raw_prov in ProvenanceKind._value2member_map_
-            else ProvenanceKind.DECLARED
-        )
+        if raw_prov not in ProvenanceKind._value2member_map_:
+            raise ValueError(f"unsupported provenance: {raw_prov}")
+        provenance = ProvenanceKind(raw_prov)
         return RelationFact(
-            RelationReference(item.get("ref", str(uuid4()))),
+            RelationReference(
+                item.get("ref")
+                or sha256(
+                    (
+                        f"{item['source_entity_key']}|{raw_type}|{item['target_entity_key']}|"
+                        f"{raw_prov}|{sorted((item.get('metadata') or {}).items())}"
+                    ).encode()
+                ).hexdigest()
+            ),
             EntityKey(item["source_entity_key"]),
             relation_type,
             EntityKey(item["target_entity_key"]),
@@ -96,19 +99,24 @@ def _normalize_relation(item: Any) -> RelationFact:
             MetadataObject(item.get("metadata", {})),
         )
     raw_type = getattr(item, "type", "depends_on")
-    relation_type = (
-        RelationType(raw_type)
-        if raw_type in RelationType._value2member_map_
-        else RelationType.DEPENDS_ON
-    )
+    if raw_type not in RelationType._value2member_map_:
+        raise ValueError(f"unsupported relation type: {raw_type}")
+    relation_type = RelationType(raw_type)
     raw_prov = getattr(item, "provenance", "declared")
-    provenance = (
-        ProvenanceKind(raw_prov)
-        if raw_prov in ProvenanceKind._value2member_map_
-        else ProvenanceKind.DECLARED
-    )
+    if raw_prov not in ProvenanceKind._value2member_map_:
+        raise ValueError(f"unsupported provenance: {raw_prov}")
+    provenance = ProvenanceKind(raw_prov)
+    reference = getattr(item, "ref", getattr(item, "reference", None))
+    if reference is None:
+        reference = sha256(
+            (
+                f"{getattr(item, 'source_entity_key')}|{raw_type}|"
+                f"{getattr(item, 'target_entity_key')}|{raw_prov}|"
+                f"{sorted(getattr(item, 'metadata', {}).items())}"
+            ).encode()
+        ).hexdigest()
     return RelationFact(
-        RelationReference(getattr(item, "ref", getattr(item, "reference", str(uuid4())))),
+        RelationReference(reference),
         EntityKey(getattr(item, "source_entity_key")),
         relation_type,
         EntityKey(getattr(item, "target_entity_key")),
@@ -150,7 +158,7 @@ class PublishKnowledgeHandler:
         try:
             revision_val = int(input.version)
         except (ValueError, TypeError):
-            revision_val = abs(hash(input.version)) % 1000000 + 1
+            revision_val = int.from_bytes(sha256(input.version.encode()).digest()[:8], "big") % 2147483647 + 1
 
         return ProjectKnowledgeSnapshot(
             schema_version=SchemaVersion("1.0"),
@@ -165,6 +173,10 @@ class PublishKnowledgeHandler:
         )
 
     def execute(self, input: PublishKnowledgeInput) -> PublishKnowledgeOutput:
+        snapshot = self._build_snapshot(input)
+        content = snapshot_payload(snapshot)
+        content.pop("generated_at", None)
+        payload_hash = PayloadHashCalculator().calculate(content).value
         existing = self._publication_repository.find_by_deployment(
             project_key=input.project_key,
             env_name=input.environment_name,
@@ -172,13 +184,15 @@ class PublishKnowledgeHandler:
             tenant_id=input.tenant_id,
         )
         if existing is not None and existing.status == PublicationStatus.COMPLETED:
+            if existing.payload_hash is not None and existing.payload_hash != payload_hash:
+                raise RevisionConflict("deployment identity was reused with different content")
             return PublishKnowledgeOutput(
                 publication_id=existing.id.value,
                 snapshot_id=existing.snapshot_id,  # type: ignore[arg-type]
                 status=PublicationStatus.ALREADY_PUBLISHED,
             )
 
-        env = self._environment_repository.resolve(
+        env = self._environment_repository.resolve_or_create(
             project_key=input.project_key,
             name=input.environment_name,
             tenant_id=input.tenant_id,
@@ -193,9 +207,8 @@ class PublishKnowledgeHandler:
             environment_name=EnvironmentName(input.environment_name),
             deployment_id=DeploymentId(input.deployment_id),
             version=input.version,
+            payload_hash=payload_hash,
         )
-
-        snapshot = self._build_snapshot(input)
 
         new_snapshot_id = self._publication_repository.publish_atomically_with_environment(
             tenant_id=input.tenant_id,

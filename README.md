@@ -34,11 +34,11 @@ Knowledge can represent entities such as projects, systems, services, APIs, even
 ## How It Works
 
 ```text
-Project / Agent
+CI/CD / API
       │
       │ ProjectKnowledgeSnapshot
       ▼
- Harness Memory MCP
+ Harness Memory API
       │
       ├── validate
       ├── version
@@ -58,16 +58,17 @@ Important relationships can also carry **provenance** and **evidence**, making i
 
 ## MCP Interface
 
-The MVP exposes the following tools:
+The MCP surface is read-only and exposes the following tools:
 
 | Tool | Purpose |
 | --- | --- |
-| `publish_project_snapshot` | Publish and activate a project's knowledge snapshot. |
 | `search_entities` | Search known entities by key, name, type, or project. |
 | `get_context` | Retrieve bounded context around an entity. |
 | `get_dependencies` | Query inbound and outbound dependencies. |
 | `find_integration_paths` | Find known paths between engineering entities. |
 | `analyze_impact` | Identify direct and indirect impact of a structured change. |
+| `get_environment` | Read an environment and its active snapshot. |
+| `compare_environments` | Compare two environment snapshots. |
 
 Resources:
 
@@ -131,6 +132,10 @@ See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and 
 
 ## Getting Started
 
+For a community-friendly first run, follow the [developer setup guide](docs/workflow/SETUP.md)
+and then use the [daily-use playbook](docs/workflow/PLAYBOOK-DAILY-USE.md). It covers local
+credentials, read-only MCP access, governed API publication, and the test loop.
+
 ### Requirements
 
 - Docker
@@ -138,6 +143,8 @@ See [`ARCHITECTURE.md`](docs/adr/ARCHITECTURE.md) for detailed architecture and 
 - Python 3.12+ for local development
 
 ### Start the services
+
+Copy `.env-example` to `.env`, set a long random `API_ADMIN_TOKEN`, then run:
 
 ```bash
 docker compose up --build
@@ -150,7 +157,7 @@ PostgreSQL
     ↓
 Alembic migrations
     ↓
-MCP server
+REST API and MCP server
 ```
 
 The MCP server is exposed at:
@@ -158,6 +165,8 @@ The MCP server is exposed at:
 ```text
 http://localhost:8000
 ```
+
+The REST API is exposed at `http://localhost:8080`; use `/health` for a readiness check.
 
 ### Stop the services
 
@@ -174,7 +183,7 @@ docker compose down -v
 > This permanently removes the local database data stored by Docker Compose.
 
 The production image runs as `appuser` (UID `10001`). The `migrate` service runs
-`alembic upgrade head` before the MCP service accepts traffic. The server checks
+`alembic upgrade head` before the API and MCP services accept traffic. The server checks
 that the database revision equals Alembic `head`; it never runs implicit migrations.
 
 ## Database Migrations
@@ -225,8 +234,9 @@ also pass. Windows virtual environments use `venv\\Scripts\\python.exe` and
 
 Production HTTP mode verifies bearer tokens issued by the REST API and stored as
 SHA-256 digests. Every tool request is bound to the token owner; tenant identity is
-never accepted from a tool payload. Scope checks protect publishing, reads, and
-impact analysis. Security audit records keep bounded safe identifiers and optional
+never accepted from a tool payload. Scope checks protect reads and impact analysis
+on MCP. Publication is available only through the API and requires the exact
+`memory:publish` scope. Security audit records keep bounded safe identifiers and optional
 W3C trace correlation.
 
 ### MCP example
@@ -253,9 +263,12 @@ For a remote deployment, use its publicly reachable HTTPS URL, such as
 ### Authentication
 
 The Compose configuration enables database authentication with
-`MCP_AUTH_MODE=database`. Create a user through `POST http://localhost:8080/v1/users`,
-then create its token through `POST http://localhost:8080/v1/tokens`. Save the plaintext
-token returned once by the creation response.
+`MCP_AUTH_MODE=database`. Management endpoints require
+`Authorization: Bearer <API_ADMIN_TOKEN>`. Create a user through
+`POST http://localhost:8080/v1/users`, then create its token through
+`POST http://localhost:8080/v1/tokens` and request only the required scopes. Save the
+plaintext token returned once by the creation response. The complete bootstrap sequence
+is in the [developer setup guide](docs/workflow/SETUP.md).
 
 For automation, create a tenant-bound service account through `POST /v1/service-accounts`,
 then issue its token through `POST /v1/tokens` with `service_account_id`. Omit `expires_at`
@@ -263,8 +276,9 @@ to create a non-expiring service-account token. See the [API guide](api/README.m
 
 Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
 value, accepts only an active stored token, and derives subject and tenant identity
-from its owning user. API-issued tokens authenticate MCP clients only; they do not
-authenticate REST API requests.
+from its owner. API-issued tokens authenticate MCP reads and, for tenant-bound service
+accounts with the exact `memory:publish` scope, API publication requests. They never
+authenticate REST management endpoints.
 
 ### Set the MCP token environment variable
 

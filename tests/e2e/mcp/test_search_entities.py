@@ -26,4 +26,4 @@ async def test_search_entities_is_catalogued_beside_publication_when_both_handle
     async with Client(server) as client:
         tools = await client.list_tools()
 
-    assert [tool.name for tool in tools] == ["publish_project_snapshot", "search_entities"]
+    assert [tool.name for tool in tools] == ["search_entities"]

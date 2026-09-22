@@ -1,61 +1,16 @@
-from datetime import timezone
-from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from typing import Any
 
 from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
     ProjectKnowledgeSnapshot,
 )
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 
 from ..models.entity import Entity
 from ..models.evidence import Evidence
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
 from .snapshot_graph_rows import SnapshotGraphRows
-
-
-def _payload(snapshot: ProjectKnowledgeSnapshot) -> dict[str, Any]:
-    return {
-        "schema_version": snapshot.schema_version.value,
-        "project": {
-            "key": snapshot.project.key.value,
-            "name": snapshot.project.name,
-            "metadata": snapshot.project.metadata.to_dict(),
-        },
-        "revision": snapshot.revision.value,
-        "generated_at": snapshot.generated_at.value.astimezone(timezone.utc)
-        .isoformat(timespec="microseconds")
-        .replace("+00:00", "Z"),
-        "entities": [
-            {
-                "key": item.key.value,
-                "type": item.type.value,
-                "name": item.name,
-                "canonical_key": item.canonical_key,
-                "metadata": item.metadata.to_dict(),
-            }
-            for item in snapshot.entities
-        ],
-        "relations": [
-            {
-                "ref": item.reference.value,
-                "source_entity_key": item.source_entity_key.value,
-                "type": item.type.value,
-                "target_entity_key": item.target_entity_key.value,
-                "provenance": item.provenance.value,
-                "metadata": item.metadata.to_dict(),
-            }
-            for item in snapshot.relations
-        ],
-        "evidence": [
-            {
-                "source": item.source,
-                "excerpt": item.excerpt,
-                "relation_ref": item.relation_reference.value if item.relation_reference else None,
-                "metadata": item.metadata.to_dict(),
-            }
-            for item in snapshot.evidence
-        ],
-    }
 
 
 def _canonical_entity_id(
@@ -99,7 +54,7 @@ class SnapshotPersistenceMapper:
             revision=snapshot.revision.value,
             schema_version=snapshot.schema_version.value,
             payload_hash=hash_value,
-            payload=_payload(snapshot),
+            payload=snapshot_payload(snapshot),
             metadata_json=snapshot.project.metadata.to_dict(),
         )
         entities = tuple(

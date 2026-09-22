@@ -1,0 +1,130 @@
+import { describe, expect, it } from "vitest";
+import { GraphValidator } from "../../../../src/infrastructure/validator/graph-validator.js";
+import { GraphValidationError } from "../../../../src/domain/graph-validation-error.js";
+import { GraphDocument } from "../../../../src/domain/contracts.js";
+
+describe("GraphValidator", () => {
+  const validator = new GraphValidator();
+
+  it("validates and canonicalizes a valid graph document", () => {
+    const doc: GraphDocument = {
+      schema_version: "1.0",
+      entities: [
+        { key: "service:b", type: "service", name: "B Service" },
+        { key: "service:a", type: "service", name: "A Service" },
+      ],
+      relations: [
+        {
+          ref: "rel-2",
+          source_entity_key: "service:b",
+          type: "depends_on",
+          target_entity_key: "service:a",
+          provenance: "declared",
+        },
+        {
+          ref: "rel-1",
+          source_entity_key: "service:a",
+          type: "provides",
+          target_entity_key: "service:b",
+          provenance: "declared",
+        },
+      ],
+      evidence: [
+        { source: "file-z.ts", relation_ref: "rel-2" },
+        { source: "file-a.ts", relation_ref: "rel-1" },
+      ],
+    };
+
+    const validated = validator.validateAndCanonicalize(doc);
+
+    expect(validated.counts).toEqual({ entities: 2, relations: 2, evidence: 2 });
+    expect(validated.document.entities.map((e) => e.key)).toEqual(["service:a", "service:b"]);
+    expect(validated.document.relations.map((r) => r.ref)).toEqual(["rel-1", "rel-2"]);
+    expect(validated.document.evidence.map((ev) => ev.source)).toEqual(["file-a.ts", "file-z.ts"]);
+    expect(validated.sha256).toHaveLength(64);
+  });
+
+  it("rejects invalid schema version", () => {
+    const doc = {
+      schema_version: "2.0",
+      entities: [],
+      relations: [],
+      evidence: [],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
+  it("rejects unsupported entity types", () => {
+    const doc: any = {
+      schema_version: "1.0",
+      entities: [{ key: "svc-1", type: "unsupported" }],
+      relations: [],
+      evidence: [],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
+  it("rejects duplicate relation refs", () => {
+    const doc: GraphDocument = {
+      schema_version: "1.0",
+      entities: [{ key: "svc-1", type: "service" }],
+      relations: [
+        {
+          ref: "dup-ref",
+          source_entity_key: "svc-1",
+          type: "depends_on",
+          target_entity_key: "svc-1",
+          provenance: "declared",
+        },
+        {
+          ref: "dup-ref",
+          source_entity_key: "svc-1",
+          type: "part_of",
+          target_entity_key: "svc-1",
+          provenance: "declared",
+        },
+      ],
+      evidence: [],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
+  it("rejects dangling relation endpoints", () => {
+    const doc: GraphDocument = {
+      schema_version: "1.0",
+      entities: [{ key: "svc-1", type: "service" }],
+      relations: [
+        {
+          ref: "rel-1",
+          source_entity_key: "svc-1",
+          type: "depends_on",
+          target_entity_key: "non-existent",
+          provenance: "declared",
+        },
+      ],
+      evidence: [],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
+  it("rejects dangling evidence relation refs", () => {
+    const doc: GraphDocument = {
+      schema_version: "1.0",
+      entities: [],
+      relations: [],
+      evidence: [{ source: "test.ts", relation_ref: "unknown-rel" }],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
+  it("rejects oversized metadata (>64 KiB)", () => {
+    const hugeMeta: Record<string, string> = { data: "x".repeat(65536 + 10) };
+    const doc: GraphDocument = {
+      schema_version: "1.0",
+      entities: [{ key: "svc-1", type: "service", metadata: hugeMeta }],
+      relations: [],
+      evidence: [],
+    };
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+});

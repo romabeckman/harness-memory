@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     String,
@@ -15,16 +16,22 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+from .tenant_id import TenantId
 from .types import JSON_OBJECT
 
 
 class Evidence(Base):
     __tablename__ = "evidence"
     __table_args__ = (
-        CheckConstraint("length(trim(tenant_id)) > 0", name="ck_evidence_tenant_id_non_empty"),
         CheckConstraint(
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_evidence_metadata_object",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id"],
+            ["tenants.id"],
+            name="fk_evidence_tenant_id",
+            ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
             ["snapshot_id", "tenant_id"],
@@ -43,7 +50,7 @@ class Evidence(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(TenantId(as_uuid=True), nullable=False)
     snapshot_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     relation_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     source: Mapped[str] = mapped_column(String(1024), nullable=False)

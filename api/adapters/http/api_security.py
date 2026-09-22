@@ -1,0 +1,61 @@
+from datetime import UTC, datetime
+from hashlib import sha256
+from hmac import compare_digest
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from api.application.ports.token_repository import TokenRepository
+from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+class ApiSecurity:
+    def __init__(self, token_repository: TokenRepository, admin_token: str | None) -> None:
+        self._token_repository = token_repository
+        self._admin_token = admin_token.strip() if admin_token else None
+
+    def require_admin(
+        self,
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    ) -> None:
+        if self._admin_token is None:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="API administration is not configured")
+        if credentials is None or not compare_digest(credentials.credentials, self._admin_token):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    def require_publisher(
+        self,
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    ) -> AuthenticatedPrincipal:
+        if credentials is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token_hash = sha256(credentials.credentials.encode()).hexdigest()
+        identity = self._token_repository.find_active_by_hash(token_hash, now=datetime.now(UTC))
+        if identity is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token, owner = identity
+        if "memory:publish" not in token.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="insufficient scope",
+                headers={"WWW-Authenticate": 'Bearer scope="memory:publish"'},
+            )
+        return AuthenticatedPrincipal(
+            subject=str(owner.id),
+            tenant_id=str(owner.tenant_id),
+            scopes=token.scopes,
+        )

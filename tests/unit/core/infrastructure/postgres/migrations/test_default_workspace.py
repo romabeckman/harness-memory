@@ -11,9 +11,21 @@ def _database():
     engine = sa.create_engine("sqlite+pysqlite:///:memory:")
     metadata = sa.MetaData()
     sa.Table(
+        "tenants",
+        metadata,
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("key", sa.String(255), nullable=False, unique=True),
+        sa.Column("name", sa.String(255), nullable=False),
+        sa.Column("status", sa.String(32), nullable=False),
+        sa.Column("metadata", sa.String(1000), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+    )
+    sa.Table(
         "users",
         metadata,
         sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("tenant_id", sa.String(36), nullable=False),
         sa.Column("name", sa.String(120), nullable=False),
         sa.Column("email", sa.String(320), nullable=False, unique=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -78,9 +90,10 @@ def test_upgrade_seeds_admin_user_default_tenant_and_project(database, monkeypat
 
     admin = database.execute(sa.text("SELECT id, name, email FROM users")).one()
     project = database.execute(sa.text("SELECT id, tenant_id, key, name FROM projects")).one()
+    assert database.scalar(sa.text("SELECT count(*) FROM tenants")) == 1
     assert admin.name == "Admin"
     assert admin.email == "admin@harness-memory.local"
-    assert project.tenant_id == str(UUID(admin.id))
+    assert UUID(project.tenant_id) == UUID(admin.id)
     assert project.key == "default"
     assert project.name == "Default Project"
 
@@ -91,6 +104,7 @@ def test_downgrade_removes_only_unused_seed_rows(database, monkeypatch):
 
     migration.downgrade()
 
+    assert database.scalar(sa.text("SELECT count(*) FROM tenants")) == 0
     assert database.scalar(sa.text("SELECT count(*) FROM users")) == 0
     assert database.scalar(sa.text("SELECT count(*) FROM projects")) == 0
 

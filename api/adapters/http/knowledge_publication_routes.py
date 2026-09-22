@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Header, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from api.adapters.http.schemas.knowledge_publication_request import (
     KnowledgePublicationRequest,
@@ -10,9 +10,11 @@ from core.application.knowledge_publication.use_cases.publish_knowledge.inbound 
     PublishKnowledgeInput,
 )
 from core.domain.knowledge_publication.types.publication_status import PublicationStatus
+from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
+from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
 
 
-def create_knowledge_publication_router(handler) -> APIRouter:
+def create_knowledge_publication_router(handler, authenticate) -> APIRouter:
     router = APIRouter(tags=["knowledge-publications"])
 
     @router.post(
@@ -22,11 +24,10 @@ def create_knowledge_publication_router(handler) -> APIRouter:
     def publish_knowledge(
         request: KnowledgePublicationRequest,
         response: Response,
-        x_tenant_id: str | None = Header(None, alias="X-Tenant-ID"),
+        principal: AuthenticatedPrincipal = Depends(authenticate),
     ) -> KnowledgePublicationResponse:
-        tenant_id = x_tenant_id or "default"
         domain_input = PublishKnowledgeInput(
-            tenant_id=tenant_id,
+            tenant_id=principal.tenant_id,
             project_key=request.project_key,
             environment_name=request.environment,
             deployment_id=request.deployment_id,
@@ -35,7 +36,14 @@ def create_knowledge_publication_router(handler) -> APIRouter:
             relations=tuple(request.relations),
             evidence=tuple(request.evidence),
         )
-        output = handler.execute(domain_input)
+        try:
+            output = handler.execute(domain_input)
+        except RevisionConflict as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
 
         if output.status == PublicationStatus.ALREADY_PUBLISHED:
             response.status_code = status.HTTP_200_OK

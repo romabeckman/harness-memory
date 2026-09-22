@@ -25,12 +25,13 @@ class Component:
 
 class ComponentScopePolicy:
     _MATRIX = {
-        ("tool", "publish_project_snapshot"): MemoryScope.PUBLISH.value,
         ("tool", "analyze_impact"): MemoryScope.IMPACT.value,
         ("tool", "search_entities"): MemoryScope.READ.value,
         ("tool", "get_context"): MemoryScope.READ.value,
         ("tool", "get_dependencies"): MemoryScope.READ.value,
         ("tool", "find_integration_paths"): MemoryScope.READ.value,
+        ("tool", "get_environment"): MemoryScope.READ.value,
+        ("tool", "compare_environments"): MemoryScope.READ.value,
         ("resource", "memory://entities/{entity_id}"): MemoryScope.READ.value,
         ("resource", "memory://projects/{project_key}"): MemoryScope.READ.value,
         ("resource", "memory://snapshots/{snapshot_id}"): MemoryScope.READ.value,

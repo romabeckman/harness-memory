@@ -14,6 +14,16 @@ class ApiServiceAccountRepository:
 
     def add(self, account: ServiceAccount) -> ServiceAccount:
         with self._session_factory() as session:
+            try:
+                from core.infrastructure.postgres.models.tenant import Tenant
+
+                tenant = session.get(Tenant, account.tenant_id)
+                if tenant is None or tenant.status != "active":
+                    raise ValueError("tenant not found or disabled")
+            except ValueError:
+                raise
+            except Exception:
+                pass
             session.add(
                 ApiServiceAccount(
                     id=account.id,

@@ -1,0 +1,156 @@
+---
+doc_type: feature
+domain: tenant_foundation
+stack: [Python 3.12+, SQLAlchemy 2.x, PostgreSQL, Alembic]
+node_id: "feature:tenant-foundation"
+tags: [tenant, uuid, foundation, persistence, migrations]
+edges:
+  - relation: implements
+    target: "adr:architecture"
+  - relation: tested_by
+    target: "adr:tests"
+  - relation: depends_on
+    target: "feature:platform-foundation"
+  - relation: references
+    target: "adr:security"
+updated: 2026-09-22
+---
+# Tenant Foundation
+Provide first-class tenant persistence, strict UUID foreign keys, deterministic legacy slug compatibility, and isolated provisioning savepoints.
+
+```graph
+{
+  "node_id": "feature:tenant-foundation",
+  "domain": "tenant_foundation",
+  "implements": ["adr:architecture"],
+  "tested_by": ["adr:tests"],
+  "entrypoints": [
+    "core/infrastructure/postgres/models/tenant.py"
+  ],
+  "registration_files": [
+    "core/infrastructure/postgres/models/__init__.py"
+  ],
+  "reference_files": [
+    "core/infrastructure/postgres/models/tenant_id.py",
+    "core/infrastructure/postgres/models/tenant_uuid.py"
+  ],
+  "code_files": [
+    "core/infrastructure/postgres/repositories/api_user_repository.py",
+    "migrations/versions/010_tenant_foundation_forward.py"
+  ],
+  "test_files": [
+    "tests/unit/core/infrastructure/postgres/migrations/test_tenant_foundation_forward.py",
+    "tests/unit/core/infrastructure/postgres/models/test_tenant_id.py",
+    "tests/unit/core/infrastructure/postgres/models/test_tenant_schema.py",
+    "tests/unit/core/infrastructure/postgres/models/test_tenant_uuid.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_api_user_repository.py"
+  ]
+}
+```
+
+## OVERVIEW
+
+The Tenant Foundation establishes first-class multi-tenancy in PostgreSQL. It promotes tenant identity from a loose string into a dedicated `tenants` table with strict UUID primary and foreign keys, transparent slug-to-UUID5 mapping, and savepoint-isolated database provisioning.
+
+## FOLDER STRUCTURE
+
+```text
+core/infrastructure/postgres/
+├── models/                   # Tenant model, TenantId type decorator, TenantUUID value object
+├── repositories/             # ApiUserRepository with nested savepoint tenant provisioning
+└── migrations/versions/      # 010_tenant_foundation_forward schema revision
+tests/unit/core/infrastructure/postgres/
+├── models/                   # Unit tests for TenantId and TenantUUID behaviors
+├── repositories/             # Concurrency and savepoint tests for ApiUserRepository
+└── migrations/               # Forward migration tests verifying foreign keys
+```
+
+## MAIN CONCEPTS / COMPONENTS
+
+- **Tenant Model**: Backed by `tenants` table. Enforces non-empty string `key` with unique constraint `uq_tenants_key`, valid status constraint `ck_tenants_status_valid` (`active` or `disabled`), and JSON object validator `ck_tenants_metadata_object`.
+- **TenantId SQLAlchemy Type Decorator**: Subclasses `Uuid(as_uuid=True)`. Normalizes and validates incoming values: rejects empty strings or whitespace; passes existing UUID objects directly; deterministically converts valid alphanumeric slugs using `uuid5(NAMESPACE_DNS, slug)`.
+- **TenantUUID Value Object**: Subclasses Python's standard `UUID`. Overrides `__eq__` to match valid string UUIDs and legacy slugs, allowing backward-compatible equality comparisons in domain services and test suites.
+- **Savepoint-Isolated Provisioning**: In `ApiUserRepository.add()`, tenant insertion runs inside `session.begin_nested()`. Concurrent attempts to register the same tenant catch `IntegrityError` safely and roll back only the inner savepoint, leaving the outer transaction active.
+- **Migration 010 (Forward Foundation)**: Adds foreign key constraints referencing `tenants.id` across all tables: `projects`, `snapshots`, `entities`, `relations`, `evidence`, `api_users`, `api_service_accounts`, `environments`, and `knowledge_publications`.
+
+## HOW TO MANAGE TENANTS
+
+### Prerequisites
+1. PostgreSQL upgraded to migration `010_tenant_foundation_forward`.
+2. Active SQLAlchemy session bound to target engine.
+
+### Steps
+1. Use `TenantId` type on all model columns representing tenant boundaries.
+2. Rely on `ApiUserRepository` or explicit provisioning with nested savepoints.
+
+```python
+# CORRECT: Safe tenant provisioning using nested savepoint
+def ensure_tenant(session, tenant_id: UUID, tenant_name: str) -> None:
+    try:
+        with session.begin_nested():
+            tenant = Tenant(
+                id=tenant_id,
+                key=f"user-{tenant_id}",
+                name=tenant_name,
+                status="active",
+            )
+            session.add(tenant)
+            session.flush()
+    except IntegrityError:
+        pass  # Tenant already provisioned by concurrent transaction
+
+# WRONG: Catching IntegrityError at outer session level without savepoint
+# try:
+#     session.add(Tenant(id=tenant_id, key="t1", name="T1"))
+#     session.flush()
+# except IntegrityError:
+#     # Transaction is now aborted; subsequent queries will fail
+#     pass
+```
+
+## PARAMETERS / CONFIGURATIONS
+
+| Column / Constraint | Type / Value | Required | Description |
+|---------------------|--------------|----------|-------------|
+| `id` | `UUID` (PK) | Yes | Unique tenant primary key. Generated via `uuid4()` by default. |
+| `key` | `VARCHAR(255)` | Yes | Unique human-readable key (`uq_tenants_key`). Non-empty string. |
+| `name` | `VARCHAR(255)` | Yes | Display name of the tenant organization. |
+| `status` | `VARCHAR(32)` | Yes | Status enum: `active` or `disabled`. Default: `active`. |
+| `metadata` | `JSON_OBJECT` | Yes | JSON object with tenant metadata. Default: `{}`. |
+| `created_at` | `TIMESTAMPTZ` | Yes | Timestamp of creation. Default: `func.now()`. |
+| `updated_at` | `TIMESTAMPTZ` | Yes | Timestamp of last modification. Default: `func.now()`. |
+
+## BEST PRACTICES
+
+REQUIRED: Define all tenant foreign key references as `TenantId(as_uuid=True)` targeting `tenants.id`.
+REQUIRED: Wrap automatic tenant creation inside `session.begin_nested()` to protect the outer transaction from rollback aborts.
+REQUIRED: Reject blank or empty string values in `TenantId` processors with a `ValueError`.
+REQUIRED: Preserve deterministic `uuid5(NAMESPACE_DNS, slug)` mapping for legacy string slugs.
+PROHIBITED: Defining models with unconstrained string columns for tenant identity.
+PROHIBITED: Catching `IntegrityError` without a savepoint during tenant provisioning.
+PROHIBITED: Inserting tenants with status other than `active` or `disabled`.
+
+## TIPS
+
+When writing tests with legacy tenant strings, pass the string directly to queries; the `TenantId` processor automatically generates the deterministic `TenantUUID` representation.
+
+## DOCUMENT MAP
+
+```mermaid
+graph TD
+    THIS["Tenant Foundation"] -->|implements| ARCH["Project Architecture"]
+    THIS -->|tested_by| TESTS["Testing Protocol"]
+    THIS -->|depends_on| PLATFORM["Platform Foundation"]
+    THIS -->|references| SEC["Security Architecture"]
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click TESTS "../../adr/TESTS.md"
+    click PLATFORM "./platform-foundation.md"
+    click SEC "../../adr/SECURITY.md"
+```
+
+## REFERENCES
+
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Architectural boundaries and PostgreSQL infrastructure rules.
+- [**TESTS.md**](../../adr/TESTS.md): Migration and PostgreSQL integration test protocols.
+- [**platform-foundation.md**](./platform-foundation.md): Foundation schema, tables, and Alembic CLI operations.
+- [**SECURITY.md**](../../adr/SECURITY.md): Multi-tenant isolation and security audit policies.

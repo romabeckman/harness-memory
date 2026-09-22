@@ -14,9 +14,9 @@ edges:
   - relation: references
     target: "adr:api"
   - relation: depends_on
-    target: "feature:api-users-tokens"
+    target: "feature:api-tokens"
     read: must
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # MCP Token Authentication
 
@@ -29,7 +29,7 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
   "references": ["adr:mcp", "adr:api"],
-  "depends_on": ["feature:api-users-tokens"],
+  "depends_on": ["feature:api-tokens"],
   "entrypoints": ["harness_memory_mcp/server/app.py"],
   "registration_files": ["harness_memory_mcp/server/factory.py", "docker-compose.yml"],
   "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py", "core/infrastructure/postgres/repositories/api_service_account_repository.py"],
@@ -40,7 +40,9 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
 
 ## OVERVIEW
 
-Use an API-issued token only as **MCP bearer authentication**. Reject blank credentials, hash every other presented token, load its active database record and owner, then create the FastMCP identity without exposing the stored digest.
+Use API-issued tokens as owner-bound bearer credentials. MCP accepts their read and
+impact scopes; the publication API accepts `memory:publish`. Neither surface exposes the
+stored digest.
 
 ## FOLDER STRUCTURE
 
@@ -61,7 +63,9 @@ core/infrastructure/postgres/ # Active-token lookup
 3. Configure the MCP client with `Authorization: Bearer <token>`.
 4. Connect the client to `http://localhost:8000/mcp`.
 
-The verifier maps the token owner's ID to `sub`. User tokens use the user ID as `tenant_id`; service-account tokens use the service account's assigned tenant. Current API tokens receive `memory:read`, `memory:publish`, and `memory:impact` scopes because role management is outside this feature.
+The verifier maps the token owner's ID to `sub`. User tokens use the user ID as
+`tenant_id`; service-account tokens use the service account's assigned tenant. A
+principal receives exactly the scopes persisted for that token.
 
 ## CONFIGURATION
 
@@ -77,7 +81,7 @@ REQUIRED: Reject unknown, deleted, or expired tokens with HTTP 401; treat a null
 REQUIRED: Resolve subject and tenant from the stored token owner.
 REQUIRED: Reject active token records with missing token or owner data before creating a principal.
 PROHIBITED: Accept user or tenant identity from MCP request payloads.
-PROHIBITED: Use API tokens to authenticate REST API endpoints.
+PROHIBITED: Use API tokens to authenticate REST management endpoints.
 
 ## DOCUMENT MAP
 
@@ -87,12 +91,12 @@ graph TD
     AUTH -->|tested_by| TESTS["Testing Protocol"]
     AUTH -->|references| MCP["MCP Interface"]
     AUTH -->|references| APIARCH["API Architecture"]
-    AUTH -->|depends_on| API["API Users and Tokens"]
+    AUTH -->|depends_on| API["API Tokens"]
     click ARCH "../../adr/ARCHITECTURE.md"
     click TESTS "../../adr/TESTS.md"
     click MCP "../../adr/MCP.md"
     click APIARCH "../../adr/API.md"
-    click API "../api/users-and-tokens.md"
+    click API "../api/tokens.md"
 ```
 
 ## REFERENCES
@@ -101,4 +105,4 @@ graph TD
 - [**TESTS.md**](../../adr/TESTS.md): Defines verification tiers.
 - [**MCP.md**](../../adr/MCP.md): Defines MCP transport and component contracts.
 - [**API.md**](../../adr/API.md): Defines issuance and ownership of MCP bearer tokens.
-- [**users-and-tokens.md**](../api/users-and-tokens.md): Defines token issuance and lifecycle.
+- [**tokens.md**](../api/tokens.md): Defines token issuance and lifecycle.

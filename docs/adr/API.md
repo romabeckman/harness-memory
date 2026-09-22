@@ -12,16 +12,25 @@ edges:
   - relation: references
     target: "adr:tests"
   - relation: references
-    target: "feature:api-users-tokens"
+    target: "feature:api-users"
+  - relation: references
+    target: "feature:api-service-accounts"
+  - relation: references
+    target: "feature:api-tokens"
+  - relation: references
+    target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # API Architecture
 
 ## PURPOSE
 
-`api/` is the project's second application module. It exposes FastAPI endpoints for user, tenant-bound service-account, and access-token CRUD, a process health check, and generated OpenAPI documentation. API-issued tokens are credentials for MCP clients only; they do not authenticate the REST management endpoints.
+`api/` exposes FastAPI endpoints for user, tenant-bound service-account, access-token,
+and knowledge-publication operations. A static administrator bearer secret protects
+management routes. API-issued owner-bound tokens authorize MCP reads and API publication,
+but never management routes.
 
 ## MODULE BOUNDARIES
 
@@ -51,7 +60,7 @@ flowchart LR
 REQUIRED: Keep SQLAlchemy and database sessions out of `api/domain/` and `api/application/`.
 REQUIRED: Keep route functions thin and create route routers through injected application services.
 REQUIRED: Reuse `core/infrastructure/postgres` configuration, models, and repositories rather than creating an API-local database stack.
-PROHIBITED: Use API access tokens as REST API authentication credentials.
+PROHIBITED: Use API access tokens for REST management authentication.
 
 ## HTTP SURFACE
 
@@ -64,17 +73,28 @@ PROHIBITED: Use API access tokens as REST API authentication credentials.
 | GET, PATCH, DELETE | `/v1/service-accounts/{account_id}` | Read, rename, or delete a service account. |
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
+| POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
-The current REST CRUD routes do not declare an authentication dependency. Do not mistake MCP bearer-token verification for protection of this management API; restrict its network exposure until a separate REST authorization mechanism is introduced.
+Publication requests use the shared environment/publication handler. Require an active
+owner-bound token with the exact `memory:publish` scope, derive the tenant from its owner,
+and ignore caller-supplied tenant headers. The handler creates missing project and
+environment records during the first trusted publication.
+
+Require `API_ADMIN_TOKEN` for every REST management route. Keep health and generated API
+documentation public. Never accept API-issued user or service-account tokens as the
+management credential.
 
 ## TOKEN HANDOFF TO MCP
 
 Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
-In database authentication mode, the MCP adapter hashes the presented bearer token and asks the shared token repository for an active record and its owner. The owner supplies the trusted MCP subject and tenant context. User tokens use the user ID as tenant ID; service-account tokens use the assigned tenant ID. Token lifecycle and consumption are split by responsibility: REST API manages credentials; MCP accepts them for MCP requests.
+The verifier hashes the presented bearer token and asks the shared token repository for
+an active record and its owner. The owner supplies trusted subject and tenant context;
+the token supplies only its explicitly persisted scopes. MCP accepts read/impact scopes,
+while the publication API accepts the exact `memory:publish` scope.
 
 ## DOCUMENT MAP
 
@@ -83,12 +103,18 @@ graph TD
     API["API Architecture"] -->|references| ARCH["Project Architecture"]
     API -->|references| MCP["MCP Interface"]
     API -->|references| TESTS["Testing Protocol"]
-    API -->|references| USERS["API Users and Tokens"]
+    API -->|references| USERS["API Users"]
+    API -->|references| ACCOUNTS["API Service Accounts"]
+    API -->|references| TOKENS["API Tokens"]
+    API -->|references| PUBLICATION["API Knowledge Publication"]
     API -->|references| AUTH["MCP Token Authentication"]
     click ARCH "./ARCHITECTURE.md"
     click MCP "./MCP.md"
     click TESTS "./TESTS.md"
-    click USERS "../feature/api/users-and-tokens.md"
+    click USERS "../feature/api/users.md"
+    click ACCOUNTS "../feature/api/service-accounts.md"
+    click TOKENS "../feature/api/tokens.md"
+    click PUBLICATION "../feature/api/knowledge-publication.md"
     click AUTH "../feature/mcp/token-authentication.md"
 ```
 
@@ -97,5 +123,8 @@ graph TD
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): Global module and dependency rules.
 - [**MCP.md**](./MCP.md): MCP transport and authentication boundary.
 - [**TESTS.md**](./TESTS.md): Verification tiers and coverage policy.
-- [**users-and-tokens.md**](../feature/api/users-and-tokens.md): API routes and token lifecycle contract.
+- [**users.md**](../feature/api/users.md): User identity and tenant derivation contract.
+- [**service-accounts.md**](../feature/api/service-accounts.md): Tenant-bound automation identity contract.
+- [**tokens.md**](../feature/api/tokens.md): Token issuance, storage, and MCP handoff contract.
+- [**knowledge-publication.md**](../feature/api/knowledge-publication.md): CI/CD publication boundary and response contract.
 - [**token-authentication.md**](../feature/mcp/token-authentication.md): MCP verification of API-issued tokens.

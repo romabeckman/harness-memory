@@ -17,6 +17,7 @@ def test_database_token_verifier_maps_active_api_token_to_mcp_identity():
         name="client",
         token_hash="a" * 64,
         expires_at=datetime.now(UTC) + timedelta(days=1),
+        scopes=frozenset({"memory:read"}),
     )
     repository = Mock()
     repository.find_active_by_hash.return_value = (stored, user)
@@ -25,7 +26,7 @@ def test_database_token_verifier_maps_active_api_token_to_mcp_identity():
 
     assert verified.subject == str(user.id)
     assert verified.claims["tenant_id"] == str(user.id)
-    assert set(verified.scopes) == {"memory:read", "memory:publish", "memory:impact"}
+    assert set(verified.scopes) == {"memory:read"}
     repository.find_active_by_hash.assert_called_once()
 
 
@@ -51,6 +52,7 @@ def test_database_token_verifier_rejects_ownerless_active_token():
         name="client",
         token_hash="c" * 64,
         expires_at=None,
+        scopes=frozenset({"memory:read"}),
     )
     repository = Mock()
     repository.find_active_by_hash.return_value = (stored, None)
@@ -67,6 +69,7 @@ def test_database_token_verifier_uses_service_account_tenant_and_allows_no_expir
         token_hash="b" * 64,
         expires_at=None,
         service_account_id=account.id,
+        scopes=frozenset({"memory:publish"}),
     )
     repository = Mock()
     repository.find_active_by_hash.return_value = (stored, account)
@@ -76,3 +79,4 @@ def test_database_token_verifier_uses_service_account_tenant_and_allows_no_expir
     assert verified.subject == str(account.id)
     assert verified.claims["tenant_id"] == str(account.tenant_id)
     assert verified.expires_at is None
+    assert set(verified.scopes) == {"memory:publish"}

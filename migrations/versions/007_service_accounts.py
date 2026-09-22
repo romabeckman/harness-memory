@@ -17,6 +17,9 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["tenant_id"], ["tenants.id"], name="fk_service_accounts_tenant_id", ondelete="RESTRICT"
+        ),
     )
     op.create_index("ix_service_accounts_tenant_id", "service_accounts", ["tenant_id"])
 

@@ -2,10 +2,12 @@ from collections.abc import Callable
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from api.domain.entities.user import User
 from core.infrastructure.postgres.models.api_user import ApiUser
+from core.infrastructure.postgres.models.tenant import Tenant
 
 
 class ApiUserRepository:
@@ -13,10 +15,29 @@ class ApiUserRepository:
         self._session_factory = session_factory
 
     def add(self, user: User) -> User:
+        tenant_id = getattr(user, "tenant_id", None) or user.id
         with self._session_factory() as session:
-            session.add(ApiUser(id=user.id, name=user.name, email=user.email))
+            self._ensure_tenant(session, tenant_id, user.name)
+            session.add(ApiUser(id=user.id, tenant_id=tenant_id, name=user.name, email=user.email))
             session.commit()
         return user
+
+    def _ensure_tenant(self, session: Session, tenant_id: UUID, user_name: str) -> None:
+        try:
+            if session.get(Tenant, tenant_id) is not None:
+                return
+            with session.begin_nested():
+                session.add(
+                    Tenant(
+                        id=tenant_id,
+                        key=f"user-{tenant_id}",
+                        name=f"User {user_name} Tenant",
+                        status="active",
+                    )
+                )
+                session.flush()
+        except (IntegrityError, OperationalError):
+            pass
 
     def get(self, user_id: UUID) -> User | None:
         with self._session_factory() as session:

@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, sessionmaker
@@ -70,3 +70,40 @@ class PostgresEnvironmentRepository:
             )
             session.execute(stmt)
             session.commit()
+
+    def resolve_or_create(self, project_key: str, name: str, tenant_id: str) -> DomainEnvironment:
+        existing = self.resolve(project_key, name, tenant_id)
+        if existing is not None:
+            return existing
+        with self._session_factory() as session:
+            with session.begin():
+                project = session.scalars(
+                    select(ModelProject).where(
+                        ModelProject.tenant_id == tenant_id,
+                        ModelProject.key == project_key,
+                    )
+                ).first()
+                if project is None:
+                    project = ModelProject(
+                        id=uuid4(), tenant_id=tenant_id, key=project_key, name=project_key
+                    )
+                    session.add(project)
+                    session.flush()
+                environment_type = (
+                    name if name in EnvironmentType._value2member_map_ else EnvironmentType.OTHER.value
+                )
+                row = ModelEnvironment(
+                    id=uuid4(),
+                    tenant_id=tenant_id,
+                    project_id=project.id,
+                    name=name,
+                    type=environment_type,
+                )
+                session.add(row)
+                session.flush()
+                return DomainEnvironment(
+                    id=row.id,
+                    project_key=ProjectKey(project_key),
+                    name=EnvironmentName(name),
+                    environment_type=EnvironmentType(environment_type),
+                )

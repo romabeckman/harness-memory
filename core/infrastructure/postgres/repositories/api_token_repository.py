@@ -37,6 +37,7 @@ class ApiTokenRepository:
                     token_hash=token.token_hash,
                     expires_at=token.expires_at,
                     created_at=token.created_at or datetime.now(UTC),
+                    scopes=sorted(token.scopes),
                 )
             )
             session.commit()
@@ -98,7 +99,7 @@ class ApiTokenRepository:
                 return None
             stored, user, account = row
             if user is not None:
-                owner = User(id=user.id, name=user.name, email=user.email)
+                owner = User(id=user.id, name=user.name, email=user.email, tenant_id=user.tenant_id)
             elif account is not None:
                 owner = ServiceAccount(
                     id=account.id,
@@ -107,6 +108,16 @@ class ApiTokenRepository:
                 )
             else:
                 return None
+
+            try:
+                from core.infrastructure.postgres.models.tenant import Tenant
+
+                tenant = session.get(Tenant, owner.tenant_id)
+                if tenant is None or tenant.status != "active":
+                    return None
+            except Exception:
+                pass
+
             return self._to_domain(stored), owner
 
     @staticmethod
@@ -117,6 +128,7 @@ class ApiTokenRepository:
             id=row.id,
             user_id=row.user_id,
             service_account_id=row.service_account_id,
+            scopes=frozenset(row.scopes or ()),
             name=row.name,
             token_hash=row.token_hash,
             expires_at=(

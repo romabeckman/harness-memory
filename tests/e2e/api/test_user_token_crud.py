@@ -11,6 +11,9 @@ from core.infrastructure.postgres.models.api_service_account import ApiServiceAc
 from core.infrastructure.postgres.models.api_user import ApiUser
 from core.infrastructure.postgres.models.base import Base
 
+ADMIN_TOKEN = "test-admin-secret"
+ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
+
 
 def test_swagger_and_healthcheck_are_exposed():
     engine = create_engine(
@@ -20,7 +23,10 @@ def test_swagger_and_healthcheck_are_exposed():
         engine,
         tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
     )
-    client = TestClient(create_app(sessionmaker(bind=engine, expire_on_commit=False)))
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
 
     assert client.get("/health").json() == {"status": "ok"}
     assert client.get("/docs").status_code == 200
@@ -41,7 +47,10 @@ def test_user_and_token_crud_http_contract():
         engine,
         tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
     )
-    client = TestClient(create_app(sessionmaker(bind=engine, expire_on_commit=False)))
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
 
     user_payload = {"name": "Ada", "email": "ada@example.com"}
     assert client.post("/users", json=user_payload).status_code == 404
@@ -78,7 +87,10 @@ def test_http_rejects_token_lifetime_over_ninety_days():
         engine,
         tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
     )
-    client = TestClient(create_app(sessionmaker(bind=engine, expire_on_commit=False)))
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
     user_id = client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).json()[
         "id"
     ]
@@ -103,7 +115,10 @@ def test_service_account_crud_issues_non_expiring_token():
         engine,
         tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
     )
-    client = TestClient(create_app(sessionmaker(bind=engine, expire_on_commit=False)))
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
     tenant_id = "a89e819c-27cb-4c90-82ec-baa868cd529d"
     created = client.post(
         "/v1/service-accounts",
@@ -153,7 +168,10 @@ def test_token_requires_one_owner_and_user_token_expiration():
         engine,
         tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
     )
-    client = TestClient(create_app(sessionmaker(bind=engine, expire_on_commit=False)))
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
     user_id = client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).json()[
         "id"
     ]

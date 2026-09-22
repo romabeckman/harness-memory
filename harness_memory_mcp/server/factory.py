@@ -61,7 +61,6 @@ from harness_memory_mcp.tools.find_integration_paths import register_find_integr
 from harness_memory_mcp.tools.get_context import register_get_context
 from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
 from harness_memory_mcp.tools.get_environment import register_get_environment
-from harness_memory_mcp.tools.publish_project_snapshot import register_publish_project_snapshot
 from harness_memory_mcp.tools.search_entities import register_search_entities
 
 
@@ -255,10 +254,6 @@ def create_mcp_server(
     integration_path_repository = (
         integration_path_repository or integration_repository or integration_path_query_repository
     )
-    if handler is not None:
-        register_publish_project_snapshot(
-            server, handler, context, audited_operation=audited_operation
-        )
     search_handler = search_handler or entity_search_handler
     search_repository = search_repository or entity_search_repository
     if search_handler is None and search_repository is not None:

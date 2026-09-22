@@ -20,9 +20,10 @@ from core.infrastructure.postgres.models.knowledge_publication import (
     KnowledgePublication as ModelKnowledgePublication,
 )
 from core.infrastructure.postgres.models.project import Project as ModelProject
-from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import (
-    SnapshotPersistenceMapper,
-)
+from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import SnapshotPersistenceMapper
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
+from core.infrastructure.postgres.models.snapshot import Snapshot as ModelSnapshot
+from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
 
 
 class PostgresKnowledgePublicationRepository:
@@ -39,6 +40,7 @@ class PostgresKnowledgePublicationRepository:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
         self._mapper = mapper or SnapshotPersistenceMapper()
+        self._hash_calculator = PayloadHashCalculator()
 
     def find_by_deployment(
         self, project_key: str, env_name: str, deployment_id: str, tenant_id: str
@@ -63,9 +65,17 @@ class PostgresKnowledgePublicationRepository:
                     ModelKnowledgePublication.deployment_id == deployment_id,
                 )
             )
-            row = session.scalars(stmt).first()
-            if row is None:
+            result = session.execute(
+                stmt.with_only_columns(ModelKnowledgePublication, ModelSnapshot.payload_hash)
+                .outerjoin(
+                    ModelSnapshot,
+                    (ModelSnapshot.id == ModelKnowledgePublication.snapshot_id)
+                    & (ModelSnapshot.tenant_id == ModelKnowledgePublication.tenant_id),
+                )
+            ).first()
+            if result is None:
                 return None
+            row, payload_hash = result
 
             return DomainKnowledgePublication(
                 id=PublicationId(row.id),
@@ -75,6 +85,7 @@ class PostgresKnowledgePublicationRepository:
                 version=row.version,
                 status=PublicationStatus(row.status),
                 snapshot_id=row.snapshot_id,
+                payload_hash=payload_hash,
             )
 
     def save(self, publication: DomainKnowledgePublication, tenant_id: str) -> None:
@@ -145,7 +156,11 @@ class PostgresKnowledgePublicationRepository:
                 if env is None:
                     raise ValueError(f"environment {environment_id} not found")
 
-                payload_hash = f"pub:{publication.deployment_id.value}:{uuid4().hex[:12]}"
+                payload_hash = publication.payload_hash
+                if payload_hash is None:
+                    content = snapshot_payload(snapshot)
+                    content.pop("generated_at", None)
+                    payload_hash = self._hash_calculator.calculate(content).value
                 rows = self._mapper.map(
                     snapshot=snapshot,
                     tenant_id=tenant_id,
@@ -178,6 +193,8 @@ class PostgresKnowledgePublicationRepository:
                 session.flush()
 
                 env.current_snapshot_id = rows.snapshot.id
+                if env.type == "production" or proj.active_snapshot_id is None:
+                    proj.active_snapshot_id = rows.snapshot.id
                 session.flush()
 
                 return rows.snapshot.id

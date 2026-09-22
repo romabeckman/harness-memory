@@ -12,11 +12,16 @@ from core.domain.snapshot_publication.value_objects.project_key import ProjectKe
 
 
 class FakeMemoryResourceRepository:
-    def __init__(self, snapshots_entities: dict[UUID, set[str]]) -> None:
+    def __init__(self, snapshots_entities: dict[UUID, set[str] | dict[str, str]]) -> None:
         self.snapshots_entities = snapshots_entities
 
-    def get_snapshot_entity_keys(self, snapshot_id: UUID, tenant_id: str | None = None) -> set[str]:
-        return self.snapshots_entities.get(snapshot_id, set())
+    def get_snapshot_entity_fingerprints(
+        self, snapshot_id: UUID, tenant_id: str | None = None
+    ) -> dict[str, str]:
+        values = self.snapshots_entities.get(snapshot_id, set())
+        if isinstance(values, dict):
+            return values
+        return {key: key for key in values}
 
 
 class FakeEnvironmentRepository:
@@ -79,6 +84,53 @@ class TestCompareEnvironments:
         assert output.total_added == 1
         assert output.total_removed == 1
         assert output.total_unchanged == 1
+
+    def test_detects_modified_entity_with_same_key(self) -> None:
+        source_snapshot = uuid4()
+        target_snapshot = uuid4()
+        environments = [
+            Environment(
+                uuid4(),
+                ProjectKey("catalog"),
+                EnvironmentName("staging"),
+                current_snapshot_id=source_snapshot,
+            ),
+            Environment(
+                uuid4(),
+                ProjectKey("catalog"),
+                EnvironmentName("production"),
+                current_snapshot_id=target_snapshot,
+            ),
+        ]
+        handler = CompareEnvironmentsHandler(
+            FakeEnvironmentRepository(environments),
+            FakeMemoryResourceRepository(
+                {
+                    source_snapshot: {"catalog-api": "v2"},
+                    target_snapshot: {"catalog-api": "v1"},
+                }
+            ),
+        )
+
+        output = handler.execute(
+            CompareEnvironmentsInput("catalog", "staging", "production", "default")
+        )
+
+        assert output.modified_entities == ("catalog-api",)
+        assert output.total_modified == 1
+        assert output.unchanged_entities == ()
+
+    def test_rejects_unknown_environment(self) -> None:
+        import pytest
+
+        handler = CompareEnvironmentsHandler(
+            FakeEnvironmentRepository([]), FakeMemoryResourceRepository({})
+        )
+
+        with pytest.raises(LookupError, match="environment not found"):
+            handler.execute(
+                CompareEnvironmentsInput("catalog", "staging", "production", "default")
+            )
 
     def test_bounds_output_using_limit_and_offset(self) -> None:
         snap_staging = uuid4()

@@ -46,7 +46,9 @@ def test_principal_factory_and_scope_policy_are_deny_by_default():
     )
     assert result.tenant_id == "tenant-a"
     policy = ComponentScopePolicy()
-    assert policy.required_scope("tool", "publish_project_snapshot") == "memory:publish"
+    assert policy.required_scope("tool", "publish_project_snapshot") is None
+    assert policy.required_scope("tool", "get_environment") == "memory:read"
+    assert policy.required_scope("tool", "compare_environments") == "memory:read"
     assert policy.required_scope("tool", "new_component") is None
     assert policy.can_access(result, "tool", "search_entities")
     assert not policy.can_access(result, "tool", "publish_project_snapshot")

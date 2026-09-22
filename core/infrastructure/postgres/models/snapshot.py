@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -17,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base
+from .tenant_id import TenantId
 from .types import JSON_OBJECT
 
 
@@ -26,15 +28,19 @@ class Snapshot(Base):
         UniqueConstraint("id", "tenant_id", name="uq_snapshots_id_tenant"),
         UniqueConstraint("id", "project_id", "tenant_id", name="uq_snapshots_id_project_tenant"),
         UniqueConstraint(
-            "tenant_id", "project_id", "revision", name="uq_snapshots_tenant_project_revision"
+            "tenant_id",
+            "project_id",
+            "environment_id",
+            "revision",
+            name="uq_snapshots_tenant_project_environment_revision",
         ),
         UniqueConstraint(
             "tenant_id",
             "project_id",
+            "environment_id",
             "payload_hash",
-            name="uq_snapshots_tenant_project_payload_hash",
+            name="uq_snapshots_tenant_project_environment_payload_hash",
         ),
-        CheckConstraint("length(trim(tenant_id)) > 0", name="ck_snapshots_tenant_id_non_empty"),
         CheckConstraint(
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_snapshots_metadata_object",
@@ -54,7 +60,11 @@ class Snapshot(Base):
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
-    tenant_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        TenantId(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT", name="fk_snapshots_tenant_id"),
+        nullable=False,
+    )
     project_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     environment_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     publication_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)

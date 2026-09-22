@@ -1,0 +1,126 @@
+---
+doc_type: feature
+domain: api-tokens
+stack: [Python 3.12+, FastAPI, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, SHA-256]
+node_id: "feature:api-tokens"
+tags: [api, tokens, credentials, mcp]
+edges:
+  - relation: implements
+    target: "adr:architecture"
+    read: must
+  - relation: references
+    target: "adr:api"
+    read: must
+  - relation: tested_by
+    target: "adr:tests"
+    read: must
+  - relation: references
+    target: "feature:mcp-token-authentication"
+    read: optional
+    when: "Read when changing bearer verification, token ownership mapping, or MCP tenant context."
+updated: 2026-09-21
+---
+# API Tokens
+Issue and revoke scoped opaque credentials while keeping plaintext outside persistence.
+
+```graph
+{
+  "node_id": "feature:api-tokens",
+  "domain": "api-tokens",
+  "implements": ["adr:architecture"],
+  "tested_by": ["adr:tests"],
+  "entrypoints": ["api/adapters/http/token_routes.py"],
+  "registration_files": ["api/server/app.py"],
+  "reference_files": [
+    "api/application/services/token_service.py",
+    "api/domain/services/token_expiration_policy.py",
+    "core/infrastructure/postgres/repositories/api_token_repository.py"
+  ],
+  "code_files": [
+    "api/domain/entities/access_token.py",
+    "api/domain/entities/issued_token.py",
+    "api/application/ports/token_repository.py",
+    "api/adapters/http/schemas/token_create.py",
+    "api/adapters/http/schemas/token_update.py",
+    "api/adapters/http/schemas/token_response.py",
+    "api/adapters/http/schemas/token_created_response.py",
+    "core/infrastructure/postgres/models/api_access_token.py",
+    "migrations/versions/005_api_users_and_tokens.py",
+    "migrations/versions/009_token_scopes_and_environment_revisions.py"
+  ],
+  "test_files": [
+    "tests/unit/api/domain/test_token_policy.py",
+    "tests/unit/api/application/test_token_service.py",
+    "tests/unit/api/adapters/http/test_api_authentication.py",
+    "tests/integration/api/infrastructure/test_repositories.py",
+    "tests/e2e/api/test_user_token_crud.py",
+    "tests/e2e/mcp/test_api_token_authentication.py"
+  ]
+}
+```
+
+## OVERVIEW
+
+Expose token lifecycle operations under `/v1/tokens`. The API owns issuance, explicit
+scope assignment, metadata updates, and revocation. MCP consumes read/impact credentials;
+the publication API consumes tenant-bound `memory:publish` credentials.
+
+## FOLDER STRUCTURE
+
+```text
+api/adapters/http/              # Token routes and request/response schemas
+api/application/                # Token service and repository ports
+api/domain/                     # Access-token entity and expiry policy
+core/infrastructure/postgres/  # Digest persistence and active-token lookup
+tests/{unit,integration,e2e}/   # Policy, repository, API, and MCP checks
+```
+
+## HTTP CONTRACT
+
+| Method | Path | Success | Rule |
+|--------|------|---------|------|
+| POST | `/v1/tokens` | 201 | Issue for exactly one owner and return plaintext once. |
+| GET | `/v1/tokens` | 200 | Return metadata; filter by `user_id` or `service_account_id`. |
+| GET | `/v1/tokens/{token_id}` | 200 | Return metadata only. |
+| PATCH | `/v1/tokens/{token_id}` | 200 | Update name or expiration. |
+| DELETE | `/v1/tokens/{token_id}` | 204 | Revoke token by deletion. |
+
+## LIFECYCLE RULES
+
+REQUIRED: Set exactly one owner: `user_id` or `service_account_id`.
+REQUIRED: Require `expires_at` for user tokens.
+REQUIRED: Allow a null `expires_at` only for service-account tokens.
+REQUIRED: Keep every finite lifetime between one second and 90 days from issuance.
+REQUIRED: Generate opaque plaintext with the `hm_` prefix.
+REQUIRED: Persist and return only explicitly requested valid scopes.
+REQUIRED: Persist only the 64-character SHA-256 digest.
+REQUIRED: Return plaintext only in the successful create response.
+REQUIRED: Return metadata without plaintext or digest from list, get, and update responses.
+PROHIBITED: Use these credentials to authenticate REST management routes.
+PROHIBITED: Accept a second owner or silently select an owner.
+
+## MCP HANDOFF
+
+The token repository locates active records by digest and expiry. User ownership supplies
+the user UUID as tenant identity; service-account ownership supplies its assigned tenant
+UUID. The verifier grants only persisted scopes; it never expands them implicitly.
+
+## DOCUMENT MAP
+
+```mermaid
+graph TD
+    TOKENS["API Tokens"] -->|implements| ARCH["Project Architecture"]
+    TOKENS -->|references| API["API Architecture"]
+    TOKENS -->|tested_by| TESTS["Testing Protocol"]
+    TOKENS -->|references| AUTH["MCP Token Authentication"]
+    click ARCH "../../adr/ARCHITECTURE.md"
+    click API "../../adr/API.md"
+    click TESTS "../../adr/TESTS.md"
+    click AUTH "../mcp/token-authentication.md"
+```
+
+## REFERENCES
+
+- [**API.md**](../../adr/API.md): Defines route boundaries and token handoff responsibilities.
+- [**TESTS.md**](../../adr/TESTS.md): Defines token policy, persistence, and E2E checks.
+- [**token-authentication.md**](../mcp/token-authentication.md): Consumes active token records for MCP bearer authentication.

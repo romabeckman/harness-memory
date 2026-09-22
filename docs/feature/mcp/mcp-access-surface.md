@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:impact-analysis"
     read: must
-updated: 2026-09-20
+updated: 2026-09-21
 ---
 # MCP Access Surface
 Expose bounded memory resources and deterministic workflow prompts through the FastMCP catalog.
@@ -77,7 +77,9 @@ Expose bounded memory resources and deterministic workflow prompts through the F
 
 ## OVERVIEW
 
-Register three read-only resources and three prompts. Resources delegate to application ports and PostgreSQL projections; prompts render guidance only and never call tools, repositories, or handlers.
+Register a read-only MCP catalog: bounded query/impact tools, two environment tools,
+three resources, and three prompts. Adapters delegate to application ports and PostgreSQL
+projections; prompts render guidance only.
 
 ## FOLDER STRUCTURE
 
@@ -95,6 +97,8 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 - **Project resource**: Read only the project's active snapshot at `memory://projects/{project_key}`; decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
 - **Prompt surface**: Guide search, context, paths, and impact calls; keep business decisions in existing capabilities.
+- **Environment surface**: Read active environment snapshots and compare added, removed,
+  modified, and unchanged entity fingerprints without exposing a write operation.
 
 ## HOW TO READ
 
@@ -118,6 +122,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 REQUIRED: Keep resource outputs bounded, deterministic, tenant-filtered, and free of raw snapshot payloads.
 REQUIRED: Keep prompt renderers data-free; mention existing public tools instead of duplicating business logic.
 REQUIRED: Enforce authorization on catalog listing and direct read/get operations.
+PROHIBITED: Register snapshot publication or any other graph mutation as an MCP tool.
 PROHIBITED: Accept tenant identity from URI or prompt arguments, infer cross-tenant existence, or expose repository errors.
 PROHIBITED: Let resource adapters own SQL, traversal, activation, or impact classification.
 
