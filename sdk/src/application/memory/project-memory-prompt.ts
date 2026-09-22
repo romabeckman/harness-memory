@@ -39,7 +39,8 @@ export const PROJECT_MEMORY_PROMPT = `<project_memory_prompt version="2">
     </phase>
     <phase name="map_rules">
       Extract actionable constraints from documentation and source, including rules written in prose. Preserve explicit REQUIRED, PROHIBITED, FORBIDDEN, and ALLOWED modality. Label conclusions inferred from implementation as inferred, never as declared policy.
-      Give every rule a stable key, complete statement, source document, and evidence with path, line when available, and an exact excerpt. Reuse rule entities already present in documentation_graph or baseline_graph instead of duplicating them.
+      For every extracted rule, emit a type=rule entity with a stable key, complete statement, source document, modality, and lifecycle. Reuse rule entities already present in documentation_graph or baseline_graph instead of duplicating them.
+      Before returning, build the set of entity keys. Every rule key used by a defines or applies_to relation MUST have a matching rule entity. Do not emit any relation until both endpoint entities exist.
     </phase>
     <phase name="reconcile_history">
       Compare local docs and current source with baseline_graph. Preserve stable entity keys for the same project, feature, document, and rule; update existing entities instead of creating duplicates.
@@ -54,14 +55,15 @@ export const PROJECT_MEMORY_PROMPT = `<project_memory_prompt version="2">
   <graph_contract>
     <root>{"schema_version":"1.0","entities":[],"relations":[],"evidence":[]}</root>
     <entity>Each entity has key, type, optional name, and optional metadata. Keep keys stable and unique; keys are limited to 255 characters.</entity>
-    <entity_types>Use project, system, service, api, event, library, team for code or organization concepts; adr, feature, spec, document for documentation; rule for a searchable project constraint. document_revision and document_section are reserved for SDK content preservation.</entity_types>
+    <entity_types>Use project, system, service, api, event, library, team for code or organization concepts; adr, feature, spec, document only for Markdown documents; rule for a searchable project constraint. document_revision and document_section are reserved for SDK content preservation.</entity_types>
+    <document_entity_invariant>Every adr, feature, spec, or document entity MUST include metadata.path and the complete Markdown string in metadata.content. Never emit one of these types as an undocumented code concept. Model code concepts with the supported code types or omit them when no stable concept exists. The SDK cannot write a document entity without both path and full content.</document_entity_invariant>
     <document_metadata>Store project-relative path, complete Markdown content, content tags, feature context, source commit, lifecycle, and change details in metadata. Keep each document body intact. The SDK splits oversized content into document_section entities after generation and reconstructs it before writing.</document_metadata>
     <rule_metadata>Store the full statement, modality, document_key, source path, line when available, lifecycle, and provenance in metadata. Keep name concise and searchable. Do not promote an inference to an explicit project rule.</rule_metadata>
-    <relation>Each relation has a unique ref, source_entity_key, target_entity_key, type, and provenance. Both endpoints must exist. Relation refs are limited to 255 characters.</relation>
+    <relation>Each relation has a unique ref, source_entity_key, target_entity_key, type, and provenance. Both endpoints must exist. In particular, every defines relation to a rule and every applies_to relation from a rule requires that rule entity in entities. Relation refs are limited to 255 characters.</relation>
     <relation_types>Use only part_of, owned_by, provides, consumes, depends_on, publishes, subscribes_to, implements, references, tested_by, child_of, defines, applies_to, supersedes.</relation_types>
     <provenance>Use only declared, inferred, observed, or manual. Mark relations supported by project-authored documentation as declared; mark conclusions inferred from code as inferred.</provenance>
     <evidence>Each evidence item has a project-relative source, optional exact excerpt, optional relation_ref, and optional metadata. Keep excerpts at or below 4096 characters. Cite source and line where known. Evidence relation_ref must resolve to an emitted relation.</evidence>
-    <integrity>Do not emit dangling endpoints, duplicate keys or refs, unsupported enum values, invented provenance, or a top-level field outside the graph contract.</integrity>
+    <integrity>Before output, verify every relation source and target key exists in entities, every rule relation endpoint has type rule, every rule has a non-empty statement, and every rule defines relation has evidence. Do not emit dangling endpoints, duplicate keys or refs, unsupported enum values, invented provenance, or a top-level field outside the graph contract.</integrity>
   </graph_contract>
 
   <document_standards>
