@@ -56,7 +56,7 @@ harness-memory/
 REQUIRED: Inject repository ports and boundary services through constructors or explicit handler arguments.
 REQUIRED: Keep API PostgreSQL adapters in `core/infrastructure/postgres`; keep SQLAlchemy out of `api/domain` and `api/application`.
 REQUIRED: Verify API-issued MCP tokens by stored digest, active lifetime, and owning user.
-REQUIRED: Keep graph queries tenant-scoped and active-snapshot bounded.
+REQUIRED: Keep graph queries active-snapshot bounded and apply tenant filters when supplied.
 REQUIRED: Keep pipeline publication independent of CI providers through the TypeScript SDK or REST API.
 PROHIBITED: Import FastAPI, FastMCP, SQLAlchemy, PostgreSQL drivers, or infrastructure implementations into domain code.
 PROHIBITED: Let prompts execute business logic or MCP tools mutate graph facts outside complete snapshot publication.

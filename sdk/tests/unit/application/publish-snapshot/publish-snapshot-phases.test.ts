@@ -39,7 +39,8 @@ describe("snapshot publication phases", () => {
     const result = { status: "ACTIVATED" as const, projectKey: "catalog",
       environment: "staging", deploymentId: "deploy-1", version: "1", payloadSha256: "hash" };
     const client = {
-      validateTarget: vi.fn(async () => { calls.push("validate target"); }),
+      validateTarget: vi.fn(async () => { calls.push("validate target");
+        return "b0377492-0f1c-4a7e-ab65-e30c2424fd57"; }),
       publish: vi.fn(async () => { calls.push("publish"); return result; }),
     };
     const first = new ValidateOptionsPhase();
@@ -52,6 +53,12 @@ describe("snapshot publication phases", () => {
     expect(await first.handle({ options })).toEqual(result);
     expect(calls).toEqual(["validate target", "collect", "generate", "validate graph", "publish"]);
     expect(client.publish).toHaveBeenCalledWith(expect.objectContaining({ graph: validatedGraph }));
+    expect(client.publish).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: "b0377492-0f1c-4a7e-ab65-e30c2424fd57",
+    }));
+    expect(runner.run).toHaveBeenCalledWith(expect.objectContaining({
+      tenantId: "b0377492-0f1c-4a7e-ab65-e30c2424fd57",
+    }), repositoryContext);
   });
 
   it("stops before publication for dry runs", async () => {

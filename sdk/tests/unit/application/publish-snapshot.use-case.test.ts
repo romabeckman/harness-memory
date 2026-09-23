@@ -38,7 +38,7 @@ describe("PublishSnapshotUseCase", () => {
   };
 
   const mockClient: PublicationClientPort = {
-    validateTarget: vi.fn().mockResolvedValue(undefined),
+    validateTarget: vi.fn().mockResolvedValue("b0377492-0f1c-4a7e-ab65-e30c2424fd57"),
     publish: vi.fn().mockResolvedValue({
       status: "ACTIVATED",
       publicationId: "pub-1",
@@ -161,6 +161,7 @@ describe("PublishSnapshotUseCase", () => {
         token: "secret-token",
         projectKey: "catalog",
         environment: "staging",
+        tenantId: "b0377492-0f1c-4a7e-ab65-e30c2424fd57",
       })
     );
     expect(mockClient.validateTarget).toHaveBeenCalledWith(expect.objectContaining({

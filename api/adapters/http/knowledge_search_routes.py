@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
 
@@ -11,11 +11,7 @@ def create_knowledge_search_router(repository, authenticate, authenticate_public
     def tenant_scope(
         principal: AuthenticatedPrincipal, requested_tenant: UUID | None
     ) -> str | None:
-        if principal.is_admin:
-            return str(requested_tenant) if requested_tenant is not None else None
-        if requested_tenant is not None and str(requested_tenant) != principal.tenant_id:
-            raise HTTPException(status_code=404, detail="tenant not found")
-        return principal.tenant_id
+        return str(requested_tenant) if requested_tenant is not None else None
 
     @router.get("/environments")
     def environments(

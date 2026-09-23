@@ -42,15 +42,15 @@ persisted credential type.
 
 | Credential | Source and storage | Identity and lifetime | Allowed boundary |
 | --- | --- | --- | --- |
-| **User token** | `POST /v1/tokens` with `user_id`; digest stored in `tokens` | User tenant binding; expiry required | Tenant reads/publication by scope; no management |
-| **Service-account token** | `POST /v1/tokens` with `service_account_id`; digest stored | Fixed service-account tenant; expiry optional | Tenant reads/publication by scope; no management |
+| **User token** | `POST /v1/tokens` with `user_id`; digest stored in `tokens` | User tenant binding; expiry required | Cross-tenant reads/publication by scope; no management |
+| **Service-account token** | `POST /v1/tokens` with `service_account_id`; digest stored | Fixed service-account tenant; expiry optional | Cross-tenant reads/publication by scope; no management |
 | **MCP token** | Active API token presented to `/mcp` | `DatabaseTokenVerifier` checks owner, expiry, scopes | Read-only tools/resources/prompts via `ComponentScopePolicy` |
 | **`API_ADMIN_TOKEN`** | API/MCP environment variable; never persisted | Constant-time comparison; no owner or tenant | All REST privileges and cross-tenant access; MCP scope checks remain |
 | **`HARNESS_MEMORY_API_KEY`** | Optional API/MCP environment variable; never persisted | Constant-time comparison; no owner or tenant | Global `memory:read`; no management, publication, or impact scope |
 
 REQUIRED: Request the smallest valid scope set: `memory:read` for exploration,
 `memory:impact` for impact analysis, and `memory:publish` for complete REST publication.
-ALLOWED: Use `API_ADMIN_TOKEN` for cross-tenant reads and REST management. Publication body `tenant_id` selects only the write destination.
+ALLOWED: Use scoped tokens for cross-tenant knowledge reads and publication; use `API_ADMIN_TOKEN` for REST management. Publication body `tenant_id` selects only the write destination.
 PROHIBITED: Assume that “MCP token” grants publication; the MCP catalog has no publication
 registration and its scope matrix denies unmapped components.
 
@@ -64,21 +64,22 @@ registration and its scope matrix denies unmapped components.
 
 REQUIRED: Reject missing, blank, unknown, deleted, or expired bearer credentials with
 `401`; return `403` for a known principal without the required scope.
-REQUIRED: Keep ordinary-token tenant identity in the authenticated principal and apply it
-in repository predicates. Admin data reads span tenants without tenant headers.
+REQUIRED: Keep ordinary-token tenant identity in the authenticated principal for audit
+and default publication destination. Apply supplied tenant filters to data reads.
 
 ## TENANT AND DATA ISOLATION
 
-- **Owner access** derives tenant identity from the user binding or immutable
-  service-account binding; use another service account to publish to another tenant.
-- **Ordinary graph operations** apply owner-tenant predicates across all knowledge tables.
-  Admin reads span tenants; admin publication supplies its destination tenant.
-- **Not-found responses** hide whether a resource exists in another tenant.
+- **Owner identity** derives tenant identity from the user binding or immutable
+  service-account binding; that identity is the default publication destination.
+- **Scoped graph operations** allow cross-tenant reads with `memory:read` and
+  cross-tenant publication with `memory:publish`. Optional `tenant_id` narrows reads;
+  publication `tenant_id` selects the write destination.
+- **Management operations** still require `API_ADMIN_TOKEN`.
 
 REQUIRED: Keep publication, environment promotion, and snapshot facts in one tenant-scoped
 transaction.
-PROHIBITED: Trust caller-supplied `tenant_id` as authorization for ordinary tokens. Only
-the verified admin token may choose the publication destination; this does not limit its reads.
+PROHIBITED: Treat caller-supplied `tenant_id` as authorization. Verify the required scope
+before applying a read filter or selecting a publication destination.
 
 ## SECRET AND TOKEN PROTECTION
 

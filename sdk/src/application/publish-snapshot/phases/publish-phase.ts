@@ -31,6 +31,7 @@ export class PublishPhase extends AbstractPublicationPhase {
     return this.client.publish({
       apiUrl: options.apiUrl,
       token,
+      tenantId: context.resolvedTenantId ?? options.tenantId,
       projectKey: options.projectKey,
       environment: options.environment,
       deploymentId: options.deploymentId,

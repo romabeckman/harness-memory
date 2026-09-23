@@ -72,6 +72,7 @@ export interface GraphDocument {
 
 export interface PublishSnapshotOptions {
   repository: string;
+  tenantId?: string;
   projectKey: string;
   environment: string;
   deploymentId: string;

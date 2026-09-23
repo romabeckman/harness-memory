@@ -19,10 +19,13 @@ describe("PublicationBaselineClient", () => {
   it("scopes the request and returns the stored graph", async () => {
     const graph = { schema_version: "1.0", metadata: { nodes: [], edges: [] }, entities: [], relations: [], evidence: [] };
     const fetchFn = vi.fn().mockResolvedValue(Response.json({ graph }));
-    await expect(new PublicationBaselineClient(fetchFn).load("https://memory.test", "secret", "a/b", "staging")).resolves.toEqual(graph);
+    await expect(new PublicationBaselineClient(fetchFn).load(
+      "https://memory.test", "secret", "a/b", "staging", "b0377492-0f1c-4a7e-ab65-e30c2424fd57"
+    )).resolves.toEqual(graph);
     const [url, options] = fetchFn.mock.calls[0];
     expect(url.searchParams.get("project_key")).toBe("a/b");
     expect(url.searchParams.get("environment")).toBe("staging");
+    expect(url.searchParams.get("tenant_id")).toBe("b0377492-0f1c-4a7e-ab65-e30c2424fd57");
     expect(options.headers.Authorization).toBe("Bearer secret");
     expect(options.redirect).toBe("error");
   });

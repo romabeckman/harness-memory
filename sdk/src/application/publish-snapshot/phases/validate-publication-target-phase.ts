@@ -14,9 +14,10 @@ export class ValidatePublicationTargetPhase extends AbstractPublicationPhase {
     if (!options.apiUrl || !token) {
       throw new ConfigurationError("apiUrl and token are required for publication target validation");
     }
-    await this.client.validateTarget({
+    context.resolvedTenantId = await this.client.validateTarget({
       apiUrl: options.apiUrl,
       token,
+      tenantId: options.tenantId,
       projectKey: options.projectKey,
       environment: options.environment,
       deploymentId: options.deploymentId,

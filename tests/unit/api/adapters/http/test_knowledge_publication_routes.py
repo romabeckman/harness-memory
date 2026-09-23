@@ -93,7 +93,7 @@ class TestKnowledgePublicationRoutes:
         assert data["publication_id"] == str(pub_id)
         assert data["snapshot_id"] == str(snap_id)
 
-    def test_ordinary_publisher_ignores_body_tenant_override(self) -> None:
+    def test_ordinary_publisher_uses_explicit_target_tenant(self) -> None:
         pub_id = uuid4()
         snap_id = uuid4()
         handler = FakePublishKnowledgeHandler(
@@ -109,6 +109,7 @@ class TestKnowledgePublicationRoutes:
         )
         client = TestClient(app)
 
+        target_tenant_id = str(uuid4())
         response = client.post(
             "/v1/knowledge-publications",
             json={
@@ -117,9 +118,9 @@ class TestKnowledgePublicationRoutes:
                 "deployment_id": "deploy-1",
                 "version": "1.0.0",
                 "metadata": {"nodes": [{"id": "feature:orders"}], "edges": []},
-                "tenant_id": str(uuid4()),
+                "tenant_id": target_tenant_id,
             },
         )
         assert response.status_code == 201
-        assert handler.received_input.tenant_id == "tenant-a"
+        assert handler.received_input.tenant_id == target_tenant_id
         assert handler.received_input.metadata == {"nodes": [{"id": "feature:orders"}], "edges": []}

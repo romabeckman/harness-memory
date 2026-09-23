@@ -72,7 +72,7 @@ Protect the MCP surface with verified bearer identity, exact scope authorization
 
 ## OVERVIEW
 
-Verify production bearer tokens through active database records or configured JWT issuer metadata. Bind one immutable principal per request, apply exact scope policy, keep tenant predicates in repositories, and normalize HTTP security failures.
+Verify production bearer tokens through active database records or configured JWT issuer metadata. Bind one immutable principal per request, apply exact scope policy, select tenant filters by operation, and normalize HTTP security failures.
 
 ## FOLDER STRUCTURE
 
@@ -115,7 +115,7 @@ tests/{unit,integration,e2e}/             # Security, audit, and HTTP contract t
 
 ## BEST PRACTICES
 
-REQUIRED: Derive tenant identity only from verified claims and enforce tenant predicates on every repository query.
+REQUIRED: Derive tenant identity only from verified claims; use global reads for `memory:read` and owner-tenant predicates for `memory:impact`.
 REQUIRED: Filter catalogs and recheck authorization on direct calls, reads, and prompt retrieval.
 REQUIRED: Run production Streamable HTTP in stateless mode so tool calls do not depend on an initialized session.
 REQUIRED: Keep audit records append-only, bounded, idempotent, and secret-free; apply request backpressure rather than dropping authentication failures when the audit concurrency limit is reached; fail closed when required audit persistence fails.

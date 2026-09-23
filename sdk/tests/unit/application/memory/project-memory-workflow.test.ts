@@ -56,7 +56,9 @@ describe("ProjectMemoryWorkflow", () => {
     const llm = { run: vi.fn().mockResolvedValue(generated()) };
     const workflow = new ProjectMemoryWorkflow(llm, baseline, docs, new GraphValidator());
     const outcome = await workflow.run(options, context);
-    expect(baseline.load).toHaveBeenCalledWith(options.apiUrl, options.token, "demo", "production");
+    expect(baseline.load).toHaveBeenCalledWith(
+      options.apiUrl, options.token, "demo", "production", undefined,
+    );
     expect(llm.run.mock.calls[0][0].baselineGraph.entities).toHaveLength(4);
     expect(llm.run.mock.calls[0][0].instruction).toContain("Preserve stable entity keys");
     expect(JSON.stringify(llm.run.mock.calls[0][0])).not.toContain('"token"');

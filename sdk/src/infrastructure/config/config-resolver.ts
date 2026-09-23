@@ -11,6 +11,7 @@ const ALLOWED_FLAGS = new Set([
   "--effort",
   "--environment",
   "--project-key",
+  "--tenant-id",
   "--deployment-id",
   "--version",
   "--api-url",
@@ -32,7 +33,6 @@ const ALLOWED_FLAGS = new Set([
 
 const FORBIDDEN_FLAGS = new Set([
   "--tenant",
-  "--tenant-id",
   "--token",
   "--prompt",
   "--interactive",
@@ -95,6 +95,15 @@ export class ConfigResolver {
       env.HARNESS_MEMORY_PROJECT_KEY ||
       fileConfig.projectKey ||
       "";
+
+    const tenantId =
+      parsedCli["--tenant-id"] ||
+      env.HARNESS_MEMORY_TENANT_ID ||
+      fileConfig.tenantId;
+    if (tenantId !== undefined &&
+      (typeof tenantId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId))) {
+      throw new ConfigurationError("tenant-id must be a UUID");
+    }
 
     const deploymentId =
       parsedCli["--deployment-id"] ||
@@ -216,6 +225,7 @@ export class ConfigResolver {
       effort,
       environment,
       projectKey,
+      tenantId,
       deploymentId,
       version,
       apiUrl,

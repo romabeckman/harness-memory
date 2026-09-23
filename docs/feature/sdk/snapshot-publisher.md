@@ -126,10 +126,10 @@ sdk/
 
 ### Preflight validation
 
-1. Validate target field formats and query the API for the exact project key before collecting repository context. Stop with setup guidance when the project does not exist.
+1. Validate target field formats and query the API for the exact project key before collecting repository context. Stop with setup guidance when the project does not exist. Select `--tenant-id` when the key exists in multiple tenants.
 2. Check matching environments and publications. Allow a missing environment because the first publication may provision it; reject ambiguous matches.
 3. Reject a deployment ID already associated with another version. Allow same-version retries; the API still detects changed content under that deployment identity.
-4. Use a tenant-bound `memory:publish` token. This scope can read only project, environment, and publication target metadata for preflight; dry runs skip API checks.
+4. Use a `memory:publish` token. This scope can read project, environment, and publication target metadata across tenants for preflight; dry runs skip API checks. Pass the resolved tenant ID through baseline and publication requests.
 
 ### Project memory process
 
@@ -149,7 +149,7 @@ Publish only `adr`, `feature`, `document`, `document_revision`, and `document_se
 REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
 
 ### Prerequisites
-Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a tenant-bound `memory:publish` token.
+Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a `memory:publish` token.
 
 ### Steps
 1. Set `--agent` and publication options.

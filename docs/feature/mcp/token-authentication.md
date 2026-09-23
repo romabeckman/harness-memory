@@ -40,9 +40,10 @@ Authenticate MCP clients with opaque bearer tokens issued by the REST API.
 
 ## OVERVIEW
 
-Use API-issued user or service-account tokens as owner-bound bearer credentials. Both
-owner types have the same eligible permissions. MCP keeps its read and impact scope
-checks. MCP also accepts `API_ADMIN_TOKEN` for cross-tenant data reads in both auth modes.
+Use API-issued user or service-account tokens as bearer credentials with persisted
+scopes. Both owner types have the same eligible permissions. MCP read operations span
+tenants with `memory:read`; impact operations retain the owner's tenant context.
+MCP also accepts `API_ADMIN_TOKEN` for cross-tenant data reads in both auth modes.
 
 ## FOLDER STRUCTURE
 
@@ -74,7 +75,7 @@ MCP component scope checks remain active.
 |------|------|----------|-------------|---------|
 | `MCP_AUTH_MODE` | `database` or `jwt` | No | Select opaque database tokens or external JWT verification. | `jwt` |
 | `DATABASE_URL` | PostgreSQL URL | Database mode: Yes | Load active token and its user or service-account owner. | None |
-| `API_ADMIN_TOKEN` | Secret | No | Grant cross-tenant MCP access while preserving component scope checks. | None |
+| `API_ADMIN_TOKEN` | Secret | No | Grant all MCP scopes while preserving component scope checks. | None |
 
 ## SECURITY RULES
 

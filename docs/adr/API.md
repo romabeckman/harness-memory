@@ -29,7 +29,7 @@ updated: 2026-09-23
 
 ## PURPOSE
 
-`api/` exposes FastAPI endpoints for user, tenant-bound service-account, access-token,
+`api/` exposes FastAPI endpoints for user, service-account, access-token,
 and knowledge-publication operations. A static administrator bearer secret protects
 management routes. API-issued owner-bound tokens authorize MCP reads and API publication,
 but never management routes.
@@ -83,20 +83,21 @@ PROHIBITED: Use ordinary API access tokens for REST management authentication.
 | GET | `/v1/tenants/current` | Read the authenticated tenant for owner-bound credentials. |
 | POST, GET | `/v1/projects` | Admin creates projects; credentials read within their access scope. |
 | GET, PATCH, DELETE | `/v1/projects/{project_key}` | Read project; admin updates or deletes a project without dependent data. |
-| GET | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read tenant-scoped snapshot history and payloads. |
+| GET | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history and payloads; filter by tenant when supplied. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
 Publication requests use the shared environment/publication handler. Require an active
 user or service-account token with `memory:publish`, or the admin token. Ordinary tokens
-derive tenant from their owner. Admin publication requires body `tenant_id` as its write
-destination. The handler creates missing project and environment records on first publication.
+may select body `tenant_id` and otherwise default to their owner's tenant. Admin
+publication requires body `tenant_id` as its write destination. The handler creates
+missing project and environment records on first publication.
 
 Require `API_ADMIN_TOKEN` for every REST management route. `HARNESS_MEMORY_API_KEY` grants
 global `memory:read` for knowledge tables; identity and token metadata remain admin-only.
-Validate other bearers against shared `tokens` and apply their persisted scopes and owner
-tenant. Tokens with `memory:publish` may read project, environment, and publication target
+Validate other bearers against shared `tokens` and apply their persisted scopes. Tokens
+with `memory:publish` may read project, environment, and publication target
 metadata for SDK preflight; other knowledge-table reads still require `memory:read`. API
 and MCP accept the same token value.
 Keep health and generated API documentation public. Never accept API-issued user or
@@ -108,7 +109,7 @@ Issue each token for exactly one user or service account. Return plaintext only 
 
 The verifier hashes an ordinary bearer token and asks the shared token repository for
 an active record and owner. Owner type does not change eligible permissions. The owner
-supplies tenant context; the token supplies its persisted scopes. General reads require
+supplies a default tenant context; the token supplies its persisted scopes. General reads require
 `memory:read`; publication requires `memory:publish`. Target metadata reads used by SDK
 preflight accept either scope. The baseline also accepts `memory:publish` for publishers.
 

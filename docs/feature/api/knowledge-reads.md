@@ -57,7 +57,7 @@ Read snapshot data with scoped bearer tokens or the admin token. Manage tenants 
 
 API and MCP accept the same bearer token. `API_ADMIN_TOKEN` grants all admin REST
 permissions and cross-tenant access. `HARNESS_MEMORY_API_KEY` grants global `memory:read`.
-Database tokens use their persisted scopes and owner tenant. A `memory:publish` token can
+Database tokens use their persisted scopes. A `memory:publish` token can
 read project, environment, and publication target metadata for SDK preflight; other
 knowledge-table reads require `memory:read`. Supply `tenant_id` to filter global searches
 or disambiguate duplicate project keys.
@@ -80,7 +80,7 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 | PATCH | `/v1/tenants/{tenant_id}` | Admin updates tenant name, status, or metadata |
 | DELETE | `/v1/tenants/{tenant_id}` | Admin deletes an empty tenant; dependent resources return 409 |
 | POST | `/v1/projects` | Admin creates project using `tenant_id`, `key`, and optional name/metadata |
-| GET | `/v1/projects`, `/v1/projects/{project_key}` | Read projects in owner tenant; admin can read globally |
+| GET | `/v1/projects`, `/v1/projects/{project_key}` | Read projects across tenants; filter by `tenant_id` when supplied |
 | PATCH | `/v1/projects/{project_key}?tenant_id=...` | Admin updates project name or metadata |
 | DELETE | `/v1/projects/{project_key}?tenant_id=...` | Admin deletes project with no snapshots, environments, or publications |
 | GET | `/v1/projects/{project_key}/snapshots` | Read project snapshot history |
@@ -98,10 +98,10 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 
 ## SEARCH RULES
 
-Collection routes support `limit` from 1 to 500 and `offset` from 0. Owner tokens remain
-tenant-bound even when requests contain a `tenant_id` filter. `API_ADMIN_TOKEN` can read
+Collection routes support `limit` from 1 to 500 and `offset` from 0. Scoped reads span
+tenants; `tenant_id` narrows results when supplied. `API_ADMIN_TOKEN` can read
 and manage REST resources. `HARNESS_MEMORY_API_KEY` and database tokens with `memory:read`
-can read knowledge tables; database token reads remain owner-tenant scoped. Database
+can read knowledge tables. Database
 tokens with `memory:publish` can read project, environment, and publication target
 metadata for SDK preflight, while other knowledge-table reads and identity/token
 collections remain restricted to `memory:read` and admin respectively.
@@ -112,9 +112,9 @@ Snapshot facts stay immutable; publish complete snapshots through
 ## SNAPSHOT CONTRACT
 
 REQUIRED: Require `API_ADMIN_TOKEN` for tenant and project create, update, or delete operations.
-REQUIRED: Filter owner-token queries by the authenticated tenant. Return 404 for foreign tenant identifiers.
+REQUIRED: Check the required scope before querying and apply any supplied tenant filter.
 REQUIRED: Keep snapshots read-only for every credential, including admin.
-PROHIBITED: Let owner tokens select or mutate another tenant through request parameters.
+PROHIBITED: Let non-admin tokens create, update, or delete tenant or project records.
 
 ## DOCUMENT MAP
 

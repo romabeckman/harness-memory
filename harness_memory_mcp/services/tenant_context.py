@@ -59,6 +59,8 @@ class TenantContextProvider:
             context.scopes is not None and scope not in context.scopes
         ):
             raise AuthorizationFailure("required MCP scope is missing", required_scope=scope)
+        if scope == "memory:read" and self.current_principal() is not None:
+            return PublicationContext(context.tenant_id, context.scopes, is_admin=True)
         return context
 
     def clear(self) -> None:

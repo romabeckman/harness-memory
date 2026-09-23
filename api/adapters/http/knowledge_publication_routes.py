@@ -29,10 +29,7 @@ def create_knowledge_publication_router(
         if baseline_handler is None:
             raise HTTPException(status_code=503, detail="baseline reader unavailable")
         try:
-            target_tenant = (
-                str(tenant_id) if principal.is_admin and tenant_id is not None
-                else None if principal.is_admin else principal.tenant_id
-            )
+            target_tenant = str(tenant_id) if tenant_id is not None else None
             return baseline_handler.execute(project_key, environment, target_tenant)
         except LookupError as error:
             raise HTTPException(status_code=404, detail="publication baseline not found") from error
@@ -51,11 +48,11 @@ def create_knowledge_publication_router(
         if principal.is_admin:
             if request.tenant_id is None:
                 raise HTTPException(status_code=400, detail="tenant_id is required for publication")
-            target_tenant = str(request.tenant_id)
-            if tenant_exists is not None and not tenant_exists(target_tenant):
-                raise HTTPException(status_code=404, detail="target tenant not found")
-        else:
-            target_tenant = principal.tenant_id
+        target_tenant = (
+            str(request.tenant_id) if request.tenant_id is not None else principal.tenant_id
+        )
+        if tenant_exists is not None and not tenant_exists(target_tenant):
+            raise HTTPException(status_code=404, detail="target tenant not found")
         domain_input = PublishKnowledgeInput(
             tenant_id=target_tenant,
             project_key=request.project_key,

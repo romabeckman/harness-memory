@@ -6,13 +6,15 @@ import { ConfigurationError } from "../../domain/configuration-error.js";
 export class PublicationBaselineClient {
   constructor(private readonly fetchFn: typeof fetch = fetch) {}
 
-  async load(apiUrl: string, token: string, projectKey: string, environment: string): Promise<GraphDocument | undefined> {
+  async load(apiUrl: string, token: string, projectKey: string, environment: string,
+    tenantId?: string): Promise<GraphDocument | undefined> {
     const url = new URL("/v1/knowledge-publications/latest", apiUrl);
     if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
       throw new ConfigurationError("HTTPS is required for publication baseline reads");
     }
     url.searchParams.set("project_key", projectKey);
     url.searchParams.set("environment", environment);
+    if (tenantId) url.searchParams.set("tenant_id", tenantId);
     const response = await this.fetchFn(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30000), redirect: "error" });
     if (response.status === 404) return undefined;
     if (response.status === 401 || response.status === 403) throw new ApiAuthError("Publication baseline access denied");

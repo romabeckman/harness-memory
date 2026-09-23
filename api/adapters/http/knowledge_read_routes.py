@@ -9,11 +9,7 @@ def create_knowledge_read_router(repository, authenticate, authenticate_publicat
     router = APIRouter(tags=["knowledge-reads"])
 
     def read_tenant(principal: AuthenticatedPrincipal, requested_tenant: UUID | None) -> str | None:
-        if principal.is_admin:
-            return str(requested_tenant) if requested_tenant is not None else None
-        if requested_tenant is not None and str(requested_tenant) != principal.tenant_id:
-            raise HTTPException(status_code=404, detail="tenant not found")
-        return principal.tenant_id
+        return str(requested_tenant) if requested_tenant is not None else None
 
     @router.get("/tenants")
     def tenants(
@@ -44,8 +40,6 @@ def create_knowledge_read_router(repository, authenticate, authenticate_publicat
         tenant_id: UUID,
         principal: AuthenticatedPrincipal = Depends(authenticate),
     ):
-        if not principal.is_admin and str(tenant_id) != principal.tenant_id:
-            raise HTTPException(status_code=404, detail="tenant not found")
         tenant = repository.tenant(str(tenant_id))
         if tenant is None:
             raise HTTPException(status_code=404, detail="tenant not found")
@@ -105,8 +99,7 @@ def create_knowledge_read_router(repository, authenticate, authenticate_publicat
 
     @router.get("/snapshots/{snapshot_id}")
     def snapshot(snapshot_id: UUID, principal: AuthenticatedPrincipal = Depends(authenticate)):
-        tenant_id = None if principal.is_admin else principal.tenant_id
-        result = repository.snapshot(tenant_id, snapshot_id)
+        result = repository.snapshot(None, snapshot_id)
         if result is None:
             raise HTTPException(status_code=404, detail="snapshot not found")
         return result

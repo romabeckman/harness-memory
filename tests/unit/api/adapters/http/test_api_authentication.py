@@ -169,6 +169,48 @@ def test_user_token_can_publish_for_its_tenant() -> None:
         assert session.scalar(select(Snapshot.tenant_id)) == tenant_id
 
 
+def test_user_and_service_tokens_can_read_and_publish_in_another_tenant() -> None:
+    client, service_token, owner_tenant_id, factory = _client(("memory:read", "memory:publish"))
+    target_tenant_id = uuid4()
+    user_id = uuid4()
+    user_token = "hm_cross_tenant_user"
+    with factory() as session:
+        session.add(Tenant(id=target_tenant_id, key="target", name="Target", status="active"))
+        session.add(Project(id=uuid4(), tenant_id=target_tenant_id, key="send", name="Send"))
+        session.add(ApiUser(id=user_id, tenant_id=owner_tenant_id, name="Ada", email="ada@example.com"))
+        session.add(ApiAccessToken(
+            id=uuid4(), user_id=user_id, name="cross-tenant publisher",
+            token_hash=sha256(user_token.encode()).hexdigest(),
+            scopes=["memory:read", "memory:publish"],
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+        ))
+        session.commit()
+
+    for token, deployment_id in ((service_token, "service-cross-tenant"), (user_token, "user-cross-tenant")):
+        headers = {"Authorization": f"Bearer {token}"}
+        projects = client.get("/v1/projects", params={"key": "send"}, headers=headers)
+        assert projects.status_code == 200
+        assert [project["tenant_id"] for project in projects.json()] == [str(target_tenant_id)]
+        assert client.get("/v1/tenants/current", headers=headers).json()["id"] == owner_tenant_id
+
+        published = client.post(
+            "/v1/knowledge-publications", headers=headers,
+            json={"tenant_id": str(target_tenant_id), "project_key": "send",
+                  "environment": "production", "deployment_id": deployment_id,
+                  "version": "v1", "entities": [], "relations": [], "evidence": []},
+        )
+        assert published.status_code == 201
+        snapshot = client.get(f"/v1/snapshots/{published.json()['snapshot_id']}", headers=headers)
+        assert snapshot.status_code == 200
+        assert snapshot.json()["tenant_id"] == str(target_tenant_id)
+        environments = client.get(
+            "/v1/environments", params={"tenant_id": str(target_tenant_id), "project_key": "send"},
+            headers=headers,
+        )
+        assert environments.status_code == 200
+        assert [item["tenant_id"] for item in environments.json()] == [str(target_tenant_id)]
+
+
 def test_admin_publication_requires_tenant_destination_in_body() -> None:
     client, _, tenant_id, factory = _client(("memory:read",))
     payload = {"project_key": "catalog", "environment": "staging", "deployment_id": "admin-1",
@@ -218,7 +260,7 @@ def test_data_reads_are_tenant_scoped_and_admin_selects_tenant() -> None:
     assert client.get("/v1/projects", headers=admin).json() == []
 
 
-def test_ordinary_reads_are_tenant_scoped_and_admin_reads_are_global() -> None:
+def test_scoped_reader_and_admin_can_read_across_tenants() -> None:
     client, publisher, tenant_id, factory = _client(("memory:read", "memory:publish"))
     headers = {"Authorization": f"Bearer {publisher}"}
     payload = {"project_key": "catalog", "environment": "staging", "deployment_id": "read-1",
@@ -265,12 +307,12 @@ def test_ordinary_reads_are_tenant_scoped_and_admin_reads_are_global() -> None:
     assert {item["key"] for item in admin_projects} == {"catalog", "foreign"}
     assert {item["tenant_id"] for item in admin_projects} == {tenant_id, str(foreign_id)}
     assert client.get(f"/v1/snapshots/{snapshot_id}", headers=admin_headers).status_code == 200
-    assert client.get(f"/v1/snapshots/{foreign_snapshot_id}", headers=headers).status_code == 404
+    assert client.get(f"/v1/snapshots/{foreign_snapshot_id}", headers=headers).status_code == 200
     admin_snapshot = client.get(
         f"/v1/snapshots/{foreign_snapshot_id}", headers=admin_headers
     ).json()
     assert admin_snapshot["tenant_id"] == str(foreign_id)
-    assert client.get(f"/v1/tenants/{foreign_id}", headers=headers).status_code == 404
+    assert client.get(f"/v1/tenants/{foreign_id}", headers=headers).status_code == 200
     assert client.get(f"/v1/tenants/{foreign_id}", headers=admin_headers).status_code == 200
 
 

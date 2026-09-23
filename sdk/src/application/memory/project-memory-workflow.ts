@@ -99,7 +99,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
   private async loadPrevious(options: PublishSnapshotOptions): Promise<GraphDocument | undefined> {
     if (!options.apiUrl || !options.token) return undefined;
     const stored = await this.baseline.load(
-      options.apiUrl, options.token, options.projectKey, options.environment,
+      options.apiUrl, options.token, options.projectKey, options.environment, options.tenantId,
     );
     if (!stored) return undefined;
     const decoded = this.codec.decode(stored);

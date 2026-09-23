@@ -46,7 +46,8 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
           targetValidationCalls++;
           const projects = url.searchParams.get("key") === "missing-project"
             ? []
-            : [{ id: "project-1", key: url.searchParams.get("key") }];
+            : [{ id: "project-1", key: url.searchParams.get("key"),
+                 tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" }];
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify(projects));
           return;
@@ -177,6 +178,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(targetValidationIndex).toBeGreaterThanOrEqual(0);
     expect(targetValidationIndex).toBeLessThan(collectionIndex);
     expect(lastRequestBody).not.toHaveProperty("project_memory");
+    expect(lastRequestBody.tenant_id).toBe("b0377492-0f1c-4a7e-ab65-e30c2424fd57");
     expect(lastRequestBody.metadata.nodes.some((node: any) => node.path === "docs/feature/sdk/snapshot-publisher.md")).toBe(true);
     expect(lastRequestBody.entities.some((entity: any) => entity.type === "feature" && entity.metadata.content)).toBe(true);
     expect(lastRequestBody.entities.every((entity: any) => !["docs/README.md", "docs/BUSINESS.md", "docs/.graph.json"].includes(entity.metadata?.path))).toBe(true);

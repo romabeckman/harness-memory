@@ -113,17 +113,17 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 |------|------|----------|-------------|---------|
 | `entity_id` | UUID | Resource path | Active entity identity. | — |
 | `project_key` | URI segment | Resource path | Percent-encoded project key, decoded once. | — |
-| `snapshot_id` | UUID | Resource path | Tenant-owned snapshot identity. | — |
+| `snapshot_id` | UUID | Resource path | Snapshot identity. | — |
 | `fact_limit` | fixed integer | Internal | Maximum resource facts. | `25` |
 | `evidence_limit` | fixed integer | Internal | Maximum evidence items per bounded fact. | `5` |
 
 ## BEST PRACTICES
 
-REQUIRED: Keep resource outputs bounded, deterministic, tenant-filtered, and free of raw snapshot payloads.
+REQUIRED: Keep resource outputs bounded, deterministic, scope-authorized, and free of raw snapshot payloads.
 REQUIRED: Keep prompt renderers data-free; mention existing public tools instead of duplicating business logic.
 REQUIRED: Enforce authorization on catalog listing and direct read/get operations.
 PROHIBITED: Register snapshot publication or any other graph mutation as an MCP tool.
-PROHIBITED: Accept tenant identity from URI or prompt arguments, infer cross-tenant existence, or expose repository errors.
+PROHIBITED: Treat tenant identity from URI or prompt arguments as authorization, or expose repository errors.
 PROHIBITED: Let resource adapters own SQL, traversal, activation, or impact classification.
 
 ## TIPS

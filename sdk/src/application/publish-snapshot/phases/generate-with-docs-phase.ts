@@ -12,7 +12,8 @@ export class GenerateWithDocsPhase extends AbstractPublicationPhase {
   protected async execute(context: PublicationPhaseContext): Promise<void> {
     if (!context.repositoryContext) throw new Error("Repository context is required before document generation");
     const outcome = await this.workflow.run(
-      { ...context.options, token: context.token }, context.repositoryContext,
+      { ...context.options, token: context.token,
+        tenantId: context.resolvedTenantId ?? context.options.tenantId }, context.repositoryContext,
     );
     context.rawDocument = outcome.graph;
     context.noChanges = outcome.status === "NO_CHANGES";

@@ -28,7 +28,7 @@ publication may create its environment. Dry runs skip API preflight.
 - A complete `docs/` folder generated with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit).
 - The selected local LLM command (`codex` or `claude`).
 - A running Harness Memory API for a real publication.
-- An active tenant-bound user or service-account token with `memory:publish`.
+- An active user or service-account token with `memory:publish`.
 
 For local development, start the API from the repository root with Docker Compose:
 
@@ -179,6 +179,7 @@ When values are absent, the resolver uses these fallbacks:
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Stable project identifier. |
+| `--tenant-id` | `HARNESS_MEMORY_TENANT_ID` | No | Tenant UUID when the project key exists in multiple tenants. |
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | CI deployment execution identifier. |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version or commit identifier. |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Real publish only | API origin. |
@@ -296,10 +297,12 @@ Authorization: Bearer <service-account-token>
 Content-Type: application/json
 ```
 
-The API derives tenant identity from the token owner. A `memory:publish` token may read
-project, environment, and publication target metadata for preflight; other graph reads
-still require `memory:read`. Tenant flags and tenant fields are not accepted by the SDK.
-These flags are deliberately rejected: `--tenant`, `--tenant-id`, `--token`, `--prompt`,
+The SDK resolves the project's tenant during preflight and sends it with baseline and
+publication requests. Use `--tenant-id` when a project key appears in multiple tenants.
+Without `--tenant-id`, the API uses the token owner's tenant for direct publication.
+A `memory:publish` token may read project, environment, and publication target metadata
+across tenants for preflight; other graph reads still require `memory:read`.
+These flags are deliberately rejected: `--tenant`, `--token`, `--prompt`,
 `--interactive`, `--database`, `--db-url`, and `--postgres`.
 
 Use HTTPS for non-localhost API URLs. HTTP is allowed only for `localhost`, `127.0.0.1`, and `::1`.
@@ -329,7 +332,7 @@ The JSON result includes status, publication and snapshot identifiers when avail
 | `3` | Git context collection error | Check repository, refs, symlinks, and limits. |
 | `4` | LLM execution error | Check command, model, timeout, and pure JSON stdout. |
 | `5` | Graph validation error | Fix schema, keys, refs, types, or metadata. |
-| `6` | API authentication or scope error | Use an active tenant-bound token with `memory:publish`. |
+| `6` | API authentication or scope error | Use an active token with `memory:publish`. |
 | `7` | Deployment conflict | Use a new deployment ID or publish the original content. |
 | `8` | API failure or exhausted retries | Check API health, URL, network, and server logs. |
 | `130` | Interrupted by SIGINT or SIGTERM | Retry only when the deployment is safe to retry. |

@@ -18,6 +18,8 @@ export interface RestClientOptions {
   fetchFn?: typeof fetch;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class RestPublicationClient implements PublicationClientPort {
   private readonly maxRetries: number;
   private readonly baseDelayMs: number;
@@ -33,13 +35,14 @@ export class RestPublicationClient implements PublicationClientPort {
     this.fetchFn = options?.fetchFn ?? ((...args) => fetch(...args));
   }
 
-  public async validateTarget(request: PublicationTargetRequest): Promise<void> {
+  public async validateTarget(request: PublicationTargetRequest): Promise<string> {
     const apiUrl = this.validateAndNormalizeUrl(request.apiUrl);
     this.validateTargetValues(request);
 
     const projectsUrl = this.createSearchUrl(apiUrl, "/v1/projects", {
       key: request.projectKey,
       limit: "2",
+      ...(request.tenantId ? { tenant_id: request.tenantId } : {}),
     });
     const projects = await this.fetchCollection(projectsUrl, request.token, "project search");
     if (projects.length === 0) {
@@ -49,13 +52,18 @@ export class RestPublicationClient implements PublicationClientPort {
     }
     if (projects.length > 1) {
       throw new ConfigurationError(
-        `Project key '${request.projectKey}' matches multiple tenants. Use a tenant-bound API token.`
+        `Project key '${request.projectKey}' matches multiple tenants. Specify --tenant-id.`
       );
+    }
+    const tenantId = projects[0].tenant_id;
+    if (typeof tenantId !== "string" || !UUID_PATTERN.test(tenantId)) {
+      throw new ApiServerError("Project search response is missing a valid tenant_id");
     }
 
     const environmentsUrl = this.createSearchUrl(apiUrl, "/v1/environments", {
       project_key: request.projectKey,
       name: request.environment,
+      tenant_id: tenantId,
       limit: "2",
     });
     const environments = await this.fetchCollection(
@@ -65,7 +73,7 @@ export class RestPublicationClient implements PublicationClientPort {
     );
     if (environments.length > 1) {
       throw new ConfigurationError(
-        `Environment '${request.environment}' is ambiguous for project '${request.projectKey}'. Use a tenant-bound API token.`
+        `Environment '${request.environment}' is ambiguous for project '${request.projectKey}'. Specify --tenant-id.`
       );
     }
 
@@ -73,6 +81,7 @@ export class RestPublicationClient implements PublicationClientPort {
       project_key: request.projectKey,
       environment: request.environment,
       deployment_id: request.deploymentId,
+      tenant_id: tenantId,
       limit: "2",
     });
     const publications = await this.fetchCollection(
@@ -82,7 +91,7 @@ export class RestPublicationClient implements PublicationClientPort {
     );
     if (publications.length > 1) {
       throw new ConfigurationError(
-        `Deployment ID '${request.deploymentId}' is ambiguous for this target. Use a tenant-bound API token.`
+        `Deployment ID '${request.deploymentId}' is ambiguous for this target. Specify --tenant-id.`
       );
     }
     const existingVersion = publications[0]?.version;
@@ -91,6 +100,7 @@ export class RestPublicationClient implements PublicationClientPort {
         `Deployment ID '${request.deploymentId}' already belongs to version '${existingVersion}'. Use a new deployment ID.`
       );
     }
+    return tenantId;
   }
 
   public async publish(request: PublishRequest): Promise<PublicationResult> {
@@ -98,6 +108,7 @@ export class RestPublicationClient implements PublicationClientPort {
     const targetUrl = new URL("/v1/knowledge-publications", urlObj).toString();
 
     const requestBody = JSON.stringify({
+      tenant_id: request.tenantId,
       project_key: request.projectKey,
       environment: request.environment,
       deployment_id: request.deploymentId,
@@ -246,6 +257,9 @@ export class RestPublicationClient implements PublicationClientPort {
 
   private validateTargetValues(request: PublicationTargetRequest): void {
     if (!request.token.trim()) throw new ConfigurationError("token is required for publication target validation");
+    if (request.tenantId && !UUID_PATTERN.test(request.tenantId)) {
+      throw new ConfigurationError("tenant-id must be a UUID");
+    }
     if (!request.projectKey.trim() || request.projectKey.length > 255) {
       throw new ConfigurationError("project-key must contain 1 to 255 characters");
     }

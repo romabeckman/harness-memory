@@ -63,7 +63,7 @@ Issue and revoke scoped opaque credentials while keeping plaintext outside persi
 
 Expose token lifecycle operations under `/v1/tokens`. The API owns issuance, explicit
 scope assignment, metadata updates, and revocation. MCP consumes read/impact credentials;
-the publication API consumes tenant-bound `memory:publish` credentials.
+the publication API consumes `memory:publish` credentials for the selected tenant.
 
 ## FOLDER STRUCTURE
 

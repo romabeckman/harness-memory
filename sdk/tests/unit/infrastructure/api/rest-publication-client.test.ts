@@ -64,7 +64,8 @@ describe("RestPublicationClient", () => {
 
   it("validates project, environment, and deployment against API search endpoints", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(Response.json([{ id: "project-1", key: "catalog" }]))
+      .mockResolvedValueOnce(Response.json([{ id: "project-1", key: "catalog",
+        tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" }]))
       .mockResolvedValueOnce(Response.json([{ id: "environment-1", name: "staging" }]))
       .mockResolvedValueOnce(Response.json([]));
     const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
@@ -89,6 +90,46 @@ describe("RestPublicationClient", () => {
     expect(requests.every(({ init }) => init?.headers?.Authorization === "Bearer valid-token")).toBe(true);
   });
 
+  it("resolves a project in another tenant and scopes target checks to that tenant", async () => {
+    const tenantId = "b0377492-0f1c-4a7e-ab65-e30c2424fd57";
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(Response.json([{ id: "project-1", key: "catalog", tenant_id: tenantId }]))
+      .mockResolvedValueOnce(Response.json([]))
+      .mockResolvedValueOnce(Response.json([]));
+    const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
+
+    const resolvedTenantId = await targetClient.validateTarget(dummyRequest);
+
+    expect(resolvedTenantId).toBe(tenantId);
+    const urls = fetchMock.mock.calls.map(([url]) => new URL(String(url)));
+    expect(urls[1].searchParams.get("tenant_id")).toBe(tenantId);
+    expect(urls[2].searchParams.get("tenant_id")).toBe(tenantId);
+  });
+
+  it("publishes to the tenant resolved by target validation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 201,
+      json: async () => ({ status: "ACTIVATED", publication_id: "pub-1", snapshot_id: "snap-1" }),
+    });
+    const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
+
+    await targetClient.publish({ ...dummyRequest, tenantId: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).tenant_id)
+      .toBe("b0377492-0f1c-4a7e-ab65-e30c2424fd57");
+  });
+
+  it("requires an explicit tenant ID when a project key exists in multiple tenants", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json([
+      { id: "project-1", key: "catalog", tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" },
+      { id: "project-2", key: "catalog", tenant_id: "6e5c445f-77c8-4ed7-bc9c-3c9942ba2992" },
+    ]));
+    const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
+
+    await expect(targetClient.validateTarget(dummyRequest)).rejects.toThrow("--tenant-id");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects an unknown project before checking the remaining target", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json([]));
     const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
@@ -102,7 +143,8 @@ describe("RestPublicationClient", () => {
 
   it("rejects deployment ID reuse for a different version before publication", async () => {
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(Response.json([{ id: "project-1", key: "catalog" }]))
+      .mockResolvedValueOnce(Response.json([{ id: "project-1", key: "catalog",
+        tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" }]))
       .mockResolvedValueOnce(Response.json([]))
       .mockResolvedValueOnce(Response.json([{ deployment_id: "dep-1", version: "0.9.0" }]));
     const targetClient = new RestPublicationClient({ fetchFn: fetchMock });

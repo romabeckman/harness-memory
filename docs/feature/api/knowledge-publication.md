@@ -105,7 +105,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 
 Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with `memory:read` or `memory:publish` to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `metadata`, `entities`, `relations`, `evidence`). The `metadata` field is the snapshot metadata, including the SDK's generated documentation graph index. Resolve the environment's current snapshot.
 
-REQUIRED: Derive tenant from the authenticated token; scope all project/environment joins to that tenant. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
+REQUIRED: Query across tenants unless `tenant_id` is supplied; scope project/environment joins to that selected tenant when present. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
 
 ### Graph-native documentation
 
@@ -115,8 +115,8 @@ REQUIRED: Persist the graph index in `snapshots.metadata` and document facts in 
 
 ### Activation
 
-REQUIRED: Resolve project and environment inside the trusted tenant context.
-REQUIRED: Derive ordinary-token tenant identity from the owner. Admin publication requires a destination `tenant_id` in the body.
+REQUIRED: Resolve project and environment inside the selected destination tenant.
+REQUIRED: Accept body `tenant_id` from a token with `memory:publish`; otherwise default to its owner tenant. Admin publication requires a destination `tenant_id` in the body.
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
@@ -129,9 +129,9 @@ PROHIBITED: Let callers mutate individual graph facts through this route.
 
 ## SECURITY BOUNDARY
 
-An active user or service-account token with `memory:publish` may publish for its bound
-tenant. `API_ADMIN_TOKEN` may publish to any tenant by setting the body `tenant_id`.
-Ordinary token callers cannot select or override their tenant.
+An active user or service-account token with `memory:publish` may publish to any
+existing tenant by setting body `tenant_id`; without it, the owner tenant is used.
+`API_ADMIN_TOKEN` requires body `tenant_id` to select the destination.
 
 ## DOCUMENT MAP
 

@@ -105,13 +105,9 @@ describe("ConfigResolver", () => {
     ).toThrow(ConfigurationError);
   });
 
-  it("rejects forbidden flags like --tenant or --tenant-id with ConfigurationError", () => {
+  it("rejects forbidden flags like --tenant and --token", () => {
     expect(() =>
       resolver.resolve(["--tenant", "tenant-a"], {})
-    ).toThrow(ConfigurationError);
-
-    expect(() =>
-      resolver.resolve(["--tenant-id", "tenant-a"], {})
     ).toThrow(ConfigurationError);
 
     expect(() =>
@@ -146,6 +142,14 @@ describe("ConfigResolver", () => {
 
     const config = resolver.resolve(rawArgs, env);
     expect(config.token).toBe("my-custom-token-secret");
+  });
+
+  it("accepts an explicit tenant ID for ambiguous project keys", () => {
+    const tenantId = "b0377492-0f1c-4a7e-ab65-e30c2424fd57";
+    expect(resolver.resolve(["--agent", "codex-cli", "--tenant-id", tenantId], {}).tenantId)
+      .toBe(tenantId);
+    expect(() => resolver.resolve(["--agent", "codex-cli", "--tenant-id", "invalid"], {}))
+      .toThrow(ConfigurationError);
   });
 
   it("uses HARNESS_MEMORY_API_KEY by default and accepts an explicit credential environment", () => {

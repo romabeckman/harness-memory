@@ -47,14 +47,15 @@ The MVP combines an MCP interface for contextual knowledge access with a persist
 
 ## CURRENT IMPLEMENTATION
 
-The API accepts active user or service-account tokens for tenant-scoped reads and
+The API accepts active user or service-account tokens for scoped reads and
 complete snapshot publication. `memory:read` grants data reads; `memory:publish`
 grants publication. API and MCP accept the same bearer token. `API_ADMIN_TOKEN` grants
 full admin REST access. `HARNESS_MEMORY_API_KEY` grants global `memory:read` only. Other
-credentials must match active rows in `tokens`, use stored scopes, and remain limited to
-the token owner's tenant.
+credentials must match active rows in `tokens` and use stored scopes. Data reads can span
+tenants; publication uses the selected destination tenant. The token owner's tenant
+remains part of the authenticated identity and the default publication destination.
 
-REQUIRED: Keep ordinary tokens tenant-bound and reserve management for the admin token.
+REQUIRED: Enforce stored scopes on ordinary tokens and reserve management for the admin token.
 PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trusted authorization.
 
 ## REFERENCES
