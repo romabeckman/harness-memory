@@ -11,7 +11,7 @@ describe("PublicationBaselineClient", () => {
     await expect(client.load("https://memory.test", "secret", "project", "dev")).resolves.toBeUndefined();
   });
 
-  it("rejects a successful response without a graph instead of bootstrapping", async () => {
+  it("rejects a successful response without a graph", async () => {
     const client = new PublicationBaselineClient(vi.fn().mockResolvedValue(Response.json({})));
     await expect(client.load("https://memory.test", "secret", "project", "dev")).rejects.toThrow("Invalid publication baseline");
   });

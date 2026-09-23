@@ -1,6 +1,5 @@
 import type { GraphDocument } from "../../domain/contracts.js";
 import { GraphValidationError } from "../../domain/graph-validation-error.js";
-import type { CollectedFile } from "../ports/git-context-collector.port.js";
 import { DOCUMENT_TYPES, isMemoryPath } from "./memory-graph.js";
 
 const REQUIRED_DOCUMENTS = [
@@ -8,12 +7,8 @@ const REQUIRED_DOCUMENTS = [
 ];
 
 export class MemoryDocumentValidator {
-  public validateAndEnrich(graph: GraphDocument, files: CollectedFile[], commitSha: string): void {
+  public validateAndEnrich(graph: GraphDocument, commitSha: string): void {
     const paths = new Set<string>();
-    const localFiles = new Map<string, string>();
-    for (const file of files) {
-      if (!localFiles.has(file.path)) localFiles.set(file.path, file.content);
-    }
 
     for (const entity of graph.entities.filter(item => DOCUMENT_TYPES.has(item.type))) {
       const path = entity.metadata?.path;
@@ -28,14 +23,10 @@ export class MemoryDocumentValidator {
       }
       paths.add(path);
       metadata.source_commit_sha = commitSha;
-      if (localFiles.get(path) !== content) {
-        metadata.generated_by = "harness-memory-sdk";
-        metadata.memory_protocol = "project-memory/v1";
-      }
     }
 
     for (const path of REQUIRED_DOCUMENTS) {
-      if (!paths.has(path)) throw new GraphValidationError(`Documentation bootstrap must produce ${path}`);
+      if (!paths.has(path)) throw new GraphValidationError(`Documentation graph must include ${path}`);
     }
     if (!graph.entities.some(entity => entity.type === "feature" && entity.metadata?.lifecycle !== "removed")) {
       throw new GraphValidationError("Documentation must describe at least one project feature");

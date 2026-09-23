@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CollectContextPhase } from "../../../../src/application/publish-snapshot/phases/collect-context-phase.js";
-import { GenerateDocumentPhase } from "../../../../src/application/publish-snapshot/phases/generate-document-phase.js";
+import { GenerateWithDocsPhase } from "../../../../src/application/publish-snapshot/phases/generate-with-docs-phase.js";
 import { PublishPhase } from "../../../../src/application/publish-snapshot/phases/publish-phase.js";
 import { ValidateGraphPhase } from "../../../../src/application/publish-snapshot/phases/validate-graph-phase.js";
 import { ValidateOptionsPhase } from "../../../../src/application/publish-snapshot/phases/validate-options-phase.js";
@@ -40,7 +40,7 @@ describe("snapshot publication phases", () => {
     const client = { publish: vi.fn(async () => { calls.push("publish"); return result; }) };
     const first = new ValidateOptionsPhase();
     first.setNext(new CollectContextPhase(collector))
-      .setNext(new GenerateDocumentPhase(runner))
+      .setNext(new GenerateWithDocsPhase(runner))
       .setNext(new ValidateGraphPhase(validator))
       .setNext(new PublishPhase(client));
 
@@ -58,7 +58,7 @@ describe("snapshot publication phases", () => {
     const client = { publish: vi.fn() };
     const first = new ValidateOptionsPhase();
     first.setNext(new CollectContextPhase(collector))
-      .setNext(new GenerateDocumentPhase(runner))
+      .setNext(new GenerateWithDocsPhase(runner))
       .setNext(new ValidateGraphPhase(validator))
       .setNext(new PublishPhase(client));
 

@@ -147,7 +147,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(stderrLines.join("\n")).toContain("[debug] Memory: model graph entities=");
   });
 
-  it("bootstraps a repository without docs before publishing", async () => {
+  it("explains how to generate docs when a repository has no documentation", async () => {
     rmSync(join(repository, "docs"), { recursive: true, force: true });
     const stderrLines: string[] = [];
     const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
@@ -155,19 +155,17 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
     const code = await app.run([
       "publish", "--debug", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
-      "--environment", "staging", "--project-key", "payments", "--deployment-id", "bootstrap-1",
+      "--environment", "staging", "--project-key", "payments", "--deployment-id", "missing-docs-1",
       "--version", "v1.0.0", "--api-url", serverUrl, "--repository", repository,
-      "--llm-command", `node ${resolve("tests/fixtures/fake-bootstrap-llm.cjs")}`,
+      "--llm-command", `node ${resolve("tests/fixtures/fake-llm.cjs")}`,
     ]);
 
-    expect(code).toBe(ExitCode.SUCCESS);
-    expect(apiCalls).toBe(1);
-    expect(existsSync(join(repository, "docs/feature/bootstrap.md"))).toBe(true);
-    expect(existsSync(join(repository, "docs/.graph.json"))).toBe(true);
+    expect(code).toBe(ExitCode.USAGE_OR_CONFIG);
+    expect(apiCalls).toBe(0);
+    expect(baselineCalls).toBe(0);
+    expect(existsSync(join(repository, "docs"))).toBe(false);
     expect(existsSync(join(repository, ".docs"))).toBe(false);
-    expect(stderrLines.some(line => line.includes("Bootstrapping project documentation and building knowledge graph")))
-      .toBe(true);
-    expect(stderrLines).toContain("[debug] Memory: promoted validated documents to docs/");
+    expect(stderrLines.join("\n")).toMatch(/project has no documentation.*project-memory.*https:\/\/github.com\/romabeckman\/harness-kit/i);
   });
 
   it("AC 5: returns ALREADY_PUBLISHED and exits 0 on duplicate deployment", async () => {

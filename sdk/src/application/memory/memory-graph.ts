@@ -61,12 +61,12 @@ export class MemoryGraph {
     return graph;
   }
 
-  public reconcile(proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument, preserveLocalDocuments = false): GraphDocument {
+  public reconcile(proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument): GraphDocument {
     const entities = new Map<string, EntityFact>();
     for (const entity of previous?.entities.filter(memoryEntity) ?? []) entities.set(entity.key, structuredClone(entity));
     for (const entity of local.entities) entities.set(entity.key, structuredClone(entity));
     for (const entity of proposed.entities) {
-      if (preserveLocalDocuments && DOCUMENT_TYPES.has(entity.type)) continue;
+      if (DOCUMENT_TYPES.has(entity.type)) continue;
       entities.set(entity.key, structuredClone(entity));
     }
     const prior = new Map(previous?.entities.map(e => [e.key, e]) ?? []);

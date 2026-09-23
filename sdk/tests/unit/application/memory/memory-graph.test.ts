@@ -60,7 +60,7 @@ describe("MemoryGraph", () => {
     expect(retained.entities.find(e => e.type === "feature")?.metadata?.content).toBe(content);
     const removed = structuredClone(seed);
     removed.entities.find(e => e.type === "feature")!.metadata!.lifecycle = "removed";
-    const result = memory.reconcile(removed, empty, seed);
+    const result = memory.reconcile(removed, removed, seed);
     expect(result.entities.find(e => e.type === "feature")?.metadata?.change).toBe("removed");
   });
 });

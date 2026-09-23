@@ -19,6 +19,7 @@ The SDK is the deterministic publication client. MCP is the read-only interface 
 - Node.js 20 or newer.
 - npm.
 - A Git repository.
+- A complete `docs/` folder generated with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit).
 - The selected local LLM command (`codex` or `claude`).
 - A running Harness Memory API for a real publication.
 - An active tenant-bound user or service-account token with `memory:publish`.
@@ -331,7 +332,11 @@ The package exports the use case, ports, domain contracts, and default adapters:
 import {
   GraphValidator,
   GitContextCollector,
+  LocalDocsDirectory,
+  LocalDocsStore,
   LocalLlmRunner,
+  ProjectMemoryWorkflow,
+  PublicationBaselineClient,
   PublishSnapshotUseCase,
   RestPublicationClient,
 } from "@harness-memory/sdk";
@@ -343,11 +348,15 @@ if (!apiUrl || !token) {
   throw new Error("HARNESS_MEMORY_API_URL and HARNESS_MEMORY_API_KEY are required");
 }
 
+const runner = new LocalLlmRunner();
+const validator = new GraphValidator();
+const docs = new LocalDocsStore();
 const publisher = new PublishSnapshotUseCase(
   new GitContextCollector(),
-  new LocalLlmRunner(),
-  new GraphValidator(),
+  validator,
   new RestPublicationClient(),
+  new ProjectMemoryWorkflow(runner, new PublicationBaselineClient(), docs, validator),
+  new LocalDocsDirectory(),
 );
 
 const result = await publisher.execute({

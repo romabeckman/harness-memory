@@ -10,10 +10,6 @@ import { ProjectMemoryWorkflow } from "../application/memory/project-memory-work
 import { PublicationBaselineClient } from "../infrastructure/api/publication-baseline-client.js";
 import { LocalDocsStore } from "../infrastructure/memory/local-docs-store.js";
 import { LocalDocsDirectory } from "../infrastructure/memory/local-docs-directory.js";
-import { LocalTemporaryDocsWorkspace } from "../infrastructure/memory/local-temporary-docs-workspace.js";
-import { BundledProjectMemorySkill } from "../infrastructure/memory/bundled-project-memory-skill.js";
-import { MissingDocsMemoryService } from "../application/memory/missing-docs-memory-service.js";
-import { ExistingDocsMemoryService } from "../application/memory/existing-docs-memory-service.js";
 import type { PublicationProgressEvent } from "../application/publish-snapshot/phases/publication-phase-context.js";
 
 export interface CliIo {
@@ -57,19 +53,10 @@ export class CliApp {
       const validator = new GraphValidator();
       const baseline = new PublicationBaselineClient();
       const docs = new LocalDocsStore();
-      const existing = new ExistingDocsMemoryService(
-        new ProjectMemoryWorkflow(runner, baseline, docs, validator, debug), docs,
-      );
-      const bootstrap = new ProjectMemoryWorkflow(runner, baseline, docs, validator, debug, {
-        prompt: new BundledProjectMemorySkill().load(),
-        mapSourceBeforeDocumentation: true,
-      });
-      const missing = new MissingDocsMemoryService(
-        bootstrap, existing, docs, new LocalTemporaryDocsWorkspace(), undefined, debug,
-      );
+      const existing = new ProjectMemoryWorkflow(runner, baseline, docs, validator, debug);
       const useCase = new PublishSnapshotUseCase(
-        new GitContextCollector(), runner, validator, new RestPublicationClient(),
-        existing, missing, new LocalDocsDirectory(),
+        new GitContextCollector(), validator, new RestPublicationClient(),
+        existing, new LocalDocsDirectory(),
       );
 
       if (config.verbose) {

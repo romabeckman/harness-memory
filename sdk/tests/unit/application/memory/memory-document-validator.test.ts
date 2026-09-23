@@ -21,21 +21,20 @@ const graph = (): GraphDocument => ({
 describe("MemoryDocumentValidator", () => {
   const validator = new MemoryDocumentValidator();
 
-  it("adds provenance only to changed documents", () => {
+  it("records the source commit without claiming generated documentation", () => {
     const candidate = graph();
-    const files = [{ path: "docs/adr/ARCHITECTURE.md", content: "# Complete document\n", sha256: "hash" }];
 
-    validator.validateAndEnrich(candidate, files, "commit-123");
+    validator.validateAndEnrich(candidate, "commit-123");
 
     expect(candidate.entities[0].metadata?.source_commit_sha).toBe("commit-123");
     expect(candidate.entities[0].metadata?.generated_by).toBeUndefined();
-    expect(candidate.entities[1].metadata?.generated_by).toBe("harness-memory-sdk");
+    expect(candidate.entities[1].metadata?.generated_by).toBeUndefined();
   });
 
   it("rejects duplicate document paths", () => {
     const candidate = graph();
     candidate.entities.push(document("feature:duplicate", "feature", "docs/feature/orders.md"));
-    expect(() => validator.validateAndEnrich(candidate, [], "commit-123"))
+    expect(() => validator.validateAndEnrich(candidate, "commit-123"))
       .toThrow("Duplicate document path: docs/feature/orders.md");
   });
 });
