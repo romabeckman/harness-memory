@@ -9,6 +9,7 @@ import { GenerateDocumentPhase } from "./phases/generate-document-phase.js";
 import { PublishPhase } from "./phases/publish-phase.js";
 import { ValidateGraphPhase } from "./phases/validate-graph-phase.js";
 import { ValidateOptionsPhase } from "./phases/validate-options-phase.js";
+import type { PublicationProgressReporter } from "./phases/publication-phase-context.js";
 
 export class PublishSnapshotUseCase {
   constructor(
@@ -19,12 +20,15 @@ export class PublishSnapshotUseCase {
     private readonly memoryWorkflow?: MemoryWorkflowPort,
   ) {}
 
-  public async execute(options: PublishSnapshotOptions): Promise<PublicationResult> {
+  public async execute(
+    options: PublishSnapshotOptions,
+    onProgress?: PublicationProgressReporter,
+  ): Promise<PublicationResult> {
     const first = new ValidateOptionsPhase();
     first.setNext(new CollectContextPhase(this.gitCollector))
       .setNext(new GenerateDocumentPhase(this.llmRunner, this.memoryWorkflow))
       .setNext(new ValidateGraphPhase(this.graphValidator))
       .setNext(new PublishPhase(this.publicationClient));
-    return first.handle({ options });
+    return first.handle({ options, onProgress });
   }
 }

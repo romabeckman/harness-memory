@@ -9,6 +9,10 @@ export class GenerateDocumentPhase extends AbstractPublicationPhase {
     private readonly memoryWorkflow?: MemoryWorkflowPort,
   ) { super(); }
 
+  protected getProgressLabel(): string {
+    return "Fetching previous snapshot and building knowledge graph";
+  }
+
   protected async execute(context: PublicationPhaseContext): Promise<void> {
     const { options, repositoryContext } = context;
     if (!repositoryContext) throw new Error("Repository context is required before document generation");

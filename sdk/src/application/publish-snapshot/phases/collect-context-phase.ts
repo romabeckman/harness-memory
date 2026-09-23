@@ -5,6 +5,8 @@ import type { PublicationPhaseContext } from "./publication-phase-context.js";
 export class CollectContextPhase extends AbstractPublicationPhase {
   constructor(private readonly collector: GitContextCollectorPort) { super(); }
 
+  protected getProgressLabel(): string { return "Collecting repository context"; }
+
   protected async execute(context: PublicationPhaseContext): Promise<void> {
     const { options } = context;
     context.repositoryContext = await this.collector.collect({

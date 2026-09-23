@@ -9,6 +9,7 @@ import { PublisherError } from "../domain/publisher-error.js";
 import { ProjectMemoryWorkflow } from "../application/memory/project-memory-workflow.js";
 import { PublicationBaselineClient } from "../infrastructure/api/publication-baseline-client.js";
 import { LocalDocsStore } from "../infrastructure/memory/local-docs-store.js";
+import type { PublicationProgressEvent } from "../application/publish-snapshot/phases/publication-phase-context.js";
 
 export interface CliIo {
   stdout?: (msg: string) => void;
@@ -45,11 +46,11 @@ export class CliApp {
       );
 
       if (config.verbose) {
-        this.stderr(`[INFO] Analyzing repository at '${config.repository}'...`);
-        this.stderr(`[INFO] Target environment: '${config.environment}', project: '${config.projectKey}'`);
+        this.stderr(`Repository: ${config.repository}`);
+        this.stderr(`Target: ${config.projectKey} (${config.environment})`);
       }
 
-      const result = await useCase.execute(config);
+      const result = await useCase.execute(config, (event) => this.reportProgress(event));
 
       if (config.outputFormat === "json") {
         const jsonOutput = JSON.stringify(
@@ -91,5 +92,19 @@ export class CliApp {
       this.stderr(`Unexpected error: ${err?.message ?? String(err)}`);
       return ExitCode.USAGE_OR_CONFIG;
     }
+  }
+
+  private reportProgress(event: PublicationProgressEvent): void {
+    if (event.state === "started") {
+      this.stderr(`→ ${event.phase}...`);
+      return;
+    }
+
+    if (event.state === "completed") {
+      this.stderr(`✓ ${event.phase}`);
+      return;
+    }
+
+    this.stderr(`✗ ${event.phase}`);
   }
 }

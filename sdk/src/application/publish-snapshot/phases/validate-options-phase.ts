@@ -4,6 +4,8 @@ import { AbstractPublicationPhase } from "./abstract-publication-phase.js";
 import type { PublicationPhaseContext } from "./publication-phase-context.js";
 
 export class ValidateOptionsPhase extends AbstractPublicationPhase {
+  protected getProgressLabel(): string { return "Checking publication settings"; }
+
   protected execute(context: PublicationPhaseContext): void {
     const { options } = context;
     for (const field of ["projectKey", "environment", "deploymentId", "version", "model"] as const) {

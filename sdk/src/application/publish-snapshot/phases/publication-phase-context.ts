@@ -4,10 +4,18 @@ import type { ValidatedGraph } from "../../ports/graph-validator.port.js";
 
 export interface PublicationPhaseContext {
   options: PublishSnapshotOptions;
+  onProgress?: PublicationProgressReporter;
   token?: string;
   repositoryContext?: RepositoryContext;
   rawDocument?: unknown;
   validatedGraph?: ValidatedGraph;
 }
+
+export interface PublicationProgressEvent {
+  phase: string;
+  state: "started" | "completed" | "failed";
+}
+
+export type PublicationProgressReporter = (event: PublicationProgressEvent) => void;
 
 export type PhaseOutcome = PublicationResult | void;

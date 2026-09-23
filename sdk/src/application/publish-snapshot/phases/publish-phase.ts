@@ -7,6 +7,10 @@ import type { PublicationPhaseContext } from "./publication-phase-context.js";
 export class PublishPhase extends AbstractPublicationPhase {
   constructor(private readonly client: PublicationClientPort) { super(); }
 
+  protected getProgressLabel(context: PublicationPhaseContext): string {
+    return context.options.dryRun ? "Preparing dry-run result" : "Publishing snapshot";
+  }
+
   protected async execute(context: PublicationPhaseContext): Promise<PublicationResult> {
     const { options, validatedGraph, token } = context;
     if (!validatedGraph) throw new Error("Validated graph is required before publication");

@@ -105,6 +105,7 @@ describe("PublishSnapshotUseCase", () => {
       mockValidator,
       mockClient
     );
+    const progress: Array<{ phase: string; state: string }> = [];
 
     const result = await useCase.execute({
       repository: "/repo",
@@ -119,9 +120,21 @@ describe("PublishSnapshotUseCase", () => {
       dryRun: false,
       apiUrl: "https://api.example.com",
       token: "secret-token",
-    });
+    }, (event) => progress.push(event));
 
     expect(result.status).toBe("ACTIVATED");
+    expect(progress).toEqual([
+      { phase: "Checking publication settings", state: "started" },
+      { phase: "Checking publication settings", state: "completed" },
+      { phase: "Collecting repository context", state: "started" },
+      { phase: "Collecting repository context", state: "completed" },
+      { phase: "Fetching previous snapshot and building knowledge graph", state: "started" },
+      { phase: "Fetching previous snapshot and building knowledge graph", state: "completed" },
+      { phase: "Validating knowledge graph", state: "started" },
+      { phase: "Validating knowledge graph", state: "completed" },
+      { phase: "Publishing snapshot", state: "started" },
+      { phase: "Publishing snapshot", state: "completed" },
+    ]);
     expect(mockLlm.run).toHaveBeenCalledWith(
       expect.objectContaining({ agent: "claude-cli", model: "gpt-5" })
     );
@@ -133,6 +146,34 @@ describe("PublishSnapshotUseCase", () => {
         environment: "staging",
       })
     );
+  });
+
+  it("reports a failed phase and preserves its error", async () => {
+    const collector: GitContextCollectorPort = {
+      collect: vi.fn().mockRejectedValue(new Error("Git context unavailable")),
+    };
+    const useCase = new PublishSnapshotUseCase(collector, mockLlm, mockValidator, mockClient);
+    const progress: Array<{ phase: string; state: string }> = [];
+
+    await expect(useCase.execute({
+      repository: "/repo",
+      projectKey: "catalog",
+      environment: "staging",
+      deploymentId: "dep-1",
+      version: "1.0.0",
+      agent: "claude-cli",
+      model: "gpt-5",
+      effort: "high",
+      headRef: "HEAD",
+      dryRun: true,
+    }, (event) => progress.push(event))).rejects.toThrow("Git context unavailable");
+
+    expect(progress).toEqual([
+      { phase: "Checking publication settings", state: "started" },
+      { phase: "Checking publication settings", state: "completed" },
+      { phase: "Collecting repository context", state: "started" },
+      { phase: "Collecting repository context", state: "failed" },
+    ]);
   });
 
   it("rejects a programmatic call without an agent before collecting context", async () => {

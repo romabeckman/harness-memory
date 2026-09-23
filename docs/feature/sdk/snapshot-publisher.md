@@ -113,35 +113,36 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Compare complete local docs with the latest published graph; bootstrap missing docs from bounded source batches. Validate documents and rule evidence.
+- **Memory workflow**: Compare complete local docs with the latest graph; bootstrap missing docs from bounded source batches. Validate documents and rule evidence.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
-- **Git collector**: Collects files and diffs with path and memory-budget checks. `--exclude-paths` skips explicit source files or directories before budget checks; `docs/` cannot be excluded.
-- **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, launch Codex through `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters before launch.
+- **Git collector**: Collect files and diffs with path and budget checks. `--exclude-paths` skips explicit files or directories before budgets; `docs/` cannot be excluded.
+- **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, use `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters.
 - **Validator**: Check Schema 1.0; accept string, null, or omitted `canonical_key` per API; compute canonical SHA-256.
 - **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
+- **CLI progress**: Reports each publication phase to stderr as it starts, completes, or fails. Keeps JSON results on stdout. `--verbose` also prints the repository and publication target.
 - **Exit codes**: Map domain failures to stable CLI statuses.
 
 ## HOW TO PUBLISH SNAPSHOTS
 
 ### Project memory process
 
-1. Collect Git context and fetch the latest graph for the authenticated project and environment; HTTP 404 means no baseline.
-2. Read local documentation, including untracked files. Complete project-memory docs are authoritative: compare them with the baseline without sending source contents to Codex.
-3. When docs are absent or incomplete, use the bundled **project-memory prompt** to create architecture, tests, digest, index, and feature docs. Summarize all source files in bounded batches when a single prompt is too large.
-4. Reconcile stable keys, rules, evidence, and document content. Preserve the first full version in `document_revision.metadata.content`; record later changed lines as revisions with each line in `content` and Git-style conflict markers in `metadata.conflict_marker`.
-5. Validate and write Markdown and the compact document index, then publish the graph. Concurrent edits and symlink paths abort writes. `--dry-run` skips local and remote writes.
+1. Collect Git context; load the authenticated project/environment baseline (HTTP 404 means none).
+2. Read local docs, including untracked files. Complete docs are authoritative; compare them with the baseline without sending source content to Codex.
+3. Bootstrap missing or incomplete docs from the bundled **project-memory prompt**. Summarize source in bounded batches when needed.
+4. Reconcile keys, rules, evidence, and document content. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git-style markers in `metadata.conflict_marker`.
+5. Validate and write Markdown/index before publishing. Concurrent edits or symlinks abort writes. `--dry-run` skips local and remote writes.
 
 ### Storage and history
 
-REQUIRED: Store documentation in **entities, relations, and evidence**, never an additional `project_memory` field. Documents contain `metadata.path`, complete `content`, SHA-256, source commit, and change state. Large content uses ordered `document_section` entities with `part_of` edges and checksums; decoding restores the exact text.
+REQUIRED: Store docs in **entities, relations, and evidence**, never `project_memory`. Each document tracks path, full content, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with `part_of` edges and checksums; decode exact text.
 
-Rules retain full statements and cited `defines` relations. Features retain micrographs. Immutable snapshots and document revisions preserve earlier versions; omission alone does not remove prior memory. Review carried-forward rules when policy changes.
+Rules retain full statements and cited `defines` relations; features retain micrographs. Immutable snapshots and revisions preserve history. Omission alone does not delete prior memory; review carried-forward rules after policy changes.
 
 ### Optional harness-kit integration
 
-**harness-kit project-memory is optional.** The SDK bundles its prompt. Document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`.
+**harness-kit project-memory is optional.** The SDK bundles its prompt and records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`.
 
-Local files are written **before the REST POST**. Remote failure leaves drafts. `--dry-run` validates without writes or publication; credentials allow baseline reads. Baselines are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
+Write local docs **before REST POST**; failed POST leaves drafts. `--dry-run` validates without writes or publication; credentials allow baseline reads. Limit baselines to 50 MiB. Exclude `docs/workflow/` and `docs/harness-history/`.
 
 ### Prerequisites
 1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
@@ -167,6 +168,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
 | `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Comma-separated repository-relative source paths; JSON config and SDK accept `excludePaths` arrays | — |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
+| `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and publication target details to stderr. Phase progress is always printed to stderr. | `false` |
 
 ## EXIT CODES
 

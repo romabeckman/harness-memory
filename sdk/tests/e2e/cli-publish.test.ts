@@ -134,6 +134,15 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const parsedStdout = JSON.parse(stdoutLines.join("\n"));
     expect(parsedStdout.status).toBe("ACTIVATED");
     expect(parsedStdout.project_key).toBe("payments");
+    expect(stderrLines).toEqual(expect.arrayContaining([
+      "→ Checking publication settings...",
+      "✓ Checking publication settings",
+      "→ Collecting repository context...",
+      "→ Fetching previous snapshot and building knowledge graph...",
+      "→ Validating knowledge graph...",
+      "→ Publishing snapshot...",
+      "✓ Publishing snapshot",
+    ]));
   });
 
   it("AC 5: returns ALREADY_PUBLISHED and exits 0 on duplicate deployment", async () => {
