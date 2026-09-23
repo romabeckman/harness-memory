@@ -127,14 +127,17 @@ sdk/
 1. Generate project documentation with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit) before publishing.
 2. Collect Git context and require `docs/`. If missing, stop and show the documentation setup guidance.
 3. Load the authenticated project/environment baseline (HTTP 404 means none) and local docs, including untracked files. Complete docs are authoritative; source content is not sent to Codex.
-4. Reconcile keys, rules, evidence, and document content. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git-style markers in `metadata.conflict_marker`.
-5. Validate the graph before publishing. `--dry-run` skips publication.
+4. Publish only Markdown under `docs/adr/` and `docs/feature/`, plus `docs/.digest.md`, as document entities. Store the generated `docs/.graph.json` object in snapshot `metadata`.
+5. Reconcile document content and history. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git merge conflict markers in `metadata.conflict_marker`.
+6. Validate the graph before publishing. `--dry-run` skips publication.
 
 ### Storage and history
 
 REQUIRED: Store docs in **entities, relations, and evidence**, never `project_memory`. Each document tracks path, full content, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with `part_of` edges and checksums; decode exact text.
 
-Rules retain full statements and cited `defines` relations; features retain micrographs. Immutable snapshots and revisions preserve history. Omission alone does not delete prior memory; review carried-forward rules after policy changes.
+ADRs, features, and the digest retain full Markdown. The SDK permits only `adr`, `feature`, `document`, `document_revision`, and `document_section` entity types. README, BUSINESS, specs, and extracted rule entities stay out of publication. Immutable snapshots and revisions preserve document history; changed lines retain both versions in conflict markers.
+
+REQUIRED: Read earlier snapshots with legacy rule or README entities, keep only supported documentation and its valid relations, then publish the narrowed graph without a manual migration.
 
 ### Required project-memory documentation
 

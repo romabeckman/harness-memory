@@ -116,8 +116,10 @@ class TestKnowledgePublicationRoutes:
                 "environment": "staging",
                 "deployment_id": "deploy-1",
                 "version": "1.0.0",
+                "metadata": {"nodes": [{"id": "feature:orders"}], "edges": []},
                 "tenant_id": str(uuid4()),
             },
         )
         assert response.status_code == 201
         assert handler.received_input.tenant_id == "tenant-a"
+        assert handler.received_input.metadata == {"nodes": [{"id": "feature:orders"}], "edges": []}

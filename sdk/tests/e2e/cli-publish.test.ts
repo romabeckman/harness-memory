@@ -131,7 +131,9 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(apiCalls).toBe(1);
     expect(baselineCalls).toBe(1);
     expect(lastRequestBody).not.toHaveProperty("project_memory");
+    expect(lastRequestBody.metadata.nodes.some((node: any) => node.path === "docs/feature/sdk/snapshot-publisher.md")).toBe(true);
     expect(lastRequestBody.entities.some((entity: any) => entity.type === "feature" && entity.metadata.content)).toBe(true);
+    expect(lastRequestBody.entities.every((entity: any) => !["docs/README.md", "docs/BUSINESS.md", "docs/.graph.json"].includes(entity.metadata?.path))).toBe(true);
     const parsedStdout = JSON.parse(stdoutLines.join("\n"));
     expect(parsedStdout.status).toBe("ACTIVATED");
     expect(parsedStdout.project_key).toBe("payments");

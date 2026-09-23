@@ -170,7 +170,7 @@ class PublishKnowledgeHandler:
             schema_version=SchemaVersion("1.0"),
             project_key=ProjectKey(input.project_key),
             project_name=input.project_key,
-            project_metadata=MetadataObject({}),
+            project_metadata=MetadataObject(input.metadata),
             revision=Revision(revision_val),
             generated_at=GeneratedAt(datetime.now(timezone.utc)),
             entities=tuple(_normalize_entity(e) for e in input.entities),

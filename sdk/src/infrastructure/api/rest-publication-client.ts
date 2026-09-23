@@ -41,6 +41,7 @@ export class RestPublicationClient implements PublicationClientPort {
       environment: request.environment,
       deployment_id: request.deploymentId,
       version: request.version,
+      metadata: request.graph.document.metadata ?? {},
       entities: request.graph.document.entities,
       relations: request.graph.document.relations,
       evidence: request.graph.document.evidence,

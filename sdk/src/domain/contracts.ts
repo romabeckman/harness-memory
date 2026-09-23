@@ -1,20 +1,11 @@
 import { LlmAgentType } from "./llm-agent.js";
 
 export const ALLOWED_ENTITY_TYPES = [
-  "project",
-  "system",
-  "service",
-  "api",
-  "event",
-  "library",
-  "team",
   "adr",
   "feature",
-  "spec",
   "document",
   "document_revision",
   "document_section",
-  "rule",
 ] as const;
 
 export type EntityType = (typeof ALLOWED_ENTITY_TYPES)[number];
@@ -73,6 +64,7 @@ export interface EvidenceFact {
 
 export interface GraphDocument {
   schema_version: string;
+  metadata?: Record<string, unknown>;
   entities: EntityFact[];
   relations: RelationFact[];
   evidence: EvidenceFact[];

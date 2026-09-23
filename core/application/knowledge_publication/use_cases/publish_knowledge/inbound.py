@@ -12,3 +12,4 @@ class PublishKnowledgeInput:
     entities: tuple[Any, ...] = field(default_factory=tuple)
     relations: tuple[Any, ...] = field(default_factory=tuple)
     evidence: tuple[Any, ...] = field(default_factory=tuple)
+    metadata: dict[str, Any] = field(default_factory=dict)

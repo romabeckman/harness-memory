@@ -62,6 +62,7 @@ def create_knowledge_publication_router(
             environment_name=request.environment,
             deployment_id=request.deployment_id,
             version=request.version,
+            metadata=request.metadata,
             entities=tuple(request.entities),
             relations=tuple(request.relations),
             evidence=tuple(request.evidence),

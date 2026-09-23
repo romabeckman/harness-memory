@@ -62,6 +62,18 @@ describe("RestPublicationClient", () => {
     expect(result.publicationId).toBe("pub-1");
   });
 
+  it("sends the graph index as snapshot metadata", async () => {
+    const graphIndex = { nodes: [{ id: "feature:orders", path: "docs/feature/orders.md" }], edges: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ status: 201, json: async () => ({ status: "ACTIVATED" }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await client.publish({ ...dummyRequest,
+      graph: { ...dummyRequest.graph, document: { ...dummyRequest.graph.document,
+        metadata: graphIndex } as any } });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).metadata).toEqual(graphIndex);
+  });
+
   it("handles 200 ALREADY_PUBLISHED successfully", async () => {
     vi.stubGlobal(
       "fetch",

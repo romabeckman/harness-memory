@@ -22,6 +22,7 @@ from core.domain.snapshot_publication.value_objects.schema_version import Schema
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.project import Project as ModelProject
+from core.infrastructure.postgres.models.snapshot import Snapshot as ModelSnapshot
 from core.infrastructure.postgres.repositories.knowledge_publication_repository import (
     PostgresKnowledgePublicationRepository,
 )
@@ -110,7 +111,7 @@ class TestPostgresKnowledgePublicationRepository:
             schema_version=SchemaVersion("1.0"),
             project_key=ProjectKey("catalog"),
             project_name="catalog",
-            project_metadata=MetadataObject({}),
+            project_metadata=MetadataObject({"nodes": [{"id": "feature:orders"}], "edges": []}),
             revision=Revision(1),
             generated_at=GeneratedAt(datetime.now(timezone.utc)),
             entities=(),
@@ -134,3 +135,6 @@ class TestPostgresKnowledgePublicationRepository:
         with Session(engine) as session:
             updated_env = session.get(ModelEnvironment, env.id)
             assert updated_env.current_snapshot_id == snap_id
+            assert session.get(ModelSnapshot, snap_id).metadata_json == {
+                "nodes": [{"id": "feature:orders"}], "edges": []
+            }

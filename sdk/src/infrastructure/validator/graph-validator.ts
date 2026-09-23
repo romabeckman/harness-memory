@@ -113,6 +113,7 @@ export class GraphValidator implements GraphValidatorPort {
 
     const canonicalDocument: GraphDocument = {
       schema_version: "1.0",
+      ...(doc.metadata === undefined ? {} : { metadata: this.validateMetadata(doc.metadata) }),
       entities: validatedEntities,
       relations: validatedRelations,
       evidence: validatedEvidence,

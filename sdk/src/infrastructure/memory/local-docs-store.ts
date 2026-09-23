@@ -16,7 +16,7 @@ export class LocalDocsStore implements DocsStorePort {
       const stat = lstatSync(full);
       if (stat.isDirectory()) {
         for (const entry of readdirSync(full).sort()) {
-          if (path === "docs" && !["adr", "feature", "specs", ".digest.md", ".graph.json", "README.md", "BUSINESS.md"].includes(entry)) continue;
+          if (path === "docs" && !["adr", "feature", ".digest.md", ".graph.json"].includes(entry)) continue;
           visit(`${path}/${entry}`);
         }
       } else if (stat.isFile() && isMemoryPath(path)) {
@@ -33,7 +33,9 @@ export class LocalDocsStore implements DocsStorePort {
   }
 
   private safePath(root: string, path: string): string {
-    if (path !== "docs" && !isMemoryPath(path) && !/^docs\/(adr|feature|specs)(\/[\w. -]+)*$/.test(path)) throw new ContextCollectionError(`Unsafe documentation path: ${path}`);
+    if (!/^docs(?:\/[\w. -]+)*$/.test(path) || path.split("/").some(part => part === "." || part === "..")) {
+      throw new ContextCollectionError(`Unsafe documentation path: ${path}`);
+    }
     let current = root;
     for (const part of path.split("/")) {
       if (["..", ".", ""].includes(part)) throw new ContextCollectionError("Unsafe documentation path");

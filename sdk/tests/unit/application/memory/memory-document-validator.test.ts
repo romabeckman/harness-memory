@@ -12,7 +12,6 @@ const graph = (): GraphDocument => ({
     document("adr:architecture", "adr", "docs/adr/ARCHITECTURE.md"),
     document("adr:tests", "adr", "docs/adr/TESTS.md"),
     document("document:digest", "document", "docs/.digest.md"),
-    document("document:index", "document", "docs/README.md"),
     document("feature:orders", "feature", "docs/feature/orders.md"),
   ],
   relations: [], evidence: [],

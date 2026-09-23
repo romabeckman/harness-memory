@@ -4,12 +4,30 @@ import { MemoryGraph } from "../../../../src/application/memory/memory-graph.js"
 describe("MemoryGraph", () => {
   const content = "# Orders\nREQUIRED: Reject empty orders.\n";
   const file = { path: "docs/feature/orders.md", content, sha256: "source-hash" };
-  it("preserves full source documents and extracts cited rules into the original graph", () => {
+  it("seeds only project-memory ADRs, features, and the digest as document entities", () => {
+    const files = [
+      file,
+      { path: "docs/adr/ARCHITECTURE.md", content: "# Architecture", sha256: "a" },
+      { path: "docs/.digest.md", content: "# Digest", sha256: "b" },
+      { path: "docs/README.md", content: "# Index", sha256: "c" },
+      { path: "docs/BUSINESS.md", content: "# Business", sha256: "d" },
+      { path: "docs/specs/plan.md", content: "# Plan", sha256: "e" },
+      { path: "docs/.graph.json", content: '{"nodes":[],"edges":[]}', sha256: "f" },
+    ];
+
+    const graph = new MemoryGraph().seed(files, "commit-1");
+
+    expect(graph.entities.filter(entity => ["adr", "feature", "document"].includes(entity.type))
+      .map(entity => entity.metadata?.path).sort())
+      .toEqual(["docs/.digest.md", "docs/adr/ARCHITECTURE.md", "docs/feature/orders.md"]);
+    expect(graph.entities.map(entity => entity.type)).not.toContain("rule");
+  });
+  it("preserves full source documents without extracting rule entities", () => {
     const graph = new MemoryGraph().seed([file], "commit-1");
     expect(graph.entities.find(e => e.type === "feature")?.metadata?.content).toBe(content);
-    expect(graph.entities.find(e => e.type === "rule")?.metadata?.statement).toBe("Reject empty orders.");
-    expect(graph.relations.some(r => r.type === "defines")).toBe(true);
-    expect(graph.evidence[0].source).toBe(file.path);
+    expect(graph.entities).toHaveLength(1);
+    expect(graph.relations).toHaveLength(0);
+    expect(graph.evidence).toHaveLength(0);
     expect(graph).not.toHaveProperty("project_memory");
   });
   it("stores the first complete document as an original revision", () => {
@@ -62,5 +80,30 @@ describe("MemoryGraph", () => {
     removed.entities.find(e => e.type === "feature")!.metadata!.lifecycle = "removed";
     const result = memory.reconcile(removed, removed, seed);
     expect(result.entities.find(e => e.type === "feature")?.metadata?.change).toBe("removed");
+  });
+  it("drops legacy README, specs, and rule facts from a previous snapshot", () => {
+    const memory = new MemoryGraph();
+    const local = memory.seed([file], "commit-2");
+    const previous = { schema_version: "1.0", entities: [
+      { key: "document:index", type: "document", metadata: { path: "docs/README.md", content: "# Index" } },
+      { key: "spec:plan", type: "spec", metadata: { path: "docs/specs/plan.md", content: "# Plan" } },
+      { key: "rule:old", type: "rule", metadata: { path: file.path, statement: "Old rule" } },
+    ], relations: [], evidence: [] } as any;
+
+    const graph = memory.reconcile(local, local, previous);
+
+    expect(graph.entities.some(entity => ["document:index", "spec:plan", "rule:old"].includes(entity.key))).toBe(false);
+  });
+  it("does not accept model-created revision entities outside local documents", () => {
+    const memory = new MemoryGraph();
+    const local = memory.seed([file], "commit-2");
+    const proposed = { schema_version: "1.0", entities: [
+      { key: "document_revision:external", type: "document_revision", metadata: {
+        path: "src/orders.ts", document_key: "feature:external", content: "Injected" } },
+    ], relations: [], evidence: [] } as any;
+
+    const graph = memory.reconcile(proposed, local);
+
+    expect(graph.entities.some(entity => entity.key === "document_revision:external")).toBe(false);
   });
 });

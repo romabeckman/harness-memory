@@ -9,7 +9,6 @@ const generated = () => ({ schema_version: "1.0", entities: [
   ["adr:architecture", "adr", "docs/adr/ARCHITECTURE.md"],
   ["adr:tests", "adr", "docs/adr/TESTS.md"],
   ["document:digest", "document", "docs/.digest.md"],
-  ["document:index", "document", "docs/README.md"],
   ["feature:orders", "feature", "docs/feature/orders.md"],
 ].map(([key, type, path]) => ({ key, type, name: key, metadata: { path, content: "# Complete document\nProject context.\n" } })), relations: [], evidence: [] });
 const completeFiles = () => [
@@ -20,6 +19,7 @@ const completeFiles = () => [
     content: entity.metadata.path.startsWith("docs/adr/") || entity.metadata.path.startsWith("docs/feature/")
       ? `---\nnode_id: ${entity.key}\n---\n${entity.type === "feature" ? "```graph\n{}\n```\n" : ""}# Complete document\nProject context.\n`
       : "# Complete document\nProject context.\n", sha256: "sha" })),
+  { path: "docs/README.md", content: "# Index", sha256: "sha" },
 ];
 
 describe("ProjectMemoryWorkflow", () => {
@@ -32,6 +32,7 @@ describe("ProjectMemoryWorkflow", () => {
         : `---\ndoc_type: ${entity.type}\nnode_id: ${entity.key}\n---\n${entity.type === "feature" ? '```graph\n{"node_id":"feature:orders"}\n```\n' : ""}${entity.metadata.content}`,
       sha256: "sha",
     }));
+    localFiles.push({ path: "docs/README.md", content: "# Index", sha256: "sha" });
     localFiles.push({ path: "docs/.graph.json", content: JSON.stringify({ nodes: previous.entities.map(entity => ({
       path: entity.metadata.path, id: entity.key,
     })), edges: [] }), sha256: "sha" });
@@ -41,7 +42,7 @@ describe("ProjectMemoryWorkflow", () => {
     const graph = await workflow.run(options, { ...context, files: [{ path: "src/orders.ts", content: "secret source", sha256: "sha" }], });
     const invocation = llm.run.mock.calls[0][0];
     expect(invocation.baselineGraph).toEqual(previous);
-    expect(invocation.documentationGraph.entities).toHaveLength(5);
+    expect(invocation.documentationGraph.entities).toHaveLength(4);
     expect(invocation.context.files).toEqual([]);
     expect(invocation.instruction).toContain("compare current documents with the latest published graph");
     expect(graph.entities.find(entity => entity.key === "feature:orders")?.metadata?.content)
@@ -55,10 +56,35 @@ describe("ProjectMemoryWorkflow", () => {
     const workflow = new ProjectMemoryWorkflow(llm, baseline, docs, new GraphValidator());
     const graph = await workflow.run(options, context);
     expect(baseline.load).toHaveBeenCalledWith(options.apiUrl, options.token, "demo", "production");
-    expect(llm.run.mock.calls[0][0].baselineGraph.entities).toHaveLength(5);
+    expect(llm.run.mock.calls[0][0].baselineGraph.entities).toHaveLength(4);
     expect(llm.run.mock.calls[0][0].instruction).toContain("Preserve stable entity keys");
     expect(JSON.stringify(llm.run.mock.calls[0][0])).not.toContain('"token"');
     expect(graph).not.toHaveProperty("project_memory");
+  });
+  it("accepts legacy baselines containing rule and README entities", async () => {
+    const previous = generated() as any;
+    previous.entities.push({ key: "rule:old", type: "rule", metadata: { path: "docs/feature/orders.md", statement: "Old" } });
+    previous.entities.push({ key: "document:index", type: "document", metadata: { path: "docs/README.md", content: "# Index" } });
+    previous.relations.push({ ref: "old-rule", source_entity_key: "feature:orders", target_entity_key: "rule:old", type: "defines", provenance: "declared" });
+    previous.evidence.push({ source: "docs/feature/orders.md", relation_ref: "old-rule" });
+    const workflow = new ProjectMemoryWorkflow({ run: vi.fn().mockResolvedValue(generated()) },
+      { load: vi.fn().mockResolvedValue(previous) }, { read: vi.fn().mockReturnValue(completeFiles()) }, new GraphValidator());
+
+    const graph = await workflow.run(options, context);
+
+    expect(graph.entities.some(entity => ["rule:old", "document:index"].includes(entity.key))).toBe(false);
+    expect(graph.relations.some(relation => relation.ref === "old-rule")).toBe(false);
+  });
+  it("publishes the exact local graph index as snapshot metadata", async () => {
+    const files = completeFiles();
+    const docs = { read: vi.fn().mockReturnValue(files) };
+    const workflow = new ProjectMemoryWorkflow({ run: vi.fn().mockResolvedValue(generated()) },
+      { load: vi.fn().mockResolvedValue(undefined) }, docs, new GraphValidator());
+
+    const graph = await workflow.run(options, context);
+
+    expect((graph as any).metadata).toEqual(JSON.parse(files[0].content));
+    expect(graph.entities.some(entity => entity.metadata?.path === "docs/.graph.json")).toBe(false);
   });
   it("rejects missing docs before loading a baseline or calling the model", async () => {
     const docs = { read: vi.fn().mockReturnValue([]) };
@@ -71,7 +97,7 @@ describe("ProjectMemoryWorkflow", () => {
   });
   it("derives a missing entity key from its path without retrying the model", async () => {
     const graphWithoutKey = generated();
-    graphWithoutKey.entities.push({ key: undefined, type: "service", name: "Orders",
+    graphWithoutKey.entities.push({ key: undefined, type: "document_revision", name: "Orders",
       metadata: { path: "src/orders.ts" } });
     const llm = { run: vi.fn().mockResolvedValue(graphWithoutKey) };
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
@@ -79,28 +105,26 @@ describe("ProjectMemoryWorkflow", () => {
 
     const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    expect(graph.entities.find(entity => entity.type === "service")?.key).toBe("src-orders.ts");
+    expect(graph.entities.some(entity => entity.key === "src-orders.ts")).toBe(false);
     expect(llm.run).toHaveBeenCalledTimes(1);
   });
   it("adds a stable hash suffix when a path-derived entity key collides", async () => {
     const graphWithCollision = generated();
-    graphWithCollision.entities.push({ key: undefined, type: "service", name: "Orders",
+    graphWithCollision.entities.push({ key: undefined, type: "document_revision", name: "Orders",
       metadata: { path: "src/orders.ts" } });
-    graphWithCollision.entities.push({ key: "src-orders.ts", type: "library", name: "Existing library" });
+    graphWithCollision.entities.push({ key: "src-orders.ts", type: "document_revision", name: "Existing revision" });
     const llm = { run: vi.fn().mockResolvedValue(graphWithCollision) };
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
 
     const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    const service = graph.entities.find(entity => entity.type === "service")!;
-    expect(service.key).toMatch(/^src-orders\.ts-[a-f0-9]{12}$/);
-    expect(graph.entities.some(entity => entity.type === "library" && entity.key === "src-orders.ts")).toBe(true);
+    expect(graph.entities.some(entity => entity.metadata?.path === "src/orders.ts")).toBe(false);
     expect(new Set(graph.entities.map(entity => entity.key)).size).toBe(graph.entities.length);
     expect(llm.run).toHaveBeenCalledTimes(1);
   });
   it("retries once when the generated graph has an entity without a key", async () => {
-    const invalid = { schema_version: "1.0", entities: [{ type: "service", name: "Payments" }], relations: [], evidence: [] };
+    const invalid = { schema_version: "1.0", entities: [{ type: "document_revision", name: "Payments" }], relations: [], evidence: [] };
     const llm = { run: vi.fn().mockResolvedValueOnce(invalid).mockResolvedValueOnce(generated()) };
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const debug = vi.fn();
@@ -116,7 +140,7 @@ describe("ProjectMemoryWorkflow", () => {
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("path=<none>"));
   });
   it("fails if the graph still has a missing key after one retry", async () => {
-    const invalid = { schema_version: "1.0", entities: [{ type: "service", name: "Payments" }], relations: [], evidence: [] };
+    const invalid = { schema_version: "1.0", entities: [{ type: "document_revision", name: "Payments" }], relations: [], evidence: [] };
     const llm = { run: vi.fn().mockResolvedValue(invalid) };
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
@@ -167,7 +191,7 @@ describe("ProjectMemoryWorkflow", () => {
   });
   it("identifies a local seed entity without a key in debug output", async () => {
     const files = completeFiles();
-    files[0].content = JSON.stringify({ nodes: [{ path: "docs/README.md", id: "" }], edges: [] });
+    files[0].content = JSON.stringify({ nodes: [{ path: "docs/feature/orders.md", id: "" }], edges: [] });
     const docs = { read: vi.fn().mockReturnValue(files) };
     const llm = { run: vi.fn() };
     const debug = vi.fn();
@@ -177,7 +201,7 @@ describe("ProjectMemoryWorkflow", () => {
       .rejects.toThrow("entity key is required");
 
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("seed missing key at entities["));
-    expect(debug).toHaveBeenCalledWith(expect.stringContaining('path="docs/README.md"'));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('path="docs/feature/orders.md"'));
     expect(llm.run).not.toHaveBeenCalled();
   });
   it("dry run validates documented memory", async () => {

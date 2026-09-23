@@ -1,4 +1,4 @@
-import type { GraphDocument, PublishSnapshotOptions } from "../../domain/contracts.js";
+import { ALLOWED_ENTITY_TYPES, type GraphDocument, type PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
 import { ContextCollectionError } from "../../domain/context-collection-error.js";
 import type { DocsStorePort } from "../ports/docs-store.port.js";
@@ -11,7 +11,7 @@ import { GraphValidationError } from "../../domain/graph-validation-error.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
 import { DocumentContentCodec } from "./document-content-codec.js";
 import { MemoryDocumentValidator } from "./memory-document-validator.js";
-import { MemoryGraph } from "./memory-graph.js";
+import { isMemoryPath, MemoryGraph } from "./memory-graph.js";
 import { PROJECT_MEMORY_PROMPT } from "./project-memory-prompt.js";
 import { ProjectMemoryCompleteness } from "./project-memory-completeness.js";
 import { digest } from "./memory-graph.js";
@@ -90,8 +90,19 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
       options.apiUrl, options.token, options.projectKey, options.environment,
     );
     if (!stored) return undefined;
-    this.validator.validateAndCanonicalize(stored);
-    return this.codec.decode(stored);
+    const decoded = this.codec.decode(stored);
+    const entities = decoded.entities.filter(entity =>
+      ALLOWED_ENTITY_TYPES.includes(entity.type) &&
+      typeof entity.metadata?.path === "string" && isMemoryPath(entity.metadata.path) &&
+      entity.metadata.path !== "docs/.graph.json");
+    const keys = new Set(entities.map(entity => entity.key));
+    const relations = decoded.relations.filter(relation =>
+      keys.has(relation.source_entity_key) && keys.has(relation.target_entity_key));
+    const refs = new Set(relations.map(relation => relation.ref));
+    const evidence = decoded.evidence.filter(item => !item.relation_ref || refs.has(item.relation_ref));
+    const compatible = { schema_version: decoded.schema_version, entities, relations, evidence };
+    this.validator.validateAndCanonicalize(this.codec.encode(compatible));
+    return compatible;
   }
 
   private validateContextBudget(files: CollectedFile[], options: PublishSnapshotOptions): void {

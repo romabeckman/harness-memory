@@ -3,7 +3,7 @@ import type { CollectedFile } from "../ports/git-context-collector.port.js";
 export class ProjectMemoryCompleteness {
   public isComplete(files: CollectedFile[]): boolean {
     const paths = new Set(files.map(file => file.path));
-    const required = ["docs/.graph.json", "docs/.digest.md", "docs/README.md",
+    const required = ["docs/.graph.json", "docs/.digest.md",
       "docs/adr/ARCHITECTURE.md", "docs/adr/TESTS.md"];
     if (!required.every(path => paths.has(path))) return false;
     const graphDocuments = files.filter(file => /^docs\/(adr|feature)\/.*\.md$/.test(file.path));

@@ -4,28 +4,34 @@ import { GraphValidationError } from "../../../../src/domain/graph-validation-er
 import { GraphDocument } from "../../../../src/domain/contracts.js";
 
 describe("GraphValidator", () => {
+  it("rejects entities outside the documentation MVP", () => {
+    const validator = new GraphValidator();
+    expect(() => validator.validateAndCanonicalize({ schema_version: "1.0",
+      entities: [{ key: "service:orders", type: "service" }], relations: [], evidence: [] }))
+      .toThrow("invalid entity type");
+  });
   const validator = new GraphValidator();
 
   it("validates and canonicalizes a valid graph document", () => {
     const doc: GraphDocument = {
       schema_version: "1.0",
       entities: [
-        { key: "service:b", type: "service", name: "B Service" },
-        { key: "service:a", type: "service", name: "A Service" },
+        { key: "feature:b", type: "feature", name: "B Feature" },
+        { key: "feature:a", type: "feature", name: "A Feature" },
       ],
       relations: [
         {
           ref: "rel-2",
-          source_entity_key: "service:b",
+          source_entity_key: "feature:b",
           type: "depends_on",
-          target_entity_key: "service:a",
+          target_entity_key: "feature:a",
           provenance: "declared",
         },
         {
           ref: "rel-1",
-          source_entity_key: "service:a",
+          source_entity_key: "feature:a",
           type: "provides",
-          target_entity_key: "service:b",
+          target_entity_key: "feature:b",
           provenance: "declared",
         },
       ],
@@ -38,7 +44,7 @@ describe("GraphValidator", () => {
     const validated = validator.validateAndCanonicalize(doc);
 
     expect(validated.counts).toEqual({ entities: 2, relations: 2, evidence: 2 });
-    expect(validated.document.entities.map((e) => e.key)).toEqual(["service:a", "service:b"]);
+    expect(validated.document.entities.map((e) => e.key)).toEqual(["feature:a", "feature:b"]);
     expect(validated.document.relations.map((r) => r.ref)).toEqual(["rel-1", "rel-2"]);
     expect(validated.document.evidence.map((ev) => ev.source)).toEqual(["file-a.ts", "file-z.ts"]);
     expect(validated.sha256).toHaveLength(64);
@@ -47,7 +53,7 @@ describe("GraphValidator", () => {
   it("accepts null canonical keys allowed by the publication API", () => {
     const doc = {
       schema_version: "1.0",
-      entities: [{ key: "service:a", type: "service", canonical_key: null }],
+      entities: [{ key: "feature:a", type: "feature", canonical_key: null }],
       relations: [],
       evidence: [],
     } as unknown as GraphDocument;
@@ -60,7 +66,7 @@ describe("GraphValidator", () => {
   it("rejects canonical keys that are neither strings nor null", () => {
     const doc = {
       schema_version: "1.0",
-      entities: [{ key: "service:a", type: "service", canonical_key: 42 }],
+      entities: [{ key: "feature:a", type: "feature", canonical_key: 42 }],
       relations: [],
       evidence: [],
     };
@@ -91,20 +97,20 @@ describe("GraphValidator", () => {
   it("rejects duplicate relation refs", () => {
     const doc: GraphDocument = {
       schema_version: "1.0",
-      entities: [{ key: "svc-1", type: "service" }],
+      entities: [{ key: "feature:a", type: "feature" }],
       relations: [
         {
           ref: "dup-ref",
-          source_entity_key: "svc-1",
+          source_entity_key: "feature:a",
           type: "depends_on",
-          target_entity_key: "svc-1",
+          target_entity_key: "feature:a",
           provenance: "declared",
         },
         {
           ref: "dup-ref",
-          source_entity_key: "svc-1",
+          source_entity_key: "feature:a",
           type: "part_of",
-          target_entity_key: "svc-1",
+          target_entity_key: "feature:a",
           provenance: "declared",
         },
       ],
@@ -116,11 +122,11 @@ describe("GraphValidator", () => {
   it("rejects dangling relation endpoints", () => {
     const doc: GraphDocument = {
       schema_version: "1.0",
-      entities: [{ key: "svc-1", type: "service" }],
+      entities: [{ key: "feature:a", type: "feature" }],
       relations: [
         {
           ref: "rel-1",
-          source_entity_key: "svc-1",
+          source_entity_key: "feature:a",
           type: "depends_on",
           target_entity_key: "non-existent",
           provenance: "declared",
@@ -145,7 +151,7 @@ describe("GraphValidator", () => {
     const hugeMeta: Record<string, string> = { data: "x".repeat(65536 + 10) };
     const doc: GraphDocument = {
       schema_version: "1.0",
-      entities: [{ key: "svc-1", type: "service", metadata: hugeMeta }],
+      entities: [{ key: "feature:a", type: "feature", metadata: hugeMeta }],
       relations: [],
       evidence: [],
     };

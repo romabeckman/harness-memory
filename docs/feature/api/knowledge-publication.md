@@ -92,6 +92,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
 | Admin destination | `tenant_id` in the JSON body; required only for `API_ADMIN_TOKEN` |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
+| Snapshot metadata | `metadata` JSON object; the SDK sends the generated `docs/.graph.json` object here. |
 | New publication | HTTP 201 with status `ACTIVATED` |
 | Completed retry | HTTP 200 with status `ALREADY_PUBLISHED` |
 | Divergent retry | HTTP 409 when the same deployment ID carries different content. |
@@ -108,9 +109,9 @@ REQUIRED: Derive tenant from the authenticated token; scope all project/environm
 
 ### Graph-native documentation
 
-Accept `adr`, `feature`, `spec`, `document`, `document_revision`, `document_section`, and `rule` entity types. Store full Markdown or ordered content sections in entity metadata, plus rule statements, provenance, hashes, and feature context. Use `defines`, `applies_to`, `references`, `tested_by`, `child_of`, and `supersedes` alongside existing relation types.
+The SDK publishes `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Keep complete ADR, feature, and digest Markdown in entity metadata; keep the generated graph index in snapshot metadata. The API still accepts its existing entity enum for other clients.
 
-REQUIRED: Persist these facts in the original snapshot payload and normalized entity/relation/evidence rows. Do not create a separate `project_memory` structure. Existing immutable snapshots retain prior document/rule versions for snapshot-scoped retrieval. Content changes participate in payload hashing and deployment-conflict checks. Existing database string columns require no enum migration.
+REQUIRED: Persist the graph index in `snapshots.metadata` and document facts in normalized entity/relation/evidence rows. Keep prior document versions in immutable snapshots and line revisions with Git merge conflict markers. Content and snapshot metadata changes participate in payload hashing and deployment-conflict checks. Existing database columns require no migration.
 
 ### Activation
 

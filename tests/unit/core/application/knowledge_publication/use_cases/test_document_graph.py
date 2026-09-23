@@ -17,3 +17,17 @@ def test_document_content_and_rules_are_normal_graph_facts():
     assert payload["entities"][0]["metadata"]["content"].endswith("Reject empty orders.")
     assert payload["relations"][0]["type"] == "defines"
     assert "project_memory" not in payload
+
+
+def test_documentation_graph_becomes_snapshot_metadata():
+    graph_index = {"nodes": [{"id": "feature:orders", "path": "docs/feature/orders.md"}], "edges": []}
+    snapshot = PublishKnowledgeHandler(None, None)._build_snapshot(PublishKnowledgeInput(
+        "demo", "production", "release-1", "1",
+        metadata=graph_index,
+        entities=({"key": "feature:orders", "type": "feature", "metadata": {
+            "path": "docs/feature/orders.md", "content": "# Orders"
+        }},),
+    ))
+
+    assert snapshot.project.metadata.to_dict() == graph_index
+    assert snapshot_payload(snapshot)["project"]["metadata"] == graph_index

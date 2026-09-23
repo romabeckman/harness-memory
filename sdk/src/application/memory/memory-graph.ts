@@ -3,29 +3,37 @@ import { CollectedFile } from "../ports/git-context-collector.port.js";
 import { ALLOWED_RELATION_TYPES, EntityFact, EntityType, GraphDocument, RelationFact, RelationType } from "../../domain/contracts.js";
 import { GraphValidationError } from "../../domain/graph-validation-error.js";
 
-export const DOCUMENT_TYPES = new Set<EntityType>(["adr", "feature", "spec", "document"]);
+export const DOCUMENT_TYPES = new Set<EntityType>(["adr", "feature", "document"]);
 export const digest = (text: string): string => createHash("sha256").update(text, "utf8").digest("hex");
 export const isMemoryPath = (path: string): boolean =>
   !path.includes("\\") && !path.split("/").some(p => p === ".." || p === "." || p === "") &&
-  (/^docs\/(adr|feature|specs)\/[\w./ -]+\.md$/i.test(path) ||
-    ["docs/.digest.md", "docs/.graph.json", "docs/README.md", "docs/BUSINESS.md"].includes(path));
+  (/^docs\/(adr|feature)\/[\w./ -]+\.md$/i.test(path) ||
+    ["docs/.digest.md", "docs/.graph.json"].includes(path));
 const empty = (): GraphDocument => ({ schema_version: "1.0", entities: [], relations: [], evidence: [] });
-const memoryEntity = (e: EntityFact): boolean => DOCUMENT_TYPES.has(e.type) || e.type === "rule" || e.type === "document_revision";
+const isPublishableDocumentPath = (path: unknown): path is string =>
+  typeof path === "string" && isMemoryPath(path) && path !== "docs/.graph.json";
+const memoryEntity = (e: EntityFact): boolean =>
+  (DOCUMENT_TYPES.has(e.type) || e.type === "document_revision") && isPublishableDocumentPath(e.metadata?.path);
 
 export class MemoryGraph {
   public seed(files: CollectedFile[], commit: string): GraphDocument {
     const graph = empty();
     const indexFile = files.find(f => f.path === "docs/.graph.json");
     const index = indexFile ? JSON.parse(indexFile.content) : { nodes: [], edges: [] };
-    if (!Array.isArray(index.nodes) || !Array.isArray(index.edges)) throw new GraphValidationError("Invalid docs/.graph.json topology");
+    if (!index || typeof index !== "object" || Array.isArray(index) ||
+        !Array.isArray(index.nodes) || !Array.isArray(index.edges)) {
+      throw new GraphValidationError("Invalid docs/.graph.json topology");
+    }
+    graph.metadata = index;
     const indexed = new Map<string, any>();
     for (const node of index.nodes) {
-      if (typeof node.path !== "string" || !isMemoryPath(node.path)) throw new GraphValidationError("Invalid document path in docs/.graph.json");
+      if (typeof node.path !== "string") throw new GraphValidationError("Invalid document path in docs/.graph.json");
+      if (!isMemoryPath(node.path)) continue;
       indexed.set(node.path, node);
     }
     for (const file of files.filter(f => isMemoryPath(f.path) && f.path !== "docs/.graph.json")) {
       const node = indexed.get(file.path);
-      const type: EntityType = file.path.startsWith("docs/adr/") ? "adr" : file.path.startsWith("docs/feature/") ? "feature" : file.path.startsWith("docs/specs/") ? "spec" : "document";
+      const type: EntityType = file.path.startsWith("docs/adr/") ? "adr" : file.path.startsWith("docs/feature/") ? "feature" : "document";
       const frontmatterId = file.content.match(/^node_id:\s*["']?([^"'\r\n]+)["']?\s*$/m)?.[1]?.trim();
       const key = node?.id ?? frontmatterId ?? `${type}:${digest(file.path).slice(0, 24)}`;
       const title = node?.title ?? file.content.match(/^#\s+(.+)$/m)?.[1] ?? file.path;
@@ -37,20 +45,6 @@ export class MemoryGraph {
       if (micrograph) metadata.context = JSON.parse(micrograph[1]);
       if (node?.related_docs) metadata.related_docs = node.related_docs;
       graph.entities.push({ key, type, name: title, metadata });
-      file.content.split(/\r?\n/).forEach((line, i) => {
-        const rule = line.match(/^\s*(?:[-*]\s+)?(?:\*\*)?(REQUIRED|PROHIBITED|FORBIDDEN|ALLOWED):(?:\*\*)?\s*(.+)$/);
-        if (!rule) return;
-        const ruleKey = `rule:${digest(`${key}|${rule[1]}|${rule[2]}`).slice(0, 32)}`;
-        if (graph.entities.some(e => e.key === ruleKey)) return;
-        graph.entities.push({ key: ruleKey, type: "rule", name: rule[2].slice(0, 255), metadata: {
-          statement: rule[2], modality: rule[1] === "FORBIDDEN" ? "PROHIBITED" : rule[1],
-          document_key: key, path: file.path, line: i + 1, lifecycle: "active", source_commit_sha: commit,
-        } });
-        const relation = this.edge(key, "defines", ruleKey);
-        graph.relations.push(relation);
-        graph.evidence.push({ source: file.path, excerpt: line.slice(0, 4096), relation_ref: relation.ref,
-          metadata: { line: i + 1, content_sha256: digest(file.content), source_commit_sha: commit } });
-      });
     }
     const keys = new Set(graph.entities.map(e => e.key));
     for (const edge of index.edges) {
@@ -61,14 +55,10 @@ export class MemoryGraph {
     return graph;
   }
 
-  public reconcile(proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument): GraphDocument {
+  public reconcile(_proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument): GraphDocument {
     const entities = new Map<string, EntityFact>();
     for (const entity of previous?.entities.filter(memoryEntity) ?? []) entities.set(entity.key, structuredClone(entity));
     for (const entity of local.entities) entities.set(entity.key, structuredClone(entity));
-    for (const entity of proposed.entities) {
-      if (DOCUMENT_TYPES.has(entity.type)) continue;
-      entities.set(entity.key, structuredClone(entity));
-    }
     const prior = new Map(previous?.entities.map(e => [e.key, e]) ?? []);
     const revisions: RelationFact[] = [];
     for (const entity of [...entities.values()].filter(item => DOCUMENT_TYPES.has(item.type))) {
@@ -102,12 +92,12 @@ export class MemoryGraph {
       if (old && typeof before === "string") entity.metadata.previous_sha256 = digest(before);
     }
     const relations = new Map<string, RelationFact>();
-    for (const relation of [...(previous?.relations ?? []), ...local.relations, ...proposed.relations, ...revisions]) {
+    for (const relation of [...(previous?.relations ?? []), ...local.relations, ...revisions]) {
       if (entities.has(relation.source_entity_key) && entities.has(relation.target_entity_key)) relations.set(relation.ref, relation);
     }
-    const evidence = [...(previous?.evidence ?? []), ...local.evidence, ...proposed.evidence]
+    const evidence = [...(previous?.evidence ?? []), ...local.evidence]
       .filter(e => !e.relation_ref || relations.has(e.relation_ref));
-    return { schema_version: "1.0", entities: [...entities.values()], relations: [...relations.values()],
+    return { schema_version: "1.0", metadata: local.metadata, entities: [...entities.values()], relations: [...relations.values()],
       evidence: [...new Map(evidence.map(e => [JSON.stringify(e), e])).values()] };
   }
 

@@ -3,7 +3,7 @@ import { GraphValidationError } from "../../domain/graph-validation-error.js";
 import { DOCUMENT_TYPES, isMemoryPath } from "./memory-graph.js";
 
 const REQUIRED_DOCUMENTS = [
-  "docs/adr/ARCHITECTURE.md", "docs/adr/TESTS.md", "docs/.digest.md", "docs/README.md",
+  "docs/adr/ARCHITECTURE.md", "docs/adr/TESTS.md", "docs/.digest.md",
 ];
 
 export class MemoryDocumentValidator {
@@ -30,20 +30,6 @@ export class MemoryDocumentValidator {
     }
     if (!graph.entities.some(entity => entity.type === "feature" && entity.metadata?.lifecycle !== "removed")) {
       throw new GraphValidationError("Documentation must describe at least one project feature");
-    }
-    this.validateRules(graph);
-  }
-
-  private validateRules(graph: GraphDocument): void {
-    for (const rule of graph.entities.filter(entity => entity.type === "rule")) {
-      if (typeof rule.metadata?.statement !== "string" || !rule.metadata.statement.trim()) {
-        throw new GraphValidationError(`Rule '${rule.key}' needs its complete statement`);
-      }
-      const defines = graph.relations.find(relation =>
-        relation.type === "defines" && relation.target_entity_key === rule.key);
-      if (!defines || !graph.evidence.some(evidence => evidence.relation_ref === defines.ref)) {
-        throw new GraphValidationError(`Rule '${rule.key}' needs document scope and evidence`);
-      }
     }
   }
 }
