@@ -76,7 +76,8 @@ PROHIBITED: Use ordinary API access tokens for REST management authentication.
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
 | POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
-| GET | `/v1/environments`, `/v1/knowledge-publications` | Search environment and publication records with tenant, project, state, version, deployment, and text filters. |
+| GET | `/v1/environments`, `/v1/knowledge-publications` | Search environment and publication records by target fields. |
+| GET | `/v1/knowledge-publications/latest` | Read the active baseline graph for a project and environment. |
 | GET | `/v1/snapshots`, `/v1/entities`, `/v1/relations`, `/v1/evidence` | Search immutable snapshot facts with table-specific filters and bounded pagination. |
 | POST, GET | `/v1/tenants` | Admin creates tenants; scoped credentials read according to identity. |
 | GET, PATCH, DELETE | `/v1/tenants/{tenant_id}` | Read tenant; admin updates or deletes an empty tenant. |

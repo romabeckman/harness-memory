@@ -96,8 +96,9 @@ before applying a read filter or selecting a publication destination.
 
 REQUIRED: Use HTTPS in production and keep PostgreSQL on the private application network;
 Compose port exposure is for local development.
-REQUIRED: Keep management routes private, expose only health/readiness publicly, and audit
-auth failures, publication, and impact operations with safe identifiers.
+REQUIRED: Expose `/health`, `/docs`, and `/openapi.json` without bearer auth; protect REST
+management routes with `API_ADMIN_TOKEN`.
+REQUIRED: Audit authentication failures, publication, and impact operations with safe identifiers.
 PROHIBITED: Include bearer values, claims, token hashes, database URLs, payloads, or SQL in
 responses, logs, telemetry, or audit records.
 

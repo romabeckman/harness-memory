@@ -158,6 +158,7 @@ The MCP surface is read-only and exposes the following tools:
 
 | Tool | Purpose |
 | --- | --- |
+| `search_projects` | Find project records and check for active snapshots. |
 | `search_entities` | Search known entities by key, name, type, or project. |
 | `get_context` | Retrieve bounded context around an entity. |
 | `get_dependencies` | Query inbound and outbound dependencies. |
@@ -185,7 +186,9 @@ review_change_impact
 ## Tech Stack
 
 - Python 3.12+
+- TypeScript 7.x and Node.js 20+ for the Snapshot Publisher SDK
 - FastMCP 4.x
+- Vitest 1.x for SDK tests
 - Pydantic
 - PostgreSQL 17
 - Alembic
@@ -284,7 +287,7 @@ that the database revision equals Alembic `head`; it never runs implicit migrati
 
 ## Database Migrations
 
-Schema migrations are managed by Alembic and run automatically before the MCP service starts.
+Schema migrations are managed by Alembic and run before the API and MCP services start.
 
 To run migrations manually:
 

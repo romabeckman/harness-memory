@@ -1,7 +1,7 @@
 ---
 doc_type: adr
 domain: architecture
-stack: [Python 3.12+, TypeScript 5.x, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
+stack: [Python 3.12+, TypeScript 7.x, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
 node_id: "adr:architecture"
 tags: [architecture, design-patterns, folder-structure]
 edges:
@@ -11,7 +11,7 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "adr:tests"
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # Project Architecture
 

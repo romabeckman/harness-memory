@@ -1,31 +1,35 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, FastAPI, FastMCP 4.x, PostgreSQL]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, TypeScript 7.x, Node.js 20+, Vitest 1.x, FastAPI, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
-updated: 2026-09-20
+updated: 2026-09-23
 ---
 # Testing Protocol
 
 ## OVERVIEW
 
-Use **pytest 9.x** across unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Enforce branch coverage globally for `api`, `core`, and `harness_memory_mcp`.
+Use **pytest 9.x** for Python unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Use **Vitest 1.x** for SDK unit, integration, and CLI E2E tiers. Enforce the configured Python branch-coverage gate.
 
 ## COMMANDS
 
 | Type | Command | Description |
 |------|---------|-------------|
-| Unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
-| Integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
-| E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
-| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=harness_memory_mcp --cov-branch --cov-fail-under=80` | Branch coverage with global 80% gate. |
+| Python unit | `./venv/bin/python -m pytest tests/unit` | Domain, application, adapter, security, and configuration tests. |
+| Python integration | `./venv/bin/python -m pytest tests/integration` | PostgreSQL repositories, migrations, startup checks, and telemetry integration. |
+| Python E2E | `./venv/bin/python -m pytest tests/e2e` | FastMCP catalog/contracts, HTTP security, and Docker checks. |
+| SDK unit | `npm --prefix sdk run test:unit` | SDK application, CLI, and adapter unit tests. |
+| SDK integration | `npm --prefix sdk run test:integration` | SDK process, storage, and HTTP boundary tests. |
+| SDK E2E | `npm --prefix sdk run test:e2e` | SDK CLI publication flow. |
+| SDK all tiers | `npm --prefix sdk run test` | Run all SDK Vitest tests. |
+| Coverage | `./venv/bin/python -m pytest --cov=api --cov=core --cov=harness_memory_mcp --cov-branch --cov-fail-under=80` | Backend branch coverage with global 80% gate. |
 | Migration | `harness-memory migrate` / `harness-memory migrate --status` | Upgrade or inspect Alembic schema state. |
 
 ## MINIMUM COVERAGE
 
-REQUIRED: Maintain the configured global threshold. No independent per-layer gates exist.
+REQUIRED: Maintain the configured backend threshold. No independent per-layer or SDK coverage gates exist.
 
 | Layer | Coverage | Description |
 |-------|----------|-------------|
@@ -45,11 +49,11 @@ PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence b
 
 ## TOOLING
 
-- **Framework:** Python 3.12+, pytest 9.x, pytest-asyncio, FastMCP 4.x.
-- **Assertions:** pytest built-in assertions.
+- **Framework:** pytest 9.x, pytest-asyncio, FastMCP 4.x; Vitest 1.x for the TypeScript SDK.
+- **Assertions:** pytest and Vitest built-in assertions.
 - **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no mocking library configured.
 - **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.
-- **CI Integration:** GitHub Actions runs Ruff, PostgreSQL migrations, unit, integration, E2E, and coverage jobs.
+- **CI Integration:** GitHub Actions runs Ruff, PostgreSQL migrations, Python unit, integration, E2E, and coverage jobs. Run SDK tiers through the `sdk/package.json` scripts.
 - **Architecture:** Unit tests validate repository source rules against the real project root as well as isolated fixtures.
 
 ## TROUBLESHOOTING

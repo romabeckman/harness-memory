@@ -60,7 +60,7 @@ PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trus
 
 ## REFERENCES
 
-- `docs/specs/harness-memory-environment-snapshots-v2.md`: Product scope for environment snapshots and publication.
+- `docs/specs/snapshot-publisher-sdk-pbb.md`: SDK publication product backlog and technical refinement.
 - `docs/feature/core/environment-snapshots.md`: Environment context, publication flow, and snapshot comparison.
 - `docs/feature/core/snapshot-publication.md`: Immutable snapshot activation and history rules.
 - `docs/feature/api/knowledge-publication.md`: Implemented REST publication contract.

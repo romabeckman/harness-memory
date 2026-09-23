@@ -52,7 +52,7 @@ Keep MCP adapters thin. Add business rules to application or domain layers.
 4. Execute tenant-scoped, bounded PostgreSQL reads through application ports.
 5. Return a bounded Pydantic response with provenance, evidence, and unknowns where applicable.
 
-For production Streamable HTTP, use stateless mode so each tool request can run without a prior session initialization. Keep malformed tool arguments in HTTP `200` JSON-RPC tool results with `isError: true` and stable `INVALID_ARGUMENT` text. Map authentication failures to `401` with a stable `invalid_token` body and authorization failures to `403` with an `insufficient_scope` challenge. Keep application error payloads free of verifier, persistence, tenant, and request-secret details.
+Use stateless Streamable HTTP in production. Return malformed arguments as HTTP `200` JSON-RPC tool errors with `isError: true` and stable `INVALID_ARGUMENT` text. Return `401 invalid_token` and `403 insufficient_scope`; sanitize internal failures.
 
 ## TOOLS
 
@@ -69,11 +69,9 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 | `get_environment` | `memory:read` | Read an environment and its active snapshot. | Project key and environment name. | Environment metadata and active snapshot. |
 | `compare_environments` | `memory:read` | Compare active entity fingerprints between environments. | Project key and two environment names. | Added, removed, modified, and unchanged entities. |
 
-REQUIRED: Give every public tool a clear purpose, required scope, and result boundaries in its FastMCP description.
-REQUIRED: Describe every tool argument and nested Pydantic input field in the generated MCP schema.
-REQUIRED: Keep each tool a thin adapter over one application use case.
-REQUIRED: Keep `harness_memory_mcp/services/` focused on MCP boundary concerns.
-REQUIRED: Bound results by query scope; include evidence for important relationships.
+REQUIRED: Document each tool's purpose, scope, arguments, and result bounds in its FastMCP schema.
+REQUIRED: Keep tools thin over one use case; keep services focused on MCP boundaries.
+REQUIRED: Bound results by query scope and include evidence for important relationships.
 PROHIBITED: Let MCP tools mutate graph nodes, relationships, snapshots, or environment pointers; all publication goes through the API.
 PROHIBITED: Use an LLM to guess impact when graph relationships or evidence are absent.
 
@@ -84,12 +82,8 @@ PROHIBITED: Use an LLM to guess impact when graph relationships or evidence are 
 | `memory://entities/{entity_id}` | `memory:read` | Entity context and bounded relationships. |
 | `memory://projects/{project_key}` | `memory:read` | Project facts and active snapshot context. |
 | `memory://snapshots/{snapshot_id}` | `memory:read` | Versioned snapshot metadata and validated facts. |
-| `memory://schema/entities` | `memory:read` | Optional entity schema reference. |
-| `memory://schema/relations` | `memory:read` | Optional relation schema reference. |
-| `memory://schema/snapshot` | `memory:read` | Optional snapshot schema reference. |
 
-REQUIRED: Return resource data bounded to the requested entity, project, or snapshot.
-PROHIBITED: Expose tenant data through an identifier without authenticated tenant filtering.
+REQUIRED: Bound resource data and filter every identifier by authenticated tenant.
 
 ## PROMPTS
 
@@ -103,28 +97,26 @@ Prompts guide tool usage only. Keep authorization, validation, persistence, and 
 
 ## CONTRACTS
 
-REQUIRED: Use Pydantic `inbound.py` and `outbound.py` models for application use-case contracts.
-REQUIRED: Reject malformed fields and unsupported `schema_version` values before persistence.
-REQUIRED: Keep shape validation separate from domain invariants; validate relation endpoints, revisions, and tenant scope in domain/application code.
-REQUIRED: Map application outbound contracts to stable MCP tool and resource responses.
-PROHIBITED: Pass persistence models or unvalidated dictionaries from FastMCP handlers into domain services.
+REQUIRED: Use Pydantic inbound/outbound contracts; reject malformed fields and unsupported schema versions.
+REQUIRED: Separate shape validation from domain invariants; check relation endpoints, revisions, and tenant scope in application code.
+REQUIRED: Map typed outputs to stable MCP responses.
+PROHIBITED: Pass persistence models or unvalidated dictionaries from handlers into domain services.
 
 ## SECURITY AND OPERATIONS
 
 | Concern | Rule |
 |---------|------|
-| Authentication | Accept database-backed opaque API bearer tokens or externally verified JWTs for production MCP over HTTP. |
-| Authorization | Enforce exact `memory:read` and `memory:impact` scopes; deny unmapped components. |
-| Tenant identity | Read tenant identity from authenticated context, never from untrusted payload fields. |
-| Audit | Record impact analysis, authentication failures, and authorization failures. |
-| Transport | Use in-process client for development/tests and stateless Streamable HTTP for production. |
-| HTTP errors | Keep malformed arguments as HTTP `200` JSON-RPC tool errors marked `INVALID_ARGUMENT`; map authentication to `401` and authorization to `403`. |
+| Authentication | Accept configured admin/read secrets, API-issued opaque tokens, or externally verified JWTs over production HTTP. |
+| Authorization | Map components to `memory:read` or `memory:impact`; deny unmapped components. |
+| Tenant | Derive tenant identity from verified context, never payload fields. |
+| Audit | Record impact, authentication, and authorization outcomes. |
+| Transport and errors | Use in-process clients in tests and stateless Streamable HTTP in production. Return invalid arguments as HTTP `200` JSON-RPC errors, authentication as `401`, and scope failures as `403`. |
 
 ## TEST CONTRACT
 
 REQUIRED: Cover `list_tools`, `call_tool`, `list_resources`, `read_resource`, `list_prompts`, and `get_prompt`.
 REQUIRED: Test valid and invalid Pydantic schemas, authorization scopes, tenant isolation, bounded results, provenance, and evidence.
-REQUIRED: Maintain 80% minimum coverage across domain, application, infrastructure, and global totals.
+REQUIRED: Meet the backend branch-coverage gate in `TESTS.md`.
 PROHIBITED: Treat prompt text tests as a replacement for tool and resource contract tests.
 
 ## DOCUMENT MAP
@@ -143,5 +135,5 @@ graph TD
 
 - [**ARCHITECTURE.md**](./ARCHITECTURE.md): Defines layers, Pydantic boundary rules, and integrations.
 - [**API.md**](./API.md): Defines API-issued tokens and their handoff to MCP authentication.
-- [**TESTS.md**](./TESTS.md): Defines MCP contract testing and 80% minimum coverage.
+- [**TESTS.md**](./TESTS.md): Defines MCP contract tests and backend coverage gate.
 - [**token-authentication.md**](../feature/mcp/token-authentication.md): Defines database-backed API token verification for MCP clients.

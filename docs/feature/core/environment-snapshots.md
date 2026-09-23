@@ -1,7 +1,7 @@
 ---
 doc_type: feature
 domain: environment_context
-stack: [Python 3.12+, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL]
+stack: [Python 3.12+, TypeScript 7.x, Node.js 20+, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL]
 node_id: "feature:environment-snapshots"
 tags: [environment, snapshots, knowledge-publication, ci-cd, mcp]
 edges:
@@ -20,10 +20,10 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # Environment Snapshots and Pipeline Publication
-Contextualize organizational knowledge by environment, publish pipeline snapshots via API/CLI, and inspect or compare environments via MCP.
+Contextualize knowledge by environment, publish complete snapshots through REST and the SDK CLI, and inspect environments through MCP.
 
 ```graph
 {
@@ -33,12 +33,13 @@ Contextualize organizational knowledge by environment, publish pipeline snapshot
   "tested_by": ["adr:tests"],
   "entrypoints": [
     "api/adapters/http/knowledge_publication_routes.py",
-    "harness_memory_mcp/publication_cli.py",
+    "sdk/src/cli/index.ts",
     "harness_memory_mcp/tools/get_environment.py",
     "harness_memory_mcp/tools/compare_environments.py"
   ],
   "registration_files": [
     "api/server/app.py",
+    "sdk/package.json",
     "harness_memory_mcp/cli.py",
     "harness_memory_mcp/server/factory.py"
   ],
@@ -46,11 +47,13 @@ Contextualize organizational knowledge by environment, publish pipeline snapshot
     "core/domain/environment/aggregates/environment.py",
     "core/domain/knowledge_publication/aggregates/knowledge_publication.py",
     "core/infrastructure/postgres/repositories/environment_repository.py",
-    "core/infrastructure/postgres/repositories/knowledge_publication_repository.py"
+    "core/infrastructure/postgres/repositories/knowledge_publication_repository.py",
+    "sdk/src/infrastructure/api/rest-publication-client.ts"
   ],
   "code_files": [
     "api/adapters/http/schemas/knowledge_publication_request.py",
     "api/adapters/http/schemas/knowledge_publication_response.py",
+    "harness_memory_mcp/publication_cli.py",
     "core/application/environment_context/ports/environment_repository.py",
     "core/application/environment_context/ports/memory_snapshot_query_port.py",
     "core/application/environment_context/use_cases/compare_environments/handler.py",
@@ -89,6 +92,7 @@ Contextualize organizational knowledge by environment, publish pipeline snapshot
     "tests/unit/core/infrastructure/postgres/repositories/test_environment_repository.py",
     "tests/unit/core/infrastructure/postgres/repositories/test_knowledge_publication_repository.py",
     "tests/unit/mcp/test_publication_cli.py",
+    "sdk/tests/e2e/cli-publish.test.ts",
     "tests/unit/mcp/tools/test_compare_environments.py",
     "tests/unit/mcp/tools/test_get_environment.py"
   ]
@@ -97,16 +101,18 @@ Contextualize organizational knowledge by environment, publish pipeline snapshot
 
 ## OVERVIEW
 
-Contextualize organizational knowledge by environment. Pipelines publish deployment events via REST/CLI to promote active snapshot pointers, while AI agents and developers inspect and compare environments via MCP.
+Contextualize knowledge by environment. Pipelines publish complete snapshots through authenticated REST, including through the TypeScript SDK CLI. MCP supports bounded environment reads and comparisons.
 
 ## FOLDER STRUCTURE
 
 ```text
 core/domain/               # Environment & publication aggregates, value objects, events
 core/application/          # Ports & use cases for environment context & publication
-core/infrastructure/       # Postgres models, repositories, and migration 008
+core/infrastructure/       # PostgreSQL models and repositories
 api/adapters/http/         # FastAPI publication routes & schemas
+sdk/src/                   # TypeScript pipeline publisher and REST client
 harness_memory_mcp/        # MCP tools (get_environment, compare_environments) & CLI
+migrations/versions/       # Versioned schema, including tenant foreign keys
 tests/unit/                # Unit test suites across domain, application, infra, and MCP
 ```
 
@@ -114,7 +120,7 @@ tests/unit/                # Unit test suites across domain, application, infra,
 
 - **Environment**: Named target in tenant/project (e.g. `production`, `staging`). Holds pointer `current_snapshot_id`.
 - **KnowledgePublication**: Immutable deployment record tracking project, environment, version, revision, deployment ID, status.
-- **Pipeline Publication Boundary**: Deterministic ingestion surface via REST (`POST /v1/knowledge-publications`) and CLI (`harness-memory-publish`).
+- **Pipeline Publication Boundary**: Deterministic REST ingestion through `POST /v1/knowledge-publications`; use SDK binary `hrns-memo` for pipelines. Python `harness-memory publish` remains a local compatibility path.
 - **MCP Contextual Read Surface**: Interactive read tools `get_environment` and `compare_environments` for inspection and diffing.
 - **Atomic Promotion**: Resolves environment, records publication, links snapshot, and promotes active pointer in one transaction.
 
@@ -122,27 +128,27 @@ tests/unit/                # Unit test suites across domain, application, infra,
 
 ### Prerequisites
 1. Use an authenticated MCP identity for environment reads.
-2. Use a user or service-account token with `memory:publish` for publication.
-3. Let the first trusted publication create the target project/environment when absent.
+2. Use a token with `memory:publish` for REST or SDK publication; set `--tenant-id` when a project key is ambiguous across tenants.
+3. REST can create a missing project/environment; SDK preflight requires the project but permits a missing environment.
 
 ### Steps
-1. Pipeline sends deployment event via REST `POST /v1/knowledge-publications` or `harness-memory-publish` CLI.
-2. Ingestion pipeline atomically resolves environment, records publication, attaches snapshot, and updates `current_snapshot_id`.
-3. AI agents or developers query environment status via MCP tool `get_environment(project_name="...", environment_name="production")`.
-4. Agents evaluate promotion drift using `compare_environments(project_name="...", source_environment="staging", target_environment="production")`.
+1. Publish with REST `POST /v1/knowledge-publications` or the SDK binary `hrns-memo`.
+2. The API records the deployment, creates the snapshot, and updates `current_snapshot_id` atomically.
+3. Read status with `get_environment(project_key="payments", environment="production")`.
+4. Compare with `compare_environments(project_key="payments", source_environment="staging", target_environment="production")`.
 
 ## PARAMETERS / CONFIGURATIONS
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `project_name` | string | Yes | Project identifier | — |
-| `environment_name` | string | Yes | Environment name | — |
-| `environment_type` | string | No | Classification (`production`, `staging`, `development`, `other`) | `other` |
-| `version` | string | Yes | Application version | — |
-| `source_revision` | string | Yes | VCS commit SHA | — |
-| `deployment_id` | string | No | Pipeline deployment ID | — |
-| `source_environment` | string | Yes | Origin environment for diff | — |
-| `target_environment` | string | Yes | Destination environment for diff | — |
+| `project_key` | string | Yes | Exact project identifier for API and MCP queries | — |
+| `environment` | string | Yes | Target or queried environment name | — |
+| `deployment_id` | string | Publication | Required REST idempotency key; SDK can generate one | — |
+| `version` | string | Publication | Deployed version or source revision | — |
+| `tenant_id` | UUID | Conditional | Select target tenant; admin must provide it, scoped tokens default to owner | Owner tenant |
+| `source_environment` | string | Compare | Origin environment name | — |
+| `target_environment` | string | Compare | Destination environment name | — |
+| `limit` / `offset` | integer | Compare | Bound and page environment comparison results | `500` / `0` |
 
 ## BEST PRACTICES
 
