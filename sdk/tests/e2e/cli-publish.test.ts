@@ -12,6 +12,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   let serverUrl: string;
   let apiCalls: number;
   let baselineCalls: number;
+  let targetValidationCalls: number;
   let temporary: string;
   let repository: string;
   let lastRequestBody: any;
@@ -19,6 +20,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   beforeEach(async () => {
     apiCalls = 0;
     baselineCalls = 0;
+    targetValidationCalls = 0;
     temporary = mkdtempSync(join(tmpdir(), "memory-cli-e2e-"));
     repository = join(temporary, "repository");
     execFileSync("git", ["clone", "--local", "--quiet", resolve("../"), repository]);
@@ -28,6 +30,36 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
         res.writeHead(404);
         res.end();
         return;
+      }
+      if (req.method === "GET" && req.url) {
+        const url = new URL(req.url, "http://localhost");
+        if (url.pathname === "/v1/projects") {
+          targetValidationCalls++;
+          const projects = url.searchParams.get("key") === "missing-project"
+            ? []
+            : [{ id: "project-1", key: url.searchParams.get("key") }];
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(projects));
+          return;
+        }
+        if (url.pathname === "/v1/environments") {
+          targetValidationCalls++;
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify([]));
+          return;
+        }
+        if (url.pathname === "/v1/knowledge-publications") {
+          targetValidationCalls++;
+          const deploymentId = url.searchParams.get("deployment_id");
+          const existing = deploymentId === "version-conflict"
+            ? [{ deployment_id: deploymentId, version: "0.9.0" }]
+            : deploymentId === "already-dep"
+              ? [{ deployment_id: deploymentId, version: "v1.0.0" }]
+              : [];
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(existing));
+          return;
+        }
       }
       if (req.method === "POST") apiCalls++;
       let data = "";
@@ -130,6 +162,11 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(code).toBe(ExitCode.SUCCESS);
     expect(apiCalls).toBe(1);
     expect(baselineCalls).toBe(1);
+    expect(targetValidationCalls).toBe(3);
+    const targetValidationIndex = stderrLines.findIndex(line => line.includes("Validating publication target"));
+    const collectionIndex = stderrLines.findIndex(line => line.includes("Collecting repository context"));
+    expect(targetValidationIndex).toBeGreaterThanOrEqual(0);
+    expect(targetValidationIndex).toBeLessThan(collectionIndex);
     expect(lastRequestBody).not.toHaveProperty("project_memory");
     expect(lastRequestBody.metadata.nodes.some((node: any) => node.path === "docs/feature/sdk/snapshot-publisher.md")).toBe(true);
     expect(lastRequestBody.entities.some((entity: any) => entity.type === "feature" && entity.metadata.content)).toBe(true);
@@ -147,6 +184,48 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "✓ Publishing snapshot",
     ]));
     expect(stderrLines.join("\n")).toContain("[debug] Memory: model graph entities=");
+  });
+
+  it("rejects unknown project key before collecting repository context", async () => {
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "missing-project",
+      "--deployment-id", "missing-project-1", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository,
+    ]);
+
+    expect(code).toBe(ExitCode.USAGE_OR_CONFIG);
+    expect(targetValidationCalls).toBe(1);
+    expect(baselineCalls).toBe(0);
+    expect(apiCalls).toBe(0);
+    expect(stderrLines.join("\n")).toContain(
+      "Project key 'missing-project' was not found. Create the project before publishing."
+    );
+    expect(stderrLines.join("\n")).not.toContain("Collecting repository context");
+  });
+
+  it("rejects deployment ID reuse for a different version before context collection", async () => {
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments",
+      "--deployment-id", "version-conflict", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository,
+    ]);
+
+    expect(code).toBe(ExitCode.CONFLICT);
+    expect(targetValidationCalls).toBe(3);
+    expect(baselineCalls).toBe(0);
+    expect(apiCalls).toBe(0);
+    expect(stderrLines.join("\n")).toContain("Use a new deployment ID.");
+    expect(stderrLines.join("\n")).not.toContain("Collecting repository context");
   });
 
   it("explains how to generate docs when a repository has no documentation", async () => {

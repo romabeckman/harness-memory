@@ -56,9 +56,11 @@ Read snapshot data with scoped bearer tokens or the admin token. Manage tenants 
 ## OVERVIEW
 
 API and MCP accept the same bearer token. `API_ADMIN_TOKEN` grants all admin REST
-permissions and cross-tenant access. `HARNESS_MEMORY_API_KEY` grants global `memory:read`
-only. Database tokens use their persisted scopes and owner tenant. Supply `tenant_id` to
-filter global searches or disambiguate duplicate project keys.
+permissions and cross-tenant access. `HARNESS_MEMORY_API_KEY` grants global `memory:read`.
+Database tokens use their persisted scopes and owner tenant. A `memory:publish` token can
+read project, environment, and publication target metadata for SDK preflight; other
+knowledge-table reads require `memory:read`. Supply `tenant_id` to filter global searches
+or disambiguate duplicate project keys.
 
 ## FOLDER STRUCTURE
 
@@ -99,8 +101,10 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 Collection routes support `limit` from 1 to 500 and `offset` from 0. Owner tokens remain
 tenant-bound even when requests contain a `tenant_id` filter. `API_ADMIN_TOKEN` can read
 and manage REST resources. `HARNESS_MEMORY_API_KEY` and database tokens with `memory:read`
-can read knowledge tables; database token reads remain owner-tenant scoped. Identity and
-token management collections remain admin-only.
+can read knowledge tables; database token reads remain owner-tenant scoped. Database
+tokens with `memory:publish` can read project, environment, and publication target
+metadata for SDK preflight, while other knowledge-table reads and identity/token
+collections remain restricted to `memory:read` and admin respectively.
 
 Snapshot facts stay immutable; publish complete snapshots through
 `POST /v1/knowledge-publications`.

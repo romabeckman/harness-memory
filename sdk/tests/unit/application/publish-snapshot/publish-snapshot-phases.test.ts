@@ -4,6 +4,7 @@ import { GenerateWithDocsPhase } from "../../../../src/application/publish-snaps
 import { PublishPhase } from "../../../../src/application/publish-snapshot/phases/publish-phase.js";
 import { ValidateGraphPhase } from "../../../../src/application/publish-snapshot/phases/validate-graph-phase.js";
 import { ValidateOptionsPhase } from "../../../../src/application/publish-snapshot/phases/validate-options-phase.js";
+import { ValidatePublicationTargetPhase } from "../../../../src/application/publish-snapshot/phases/validate-publication-target-phase.js";
 import { PublishSnapshotOptions } from "../../../../src/domain/contracts.js";
 
 const options: PublishSnapshotOptions = {
@@ -37,15 +38,19 @@ describe("snapshot publication phases", () => {
     }) };
     const result = { status: "ACTIVATED" as const, projectKey: "catalog",
       environment: "staging", deploymentId: "deploy-1", version: "1", payloadSha256: "hash" };
-    const client = { publish: vi.fn(async () => { calls.push("publish"); return result; }) };
+    const client = {
+      validateTarget: vi.fn(async () => { calls.push("validate target"); }),
+      publish: vi.fn(async () => { calls.push("publish"); return result; }),
+    };
     const first = new ValidateOptionsPhase();
-    first.setNext(new CollectContextPhase(collector))
+    first.setNext(new ValidatePublicationTargetPhase(client))
+      .setNext(new CollectContextPhase(collector))
       .setNext(new GenerateWithDocsPhase(runner))
       .setNext(new ValidateGraphPhase(validator))
       .setNext(new PublishPhase(client));
 
     expect(await first.handle({ options })).toEqual(result);
-    expect(calls).toEqual(["collect", "generate", "validate graph", "publish"]);
+    expect(calls).toEqual(["validate target", "collect", "generate", "validate graph", "publish"]);
     expect(client.publish).toHaveBeenCalledWith(expect.objectContaining({ graph: validatedGraph }));
   });
 
@@ -55,15 +60,33 @@ describe("snapshot publication phases", () => {
     const runner = { run: vi.fn(async () => document) };
     const validator = { validateAndCanonicalize: vi.fn(() => ({ document,
       canonicalJson: "{}", sha256: "hash", counts: { entities: 0, relations: 0, evidence: 0 } })) };
-    const client = { publish: vi.fn() };
+    const client = { validateTarget: vi.fn(), publish: vi.fn() };
     const first = new ValidateOptionsPhase();
-    first.setNext(new CollectContextPhase(collector))
+    first.setNext(new ValidatePublicationTargetPhase(client))
+      .setNext(new CollectContextPhase(collector))
       .setNext(new GenerateWithDocsPhase(runner))
       .setNext(new ValidateGraphPhase(validator))
       .setNext(new PublishPhase(client));
 
     const result = await first.handle({ options: { ...options, dryRun: true, apiUrl: undefined, token: undefined } });
     expect(result.status).toBe("DRY_RUN");
+    expect(client.validateTarget).not.toHaveBeenCalled();
+    expect(client.publish).not.toHaveBeenCalled();
+  });
+
+  it("stops before repository collection when target validation fails", async () => {
+    const collector = { collect: vi.fn() };
+    const validator = { validateAndCanonicalize: vi.fn() };
+    const client = {
+      validateTarget: vi.fn().mockRejectedValue(new Error("Project key not found")),
+      publish: vi.fn(),
+    };
+    const first = new ValidateOptionsPhase();
+    first.setNext(new ValidatePublicationTargetPhase(client))
+      .setNext(new CollectContextPhase(collector));
+
+    await expect(first.handle({ options })).rejects.toThrow("Project key not found");
+    expect(collector.collect).not.toHaveBeenCalled();
     expect(client.publish).not.toHaveBeenCalled();
   });
 });

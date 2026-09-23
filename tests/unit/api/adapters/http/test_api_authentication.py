@@ -111,6 +111,23 @@ def test_admin_management_collections_support_search_filters_and_pagination() ->
     assert client.get("/v1/users", params={"limit": 0}, headers=admin).status_code == 422
 
 
+def test_publish_scope_can_validate_target_metadata_without_general_graph_reads() -> None:
+    client, publisher, _, _ = _client(("memory:publish",))
+    headers = {"Authorization": f"Bearer {publisher}"}
+
+    assert client.get("/v1/projects", params={"key": "catalog"}, headers=headers).status_code == 200
+    assert client.get(
+        "/v1/environments", params={"project_key": "catalog", "name": "production"},
+        headers=headers,
+    ).status_code == 200
+    assert client.get(
+        "/v1/knowledge-publications",
+        params={"project_key": "catalog", "environment": "production", "deployment_id": "dep-1"},
+        headers=headers,
+    ).status_code == 200
+    assert client.get("/v1/entities", headers=headers).status_code == 403
+
+
 def test_publication_derives_tenant_from_publish_token_and_provisions_environment() -> None:
     client, plaintext, tenant_id, factory = _client(("memory:publish",))
 

@@ -21,7 +21,7 @@ edges:
     target: "feature:snapshot-publication"
     read: optional
     when: "Read when changing snapshot construction, activation, idempotency, or publication persistence."
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # API Knowledge Publication
 Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate it for a project environment.
@@ -121,6 +121,7 @@ REQUIRED: Create a missing project/environment pair on its first trusted publica
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
 REQUIRED: Allocate a distinct snapshot revision under the environment lock when another deployment already uses the version-derived revision. Hash the stored revision and compare retries against that revision.
+REQUIRED: Use PostgreSQL `READ COMMITTED` for the locked revision allocation so a transaction waiting on the environment lock sees earlier commits.
 REQUIRED: Create and promote the snapshot in one persistence operation.
 REQUIRED: Preserve deployment ID, version, publication ID, and snapshot ID.
 PROHIBITED: Treat a deployment as active before environment resolution succeeds.

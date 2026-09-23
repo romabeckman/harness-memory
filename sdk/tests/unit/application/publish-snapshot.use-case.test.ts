@@ -38,6 +38,7 @@ describe("PublishSnapshotUseCase", () => {
   };
 
   const mockClient: PublicationClientPort = {
+    validateTarget: vi.fn().mockResolvedValue(undefined),
     publish: vi.fn().mockResolvedValue({
       status: "ACTIVATED",
       publicationId: "pub-1",
@@ -136,6 +137,8 @@ describe("PublishSnapshotUseCase", () => {
     expect(progress).toEqual([
       { phase: "Checking publication settings", state: "started" },
       { phase: "Checking publication settings", state: "completed" },
+      { phase: "Validating publication target", state: "started" },
+      { phase: "Validating publication target", state: "completed" },
       { phase: "Collecting repository context", state: "started" },
       { phase: "Collecting repository context", state: "completed" },
       { phase: "Selecting documentation flow", state: "started" },
@@ -158,6 +161,14 @@ describe("PublishSnapshotUseCase", () => {
         environment: "staging",
       })
     );
+    expect(mockClient.validateTarget).toHaveBeenCalledWith(expect.objectContaining({
+      apiUrl: "https://api.example.com",
+      token: "secret-token",
+      projectKey: "catalog",
+      environment: "staging",
+      deploymentId: "dep-1",
+      version: "1.0.0",
+    }));
   });
 
   it("requires the documented memory workflow for programmatic publication", async () => {

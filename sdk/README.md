@@ -6,6 +6,7 @@ It performs this pipeline:
 
 ```text
 Git repository
+  -> API preflight for project, environment, and deployment target
   -> tracked source files and optional diff
   -> local LLM graph synthesis
   -> schema validation and canonical SHA-256
@@ -13,6 +14,11 @@ Git repository
 ```
 
 The SDK is the deterministic publication client. MCP is the read-only interface for querying the knowledge graph. Do not publish through MCP.
+
+Before collecting Git context for a real publication, the SDK validates target field
+formats and queries the API for the project, environment, and deployment ID. Unknown
+projects and deployment IDs reused with another version stop with a clear error. The first
+publication may create its environment. Dry runs skip API preflight.
 
 ## Prerequisites
 
@@ -290,7 +296,11 @@ Authorization: Bearer <service-account-token>
 Content-Type: application/json
 ```
 
-The API derives tenant identity from the token owner. Tenant flags and tenant fields are not accepted by the SDK. These flags are deliberately rejected: `--tenant`, `--tenant-id`, `--token`, `--prompt`, `--interactive`, `--database`, `--db-url`, and `--postgres`.
+The API derives tenant identity from the token owner. A `memory:publish` token may read
+project, environment, and publication target metadata for preflight; other graph reads
+still require `memory:read`. Tenant flags and tenant fields are not accepted by the SDK.
+These flags are deliberately rejected: `--tenant`, `--tenant-id`, `--token`, `--prompt`,
+`--interactive`, `--database`, `--db-url`, and `--postgres`.
 
 Use HTTPS for non-localhost API URLs. HTTP is allowed only for `localhost`, `127.0.0.1`, and `::1`.
 

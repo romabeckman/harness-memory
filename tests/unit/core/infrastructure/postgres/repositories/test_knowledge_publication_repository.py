@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -59,6 +60,17 @@ def _seed_project_and_env(engine, tenant_id: str, proj_key: str, env_name: str) 
 
 
 class TestPostgresKnowledgePublicationRepository:
+    def test_postgres_publication_uses_read_committed_for_revision_locking(self) -> None:
+        engine = Mock()
+        engine.dialect.name = "postgresql"
+        write_engine = Mock()
+        engine.execution_options.return_value = write_engine
+
+        repository = PostgresKnowledgePublicationRepository(engine=engine)
+
+        engine.execution_options.assert_called_once_with(isolation_level="READ COMMITTED")
+        assert repository._session_factory.kw["bind"] is write_engine
+
     def test_distinct_deployments_of_same_version_keep_separate_snapshots(self) -> None:
         engine = create_engine("sqlite://")
         Base.metadata.create_all(engine)

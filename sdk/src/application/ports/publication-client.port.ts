@@ -11,6 +11,12 @@ export interface PublishRequest {
   graph: ValidatedGraph;
 }
 
+export type PublicationTargetRequest = Pick<
+  PublishRequest,
+  "apiUrl" | "token" | "projectKey" | "environment" | "deploymentId" | "version"
+>;
+
 export interface PublicationClientPort {
+  validateTarget(request: PublicationTargetRequest): Promise<void>;
   publish(request: PublishRequest): Promise<PublicationResult>;
 }

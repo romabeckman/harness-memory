@@ -10,6 +10,7 @@ import { RouteDocumentationPhase } from "./phases/route-documentation-phase.js";
 import { PublishPhase } from "./phases/publish-phase.js";
 import { ValidateGraphPhase } from "./phases/validate-graph-phase.js";
 import { ValidateOptionsPhase } from "./phases/validate-options-phase.js";
+import { ValidatePublicationTargetPhase } from "./phases/validate-publication-target-phase.js";
 import type { PublicationProgressReporter } from "./phases/publication-phase-context.js";
 
 export class PublishSnapshotUseCase {
@@ -31,10 +32,17 @@ export class PublishSnapshotUseCase {
     const first = new ValidateOptionsPhase();
     const validation = new ValidateGraphPhase(this.graphValidator);
     validation.setNext(new PublishPhase(this.publicationClient));
-    first.setNext(new CollectContextPhase(this.gitCollector))
-      .setNext(new RouteDocumentationPhase(
-        this.documentationDirectory, this.memoryWorkflow, validation,
-      ));
+    const collect = new CollectContextPhase(this.gitCollector);
+    collect.setNext(new RouteDocumentationPhase(
+      this.documentationDirectory, this.memoryWorkflow, validation,
+    ));
+
+    if (options.dryRun) {
+      first.setNext(collect);
+    } else {
+      first.setNext(new ValidatePublicationTargetPhase(this.publicationClient))
+        .setNext(collect);
+    }
     return first.handle({ options, onProgress });
   }
 }

@@ -96,7 +96,9 @@ destination. The handler creates missing project and environment records on firs
 Require `API_ADMIN_TOKEN` for every REST management route. `HARNESS_MEMORY_API_KEY` grants
 global `memory:read` for knowledge tables; identity and token metadata remain admin-only.
 Validate other bearers against shared `tokens` and apply their persisted scopes and owner
-tenant. API and MCP accept the same token value.
+tenant. Tokens with `memory:publish` may read project, environment, and publication target
+metadata for SDK preflight; other knowledge-table reads still require `memory:read`. API
+and MCP accept the same token value.
 Keep health and generated API documentation public. Never accept API-issued user or
 service-account tokens as the management credential.
 
@@ -106,9 +108,9 @@ Issue each token for exactly one user or service account. Return plaintext only 
 
 The verifier hashes an ordinary bearer token and asks the shared token repository for
 an active record and owner. Owner type does not change eligible permissions. The owner
-supplies tenant context; the token supplies its persisted scopes. Reads require
-`memory:read`; publication requires `memory:publish`. The baseline also accepts
-`memory:publish` for existing publishers.
+supplies tenant context; the token supplies its persisted scopes. General reads require
+`memory:read`; publication requires `memory:publish`. Target metadata reads used by SDK
+preflight accept either scope. The baseline also accepts `memory:publish` for publishers.
 
 ## DOCUMENT MAP
 

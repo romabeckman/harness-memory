@@ -73,6 +73,8 @@ class PostgresKnowledgePublicationRepository:
         mapper: SnapshotPersistenceMapper | None = None,
     ) -> None:
         if session_factory is None and engine is not None:
+            if engine.dialect.name == "postgresql":
+                engine = engine.execution_options(isolation_level="READ COMMITTED")
             session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         if session_factory is None:
             raise ValueError("session_factory or engine is required")

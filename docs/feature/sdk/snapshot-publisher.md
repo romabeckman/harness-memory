@@ -41,6 +41,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
   "code_files": [
     "sdk/src/application/publish-snapshot/phases/publication-phase-context.ts",
     "sdk/src/application/publish-snapshot/phases/validate-options-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-publication-target-phase.ts",
     "sdk/src/application/publish-snapshot/phases/collect-context-phase.ts",
     "sdk/src/application/publish-snapshot/phases/generate-with-docs-phase.ts",
     "sdk/src/application/publish-snapshot/phases/route-documentation-phase.ts",
@@ -110,34 +111,41 @@ sdk/
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Complete local docs are required. Load them with the baseline, validate the graph, and publish corporate memory. Run model synthesis only when ADR or feature documents change; ignore whitespace-only changes. First publication runs synthesis.
-- **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries. Otherwise generate an ID from project key, UTC timestamp, and UUID.
+- **Publication phases**: Validate options and the live API target before Git collection, then route docs, validate the graph, and publish. Dry runs skip target checks.
+- **Memory workflow**: Require complete local docs. Load docs and baseline, then synthesize only when ADR or feature text changes beyond whitespace; first publication runs synthesis.
+- **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries; otherwise generate project key + UTC timestamp + UUID.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
-- **Git collector**: Collect files and diffs within path and size limits. `--exclude-paths` skips paths; never exclude `docs/`.
-- **Agent runners**: Select `codex-cli` or `claude-cli`; sanitize child environments and handle backpressure. Use `cmd.exe` for Windows npm shims. Cap Codex input at 1,048,576 serialized characters.
+- **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
+- **Agent runners**: Select `codex-cli` or `claude-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
 - **Validator**: Check Schema 1.0, canonicalize `canonical_key`, and compute SHA-256.
-- **REST client**: Publish with `memory:publish`; retry 429/5xx with jitter.
-- **CLI progress**: Report phases to stderr; keep JSON on stdout. `--debug` adds timings and redacted diagnostics; `--verbose` prints repository and target.
+- **REST client**: Preflight project, environment, and deployment identity with `memory:publish`; publish after graph validation and retry 429/5xx with jitter.
+- **CLI progress**: Send phases to stderr and JSON to stdout. `--debug` adds redacted timings; `--verbose` prints repository and target.
 - **Exit codes**: Map domain failures to stable CLI statuses.
 
 ## HOW TO PUBLISH SNAPSHOTS
+
+### Preflight validation
+
+1. Validate target field formats and query the API for the exact project key before collecting repository context. Stop with setup guidance when the project does not exist.
+2. Check matching environments and publications. Allow a missing environment because the first publication may provision it; reject ambiguous matches.
+3. Reject a deployment ID already associated with another version. Allow same-version retries; the API still detects changed content under that deployment identity.
+4. Use a tenant-bound `memory:publish` token. This scope can read only project, environment, and publication target metadata for preflight; dry runs skip API checks.
 
 ### Project memory process
 
 1. Generate project documentation with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit) before publishing.
 2. Collect Git context and require `docs/`. If missing, stop and show the documentation setup guidance.
-3. Load the authenticated project/environment baseline (HTTP 404 means none) and local docs, including untracked files. Complete docs are authoritative; source content is not sent to Codex.
-4. Compare document text under `docs/adr/` and `docs/feature/` with the baseline. Ignore spaces, tabs, and line breaks; treat any other character or document-set change as a change. Skip model synthesis when there is no baseline difference.
-5. Publish Markdown under `docs/adr/` and `docs/feature/`, plus `docs/.digest.md`, as document entities. Store `docs/.graph.json` in snapshot `metadata`.
-6. Reconcile document content and history. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git merge conflict markers in `metadata.conflict_marker`.
+3. Load the authenticated baseline (HTTP 404 means none) and local docs, including untracked files. Docs are authoritative; source content is not sent to Codex.
+4. Compare `docs/adr/` and `docs/feature/` text with the baseline. Ignore whitespace; any other text or document-set change triggers synthesis.
+5. Publish ADR/feature Markdown and `docs/.digest.md` as document entities. Store `docs/.graph.json` in snapshot metadata.
+6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`.
 7. Validate the graph before publishing. `--dry-run` skips publication.
 
 ### Storage and history
 
-REQUIRED: Store docs in **entities, relations, and evidence**, never `project_memory`. Preserve path, full Markdown, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with `part_of` edges and checksums; decode exact text.
+REQUIRED: Store docs as **entities, relations, and evidence**, never `project_memory`. Preserve path, Markdown, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with checksums and `part_of` edges; decode content exactly.
 
-Publish only `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Exclude README, BUSINESS, specs, and extracted rules. Immutable snapshots preserve history; line revisions retain both versions with conflict markers.
+Publish only `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Exclude README, BUSINESS, specs, and extracted rules. Immutable snapshots and line revisions preserve both document versions.
 
 REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
 
@@ -158,15 +166,15 @@ Programmatic callers pass `ProjectMemoryWorkflow` and `LocalDocsDirectory` to `P
 | `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli` or `claude-cli`; JSON config may supply it | — |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target deployment environment | — |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Target project identifier | — |
-| `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | No | Deployment execution ID; CLI, config, environment, and CI values take precedence | Project key + UTC timestamp + UUID |
+| `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | No | Deployment execution ID; explicit and CI values take precedence | Project key + UTC timestamp + UUID |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version / git SHA | CI fallback |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Yes | Harness Memory API endpoint | — |
 | `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_KEY` |
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
-| `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Comma-separated repository-relative source paths; JSON config and SDK accept `excludePaths` arrays | — |
+| `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Repository-relative paths; JSON config and SDK accept `excludePaths` arrays | — |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
 | `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and target to stderr | `false` |
-| `--debug` | `HARNESS_MEMORY_DEBUG` | No | Print phase times, memory diagnostics, and redacted error stacks to stderr | `false` |
+| `--debug` | `HARNESS_MEMORY_DEBUG` | No | Print timings and redacted diagnostics to stderr | `false` |
 
 ## EXIT CODES
 
@@ -184,16 +192,9 @@ Programmatic callers pass `ProjectMemoryWorkflow` and `LocalDocsDirectory` to `P
 
 ## BEST PRACTICES
 
-REQUIRED: Use `HARNESS_MEMORY_API_KEY` by default. When absent, provide another credential through `--token-env` or the programmatic `token` option. Forbidden flags (`--tenant`, `--token`) exit with code 2.
-REQUIRED: Sanitize child LLM process environment and stdin to prevent token leakage.
-REQUIRED: Check symlink targets before reading file contents to prevent filesystem traversal.
-REQUIRED: Handle backpressure on stdin stream using `drain` events during chunked transfer.
-PROHIBITED: Publishing knowledge snapshots over interactive MCP tool channels.
-PROHIBITED: Retrying on HTTP 400, 401, 403, or 409 response codes.
-
-## TIPS
-
-Use `--dry-run` to validate. `CliApp` enables memory by default; the fifth `PublishSnapshotUseCase` argument supplies the workflow.
+REQUIRED: Default to `HARNESS_MEMORY_API_KEY`; pass alternatives through `--token-env` or programmatic `token`. Reject `--tenant` and `--token` with exit code 2.
+REQUIRED: Sanitize child LLM environments, keep symlinks inside the repository, and honor stdin backpressure.
+PROHIBITED: Publish snapshots through MCP or retry HTTP 400, 401, 403, or 409 responses.
 
 ## DOCUMENT MAP
 

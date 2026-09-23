@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
 
 
-def create_knowledge_read_router(repository, authenticate) -> APIRouter:
+def create_knowledge_read_router(repository, authenticate, authenticate_publication_target=None) -> APIRouter:
     router = APIRouter(tags=["knowledge-reads"])
 
     def read_tenant(principal: AuthenticatedPrincipal, requested_tenant: UUID | None) -> str | None:
@@ -59,7 +59,7 @@ def create_knowledge_read_router(repository, authenticate) -> APIRouter:
         q: str | None = None,
         limit: int = Query(100, ge=1, le=500),
         offset: int = Query(0, ge=0),
-        principal: AuthenticatedPrincipal = Depends(authenticate),
+        principal: AuthenticatedPrincipal = Depends(authenticate_publication_target or authenticate),
     ):
         return repository.projects(
             read_tenant(principal, tenant_id), key=key, name=name, query=q,
@@ -70,7 +70,7 @@ def create_knowledge_read_router(repository, authenticate) -> APIRouter:
     def project(
         project_key: str,
         tenant_id: UUID | None = None,
-        principal: AuthenticatedPrincipal = Depends(authenticate),
+        principal: AuthenticatedPrincipal = Depends(authenticate_publication_target or authenticate),
     ):
         try:
             result = repository.project(read_tenant(principal, tenant_id), project_key)

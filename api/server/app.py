@@ -54,6 +54,7 @@ def create_app(
     admin_token: str | None = None,
     read_api_key: str | None = None,
 ) -> FastAPI:
+    database_engine = None
     if session_factory is None:
         settings = PostgresSettings(
             database_url=os.getenv(
@@ -61,8 +62,9 @@ def create_app(
                 "postgresql+psycopg2://harness_memory:harness_memory@localhost:5432/harness_memory",
             )
         )
+        database_engine = PostgresEngineFactory.create(settings)
         session_factory = sessionmaker(
-            bind=PostgresEngineFactory.create(settings), expire_on_commit=False
+            bind=database_engine, expire_on_commit=False
         )
     user_repository = ApiUserRepository(session_factory)
     service_account_repository = ApiServiceAccountRepository(session_factory)
@@ -102,10 +104,17 @@ def create_app(
         )
     )
     v1_router.include_router(management_router)
-    v1_router.include_router(create_knowledge_read_router(read_repository, security.require_reader))
-    v1_router.include_router(create_knowledge_search_router(read_repository, security.require_reader))
+    v1_router.include_router(create_knowledge_read_router(
+        read_repository, security.require_reader, security.require_baseline_reader
+    ))
+    v1_router.include_router(create_knowledge_search_router(
+        read_repository, security.require_reader, security.require_baseline_reader
+    ))
     env_repository = PostgresEnvironmentRepository(session_factory=session_factory)
-    pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
+    if database_engine is None:
+        pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
+    else:
+        pub_repository = PostgresKnowledgePublicationRepository(engine=database_engine)
     publish_handler = PublishKnowledgeHandler(
         publication_repository=pub_repository,
         environment_repository=env_repository,
