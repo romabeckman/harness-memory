@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
@@ -103,7 +104,7 @@ export class ConfigResolver {
       env.GITHUB_RUN_ID ||
       env.BUILD_ID ||
       env.CI_JOB_ID ||
-      "";
+      this.createDeploymentId(projectKey);
 
     const version =
       parsedCli["--version"] ||
@@ -296,5 +297,10 @@ export class ConfigResolver {
         `Failed to parse config file at '${configPath}': ${err.message}`
       );
     }
+  }
+
+  private createDeploymentId(projectKey: string): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `${projectKey}-${timestamp}-${randomUUID()}`;
   }
 }

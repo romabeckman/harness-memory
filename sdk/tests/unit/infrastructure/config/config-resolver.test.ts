@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ConfigResolver } from "../../../../src/infrastructure/config/config-resolver.js";
 import { ConfigurationError } from "../../../../src/domain/configuration-error.js";
 import packageJson from "../../../../package.json";
@@ -186,5 +186,19 @@ describe("ConfigResolver", () => {
     expect(config.version).toBe("commit-sha-from-gh");
     expect(config.deploymentId).toBe("run-id-123");
     expect(config.token).toBe("token-abc");
+  });
+
+  it("generates a project-scoped deployment-id with a timestamp when no source provides one", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-23T12:34:56.789Z"));
+    try {
+      const config = resolver.resolve(["--agent", "codex-cli", "--project-key", "payments"], {});
+      const repeated = resolver.resolve(["--agent", "codex-cli", "--project-key", "payments"], {});
+
+      expect(config.deploymentId).toMatch(/^payments-2026-09-23T12-34-56-789Z-[0-9a-f-]{36}$/);
+      expect(repeated.deploymentId).not.toBe(config.deploymentId);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

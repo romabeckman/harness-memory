@@ -47,6 +47,10 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     this.debug?.(`Memory: local docs=${files.length}, seed entities=${seed.entities.length}`);
     this.reportMissingEntityKeys(seed, "seed");
     this.validator.validateAndCanonicalize(this.codec.encode(seed));
+    if (previous && !this.hasAdrOrFeatureDocumentChanges(seed, previous)) {
+      this.debug?.("Memory: ADR and feature text unchanged; skipping model execution");
+      return { ...previous, metadata: seed.metadata };
+    }
 
     let invocation = this.createInvocation(options, context, previous, seed);
     this.debug?.(`Memory: invoking ${options.agent} with ${invocation.context.files.length} files`);
@@ -110,6 +114,35 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     if (files.length > (options.maxFiles ?? 2000) || bytes > (options.maxBytes ?? 10485760)) {
       throw new ContextCollectionError("Documentation exceeds the configured context budget");
     }
+  }
+
+  private hasAdrOrFeatureDocumentChanges(current: GraphDocument, previous: GraphDocument): boolean {
+    const currentDocuments = this.getAdrAndFeatureDocuments(current);
+    const previousDocuments = this.getAdrAndFeatureDocuments(previous);
+    if (currentDocuments.size !== previousDocuments.size) return true;
+
+    for (const [path, currentContent] of currentDocuments) {
+      const previousContent = previousDocuments.get(path);
+      if (previousContent === undefined || this.normalizeDocumentText(currentContent) !==
+        this.normalizeDocumentText(previousContent)) return true;
+    }
+    return false;
+  }
+
+  private getAdrAndFeatureDocuments(graph: GraphDocument): Map<string, string> {
+    const documents = new Map<string, string>();
+    for (const entity of graph.entities) {
+      const path = entity.metadata?.path;
+      const content = entity.metadata?.content;
+      if ((entity.type !== "adr" && entity.type !== "feature") || typeof path !== "string" ||
+        !/^docs\/(adr|feature)\//.test(path) || typeof content !== "string") continue;
+      documents.set(path, content);
+    }
+    return documents;
+  }
+
+  private normalizeDocumentText(content: string): string {
+    return content.replace(/\s/gu, "");
   }
 
   private createInvocation(

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ProjectMemoryWorkflow } from "../../../../src/application/memory/project-memory-workflow.js";
 import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js";
 import { GraphValidator } from "../../../../src/infrastructure/validator/graph-validator.js";
+import { MemoryGraph } from "../../../../src/application/memory/memory-graph.js";
 
 const options = { repository: "/repo", projectKey: "demo", environment: "production", deploymentId: "d1", version: "1", agent: "codex-cli" as const, model: "test", effort: "high" as const, headRef: "HEAD", dryRun: false, apiUrl: "https://example.test", token: "secret" };
 const context = { commitSha: "a".repeat(40), headRef: "HEAD", files: [], diffs: [] };
@@ -60,6 +61,46 @@ describe("ProjectMemoryWorkflow", () => {
     expect(llm.run.mock.calls[0][0].instruction).toContain("Preserve stable entity keys");
     expect(JSON.stringify(llm.run.mock.calls[0][0])).not.toContain('"token"');
     expect(graph).not.toHaveProperty("project_memory");
+  });
+  it("skips model execution when ADR and feature text differs only by whitespace or line breaks", async () => {
+    const files = completeFiles();
+    const previous = new MemoryGraph().seed(files, context.commitSha);
+    const feature = files.find(file => file.path === "docs/feature/orders.md")!;
+    feature.content = feature.content.replaceAll(" ", "  ").replaceAll("\n", "\r\n");
+    const llm = { run: vi.fn().mockResolvedValue(generated()) };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
+      { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
+
+    const graph = await workflow.run(options, context);
+
+    expect(llm.run).not.toHaveBeenCalled();
+    expect(graph).toEqual(previous);
+  });
+  it("runs model execution when an ADR or feature text character changes", async () => {
+    const files = completeFiles();
+    const previous = new MemoryGraph().seed(files, context.commitSha);
+    const feature = files.find(file => file.path === "docs/feature/orders.md")!;
+    feature.content = feature.content.replace("Project context.", "Project context changed.");
+    const llm = { run: vi.fn().mockResolvedValue(generated()) };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
+      { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
+
+    await workflow.run(options, context);
+
+    expect(llm.run).toHaveBeenCalledOnce();
+  });
+  it("does not trigger model execution for changes outside ADR and feature documents", async () => {
+    const files = completeFiles();
+    const previous = new MemoryGraph().seed(files, context.commitSha);
+    const digestFile = files.find(file => file.path === "docs/.digest.md")!;
+    digestFile.content = `${digestFile.content}Additional digest text.`;
+    const llm = { run: vi.fn().mockResolvedValue(generated()) };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
+      { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
+
+    await workflow.run(options, context);
+
+    expect(llm.run).not.toHaveBeenCalled();
   });
   it("accepts legacy baselines containing rule and README entities", async () => {
     const previous = generated() as any;
