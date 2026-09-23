@@ -120,6 +120,7 @@ REQUIRED: Derive ordinary-token tenant identity from the owner. Admin publicatio
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
+REQUIRED: Allocate a distinct snapshot revision under the environment lock when another deployment already uses the version-derived revision. Hash the stored revision and compare retries against that revision.
 REQUIRED: Create and promote the snapshot in one persistence operation.
 REQUIRED: Preserve deployment ID, version, publication ID, and snapshot ID.
 PROHIBITED: Treat a deployment as active before environment resolution succeeds.

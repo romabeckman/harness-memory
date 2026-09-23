@@ -1,7 +1,8 @@
 from collections.abc import Callable
+from dataclasses import replace
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.snapshot_publication.services.payload_hash_calculator import (
@@ -18,6 +19,7 @@ from core.domain.knowledge_publication.value_objects.publication_id import Publi
 from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
     ProjectKnowledgeSnapshot,
 )
+from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.knowledge_publication import (
@@ -102,7 +104,9 @@ class PostgresKnowledgePublicationRepository:
                 )
             )
             result = session.execute(
-                stmt.with_only_columns(ModelKnowledgePublication, ModelSnapshot.payload_hash)
+                stmt.with_only_columns(
+                    ModelKnowledgePublication, ModelSnapshot.payload_hash, ModelSnapshot.revision
+                )
                 .outerjoin(
                     ModelSnapshot,
                     (ModelSnapshot.id == ModelKnowledgePublication.snapshot_id)
@@ -111,7 +115,7 @@ class PostgresKnowledgePublicationRepository:
             ).first()
             if result is None:
                 return None
-            row, payload_hash = result
+            row, payload_hash, snapshot_revision = result
 
             return DomainKnowledgePublication(
                 id=PublicationId(row.id),
@@ -122,6 +126,7 @@ class PostgresKnowledgePublicationRepository:
                 status=PublicationStatus(row.status),
                 snapshot_id=row.snapshot_id,
                 payload_hash=payload_hash,
+                snapshot_revision=snapshot_revision,
             )
 
     def save(self, publication: DomainKnowledgePublication, tenant_id: str) -> None:
@@ -187,13 +192,23 @@ class PostgresKnowledgePublicationRepository:
                     select(ModelEnvironment).where(
                         ModelEnvironment.tenant_id == tenant_id,
                         ModelEnvironment.id == environment_id,
-                    )
+                    ).with_for_update()
                 ).first()
                 if env is None:
                     raise ValueError(f"environment {environment_id} not found")
 
+                latest_revision = session.scalar(
+                    select(func.max(ModelSnapshot.revision)).where(
+                        ModelSnapshot.tenant_id == tenant_id,
+                        ModelSnapshot.project_id == proj.id,
+                        ModelSnapshot.environment_id == env.id,
+                    )
+                )
+                rebased = latest_revision is not None and snapshot.revision.value <= latest_revision
+                if rebased:
+                    snapshot = replace(snapshot, revision=Revision(latest_revision + 1))
                 payload_hash = publication.payload_hash
-                if payload_hash is None:
+                if payload_hash is None or rebased:
                     content = snapshot_payload(snapshot)
                     content.pop("generated_at", None)
                     payload_hash = self._hash_calculator.calculate(content).value

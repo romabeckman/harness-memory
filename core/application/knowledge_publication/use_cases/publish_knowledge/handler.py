@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any
@@ -180,15 +181,17 @@ class PublishKnowledgeHandler:
 
     def execute(self, input: PublishKnowledgeInput) -> PublishKnowledgeOutput:
         snapshot = self._build_snapshot(input)
-        content = snapshot_payload(snapshot)
-        content.pop("generated_at", None)
-        payload_hash = PayloadHashCalculator().calculate(content).value
         existing = self._publication_repository.find_by_deployment(
             project_key=input.project_key,
             env_name=input.environment_name,
             deployment_id=input.deployment_id,
             tenant_id=input.tenant_id,
         )
+        if existing is not None and existing.snapshot_revision is not None:
+            snapshot = replace(snapshot, revision=Revision(existing.snapshot_revision))
+        content = snapshot_payload(snapshot)
+        content.pop("generated_at", None)
+        payload_hash = PayloadHashCalculator().calculate(content).value
         if existing is not None and existing.status == PublicationStatus.COMPLETED:
             if existing.payload_hash is not None and existing.payload_hash != payload_hash:
                 raise RevisionConflict("deployment identity was reused with different content")
