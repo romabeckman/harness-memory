@@ -17,6 +17,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Recommended |
 | [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters for knowledge tables, tenants, projects, and snapshots. | Optional |
 | [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication boundary for CI/CD deployments and environment snapshots. | Optional |
+| [**scopes.md**](./feature/api/scopes.md) | API and MCP scope permissions, credential boundaries, and current route exceptions. | Optional |
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
 | [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
