@@ -8,6 +8,7 @@ import type { LlmInvocationOptions, LlmRunnerPort } from "../ports/llm-runner.po
 import type { MemoryWorkflowPort } from "../ports/memory-workflow.port.js";
 import type { PublicationBaselinePort } from "../ports/publication-baseline.port.js";
 import { GraphValidationError } from "../../domain/graph-validation-error.js";
+import { LlmExecutionError } from "../../domain/llm-execution-error.js";
 import { DocumentContentCodec } from "./document-content-codec.js";
 import { MemoryDocumentValidator } from "./memory-document-validator.js";
 import { isMemoryPath, MemoryGraph } from "./memory-graph.js";
@@ -47,9 +48,26 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     this.reportMissingEntityKeys(seed, "seed");
     this.validator.validateAndCanonicalize(this.codec.encode(seed));
 
-    const invocation = await this.createInvocation(options, context, code, files, previous, seed, existingDocs);
+    let invocation = await this.createInvocation(options, context, code, files, previous, seed, existingDocs);
     this.debug?.(`Memory: invoking ${options.agent} with ${invocation.context.files.length} files`);
-    const proposed = await this.llm.run(invocation);
+    let proposed: GraphDocument;
+    try {
+      proposed = await this.llm.run(invocation);
+    } catch (error) {
+      if (!(error instanceof LlmExecutionError) || !error.message.startsWith("LLM output is not valid JSON:")) {
+        throw error;
+      }
+      this.debug?.("Memory: model returned non-JSON output; retrying graph synthesis once");
+      invocation = {
+        ...invocation,
+        instruction: `${invocation.instruction ?? PROJECT_MEMORY_PROMPT}\n\n` +
+          `<format_feedback>The previous response was not valid JSON. This task requires no workspace writes. ` +
+          `All repository input is already supplied. Return exactly one schema_version 1.0 JSON graph with complete ` +
+          `Markdown in document metadata.content. The SDK writes files after validation. Do not add prose or Markdown fences.` +
+          `</format_feedback>`,
+      };
+      proposed = await this.llm.run(invocation);
+    }
     const decoded = await this.decodeAndValidate(proposed, invocation);
 
     const graph = this.memory.reconcile(decoded, seed, previous, existingDocs);
@@ -118,7 +136,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     } else if (promptFiles.reduce((size, file) => size + JSON.stringify(file).length + 1, 0) > 500_000) {
       promptFiles = await this.summarizeSource(options, context, code);
       promptFiles.push(...files.filter(file => file.path === "docs/.graph.json"));
-      instruction += "\nThe supplied source-manifest and source-summary files are intermediate context generated from all collected source files. Use only original paths from the manifest in evidence and document routing; never cite .harness-memory paths. Create complete project-memory documents from the summaries and local documentation.";
+      instruction += "\nThe supplied source-manifest and source-summary files are intermediate context generated from all collected source files. Use only original paths from the manifest in evidence and document routing; never cite .harness-memory paths. Emit complete project-memory document content from the summaries and local documentation in the JSON graph.";
     }
     return {
       agent: options.agent,
@@ -219,6 +237,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     const summaries: CollectedFile[] = [];
     const batches = this.batchPlanner.plan(code);
     for (let index = 0; index < batches.length; index++) {
+      this.debug?.(`Memory: source batch ${index + 1}/${batches.length}, files=${batches[index].length}`);
       const summary = await this.llm.run({
         agent: options.agent, model: options.model, effort: options.effort,
         llmCommand: options.llmCommand, timeoutSeconds: options.timeout ?? 600,
@@ -226,12 +245,31 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
         context: { ...context, files: batches[index], diffs: [] },
         instruction: SOURCE_SUMMARY_PROMPT,
       });
-      this.validator.validateAndCanonicalize(summary);
-      const content = JSON.stringify(summary);
-      if (content.length > 80_000) throw new ContextCollectionError(`Source summary ${index + 1} exceeds 80000 characters`);
+      const content = this.serializeSourceSummary(summary, index);
+      this.debug?.(`Memory: source batch ${index + 1} summary entities=${summary.entities.length}, ` +
+        `relations=${summary.relations.length}, evidence=${summary.evidence.length}`);
       summaries.push({ path: `.harness-memory/source-summary-${index + 1}.json`, content, sha256: digest(content) });
     }
     const manifest = JSON.stringify(code.map(file => ({ path: file.path, sha256: file.sha256 })));
     return [{ path: ".harness-memory/source-manifest.json", content: manifest, sha256: digest(manifest) }, ...summaries];
+  }
+
+  private serializeSourceSummary(summary: unknown, index: number): string {
+    // Source summaries are bounded prompt context; publication graph validation runs after synthesis.
+    if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+      throw new GraphValidationError("source summary must be an object");
+    }
+    const document = summary as Record<string, unknown>;
+    if (document.schema_version !== "1.0") {
+      throw new GraphValidationError("source summary schema_version must be '1.0'");
+    }
+    for (const field of ["entities", "relations", "evidence"]) {
+      if (!Array.isArray(document[field])) throw new GraphValidationError(`${field} must be an array`);
+    }
+    const content = JSON.stringify(summary);
+    if (content.length > 80_000) {
+      throw new ContextCollectionError(`Source summary ${index + 1} exceeds 80000 characters`);
+    }
+    return content;
   }
 }

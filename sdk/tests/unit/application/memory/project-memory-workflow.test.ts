@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { ProjectMemoryWorkflow } from "../../../../src/application/memory/project-memory-workflow.js";
+import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js";
 import { GraphValidator } from "../../../../src/infrastructure/validator/graph-validator.js";
 
 const options = { repository: "/repo", projectKey: "demo", environment: "production", deploymentId: "d1", version: "1", agent: "codex-cli" as const, model: "test", effort: "high" as const, headRef: "HEAD", dryRun: false, apiUrl: "https://example.test", token: "secret" };
@@ -114,6 +115,48 @@ describe("ProjectMemoryWorkflow", () => {
     expect(llm.run).toHaveBeenCalledTimes(2);
     expect(docs.write).not.toHaveBeenCalled();
   });
+  it("retries a prose response with explicit JSON-only and no-file-write instructions", async () => {
+    const llm = { run: vi.fn()
+      .mockRejectedValueOnce(new LlmExecutionError("LLM output is not valid JSON: Unexpected token 'I'"))
+      .mockResolvedValueOnce(generated()) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const debug = vi.fn();
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(), debug);
+
+    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+
+    expect(graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
+    expect(llm.run).toHaveBeenCalledTimes(2);
+    expect(llm.run.mock.calls[0][0].instruction).toContain("Do not call tools, read or write workspace files");
+    expect(llm.run.mock.calls[0][0].instruction).toMatch(/SDK.*writes? (?:those )?files/i);
+    expect(llm.run.mock.calls[1][0].instruction).toContain("previous response was not valid JSON");
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("retrying graph synthesis"));
+    expect(docs.write).not.toHaveBeenCalled();
+  });
+  it("stops after one retry when the model returns prose again", async () => {
+    const error = new LlmExecutionError("LLM output is not valid JSON: Unexpected token 'I'");
+    const llm = { run: vi.fn().mockRejectedValue(error) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
+
+    await expect(workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context))
+      .rejects.toBe(error);
+
+    expect(llm.run).toHaveBeenCalledTimes(2);
+    expect(docs.write).not.toHaveBeenCalled();
+  });
+  it("does not retry unrelated model execution errors", async () => {
+    const error = new LlmExecutionError("LLM timed out after 600 seconds");
+    const llm = { run: vi.fn().mockRejectedValue(error) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
+
+    await expect(workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context))
+      .rejects.toBe(error);
+
+    expect(llm.run).toHaveBeenCalledTimes(1);
+    expect(docs.write).not.toHaveBeenCalled();
+  });
   it("identifies a local seed entity without a key in debug output", async () => {
     const files = [
       { path: "docs/.graph.json", content: JSON.stringify({ nodes: [{ path: "docs/README.md", id: "" }], edges: [] }), sha256: "sha" },
@@ -151,5 +194,37 @@ describe("ProjectMemoryWorkflow", () => {
     expect(batchCalls.flatMap(invocation => invocation.context.files.map(file => file.path)).sort())
       .toEqual(files.map(file => file.path));
     expect(llm.run.mock.calls.at(-1)![0].context.files.every(file => file.content.length < 300_000)).toBe(true);
+  });
+  it("uses a source summary with an unkeyed concept as context for a valid final graph", async () => {
+    const summary = { schema_version: "1.0", entities: [{ type: "service", name: "Send API" }], relations: [], evidence: [] };
+    const llm = { run: vi.fn().mockImplementation(async invocation =>
+      invocation.instruction.includes("Summarize this source batch") ? summary : generated()) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const debug = vi.fn();
+    const files = ["src/a.ts", "src/b.ts", "src/c.ts"]
+      .map(path => ({ path, sha256: "sha", content: "x".repeat(300_000) }));
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(undefined) }, docs, new GraphValidator(), debug);
+
+    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, { ...context, files });
+
+    const finalInvocation = llm.run.mock.calls.at(-1)![0];
+    const sourceSummary = finalInvocation.context.files.find(file => file.path === ".harness-memory/source-summary-1.json");
+    expect(JSON.parse(sourceSummary.content).entities[0]).toEqual({ type: "service", name: "Send API" });
+    expect(graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("source batch 1/"));
+    expect(docs.write).not.toHaveBeenCalled();
+  });
+  it("rejects a source summary without graph arrays before prompting for the final graph", async () => {
+    const invalidSummary = { schema_version: "1.0", entities: {}, relations: [], evidence: [] };
+    const llm = { run: vi.fn().mockResolvedValue(invalidSummary) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const files = [{ path: "src/large.ts", sha256: "sha", content: "x".repeat(600_000) }];
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(undefined) }, docs, new GraphValidator());
+
+    await expect(workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, { ...context, files }))
+      .rejects.toThrow("entities must be an array");
+
+    expect(llm.run).toHaveBeenCalledTimes(1);
+    expect(docs.write).not.toHaveBeenCalled();
   });
 });

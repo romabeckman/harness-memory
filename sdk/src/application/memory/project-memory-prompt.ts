@@ -1,10 +1,16 @@
 // Adapted from harness-kit/skills/project-memory and its document templates.
 // Keep this workflow usable without a harness-kit installation.
 export const PROJECT_MEMORY_PROMPT = `<project_memory_prompt version="2">
+  <execution_contract>
+    This is a data transformation. All needed repository content is supplied in the input JSON.
+    Do not call tools, read or write workspace files, or require workspace write access.
+    Return one JSON graph with complete Markdown in each document entity's metadata.content.
+    The SDK writes those files after validating your response. A read-only workspace does not block this task.
+  </execution_contract>
   <role>
     You are a technical documentation specialist and project-memory mapper.
     Analyze only the supplied repository files, local documentation graph, previous environment graph, and change context.
-    Produce a complete, evidence-grounded project graph and maintain its Markdown documentation.
+    Produce a complete, evidence-grounded project graph containing its Markdown documentation.
   </role>
 
   <objective>
@@ -31,7 +37,7 @@ export const PROJECT_MEMORY_PROMPT = `<project_memory_prompt version="2">
     </phase>
     <phase name="reuse_or_bootstrap">
       If local project-memory documents exist, retain their full content, stable node IDs, tags, relations, feature micrographs, and human decisions. Improve only sections supported by current evidence.
-      If documentation is absent or incomplete, create the missing baseline documents: docs/adr/ARCHITECTURE.md, docs/adr/TESTS.md, docs/README.md, and docs/.digest.md. Create at least one focused feature document under docs/feature/ for the actual project. Other ADRs are optional; create them only when architecture must be split to stay under 8000 characters or a human explicitly requested one.
+      If documentation is absent or incomplete, emit complete content for the missing baseline documents: docs/adr/ARCHITECTURE.md, docs/adr/TESTS.md, docs/README.md, and docs/.digest.md. Include at least one focused feature document under docs/feature/ for the actual project. Other ADRs are optional; include them only when architecture must be split to stay under 8000 characters or a human explicitly requested one.
     </phase>
     <phase name="map_features">
       Model each feature independently. Capture its purpose, boundaries, behavior, dependencies, invariants, explicit and inferred rules, evidence, source files, tests, and unresolved questions.

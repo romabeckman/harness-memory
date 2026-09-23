@@ -15,7 +15,7 @@ edges:
     target: "feature:environment-snapshots"
   - relation: references
     target: "adr:security"
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # Snapshot Publisher SDK
 Extract repository context, synthesize knowledge graph via local LLM, validate schema, and publish snapshots over REST.
@@ -109,7 +109,7 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Compare complete local docs with the latest graph; bootstrap missing docs from bounded source batches. Derive missing entity keys from paths (slashes become hyphens), hash collisions, and retry key omissions without paths once.
+- **Memory workflow**: Compare local docs with latest graph; bootstrap from bounded source summaries. Model emits JSON with Markdown; SDK validates and writes docs. Retry prose once with format feedback. Derive missing keys from paths, hash collisions, and retry pathless omissions once.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs with path and budget checks. `--exclude-paths` skips explicit files or directories before budgets; `docs/` cannot be excluded.
 - **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, use `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters.
