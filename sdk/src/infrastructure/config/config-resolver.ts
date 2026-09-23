@@ -22,6 +22,7 @@ const ALLOWED_FLAGS = new Set([
   "--timeout",
   "--max-files",
   "--max-bytes",
+  "--exclude-paths",
   "--dry-run",
   "--output",
   "--verbose",
@@ -175,6 +176,16 @@ export class ConfigResolver {
       "10485760";
     const maxBytes = Number.parseInt(String(rawMaxBytes), 10);
 
+    const rawExcludePaths: unknown = parsedCli["--exclude-paths"] ??
+      env.HARNESS_MEMORY_EXCLUDE_PATHS ?? fileConfig.excludePaths;
+    if (rawExcludePaths !== undefined && typeof rawExcludePaths !== "string" &&
+      (!Array.isArray(rawExcludePaths) || rawExcludePaths.some((path) => typeof path !== "string"))) {
+      throw new ConfigurationError("excludePaths must be a comma-separated string or an array of strings");
+    }
+    const excludePaths = typeof rawExcludePaths === "string"
+      ? rawExcludePaths.split(",").map((path) => path.trim())
+      : rawExcludePaths;
+
     const dryRun =
       parsedCli["--dry-run"] === "true" ||
       env.HARNESS_MEMORY_DRY_RUN === "true" ||
@@ -208,6 +219,7 @@ export class ConfigResolver {
       timeout,
       maxFiles,
       maxBytes,
+      excludePaths,
       dryRun,
       verbose,
       outputFormat,

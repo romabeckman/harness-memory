@@ -25,5 +25,6 @@ export interface GitContextCollectorPort {
     headRef: string;
     maxFiles: number;
     maxBytes: number;
+    excludePaths?: string[];
   }): Promise<RepositoryContext>;
 }

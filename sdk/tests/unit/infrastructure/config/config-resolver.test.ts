@@ -38,6 +38,15 @@ describe("ConfigResolver", () => {
     expect(config.llmCommand).toBeUndefined();
   });
 
+  it("accepts explicit comma-separated source exclusions from CLI and environment", () => {
+    const args = ["--agent", "codex-cli", "--exclude-paths", "public/resources, app/Views"];
+    expect(resolver.resolve(args, { HARNESS_MEMORY_EXCLUDE_PATHS: "vendor" }).excludePaths)
+      .toEqual(["public/resources", "app/Views"]);
+    expect(resolver.resolve(["--agent", "codex-cli"], {
+      HARNESS_MEMORY_EXCLUDE_PATHS: "public/resources,app/Views",
+    }).excludePaths).toEqual(["public/resources", "app/Views"]);
+  });
+
   it("selects an agent runner from CLI arguments independently of the model", () => {
     const config = resolver.resolve(
       [

@@ -38,6 +38,24 @@ describe("GitContextCollector", () => {
     }
   });
 
+  it("excludes only selected paths before collecting source files", async () => {
+    const result = await collector.collect({
+      repository: resolve("../"), headRef: "HEAD", maxFiles: 5000,
+      maxBytes: 50_000_000, excludePaths: ["sdk/tests"],
+    });
+    expect(result.files.some((file) => file.path.startsWith("sdk/tests/"))).toBe(false);
+    expect(result.files.some((file) => file.path.startsWith("sdk/src/"))).toBe(true);
+  });
+
+  it.each(["docs", "docs/.graph.json", "../outside", "/absolute", "sdk/../docs", ""])(
+    "rejects unsafe source exclusion %s", async (path) => {
+      await expect(collector.collect({
+        repository: resolve("../"), headRef: "HEAD", maxFiles: 5000,
+        maxBytes: 50_000_000, excludePaths: [path],
+      })).rejects.toThrow(ContextCollectionError);
+    }
+  );
+
   it("fails closed when maxFiles limit is exceeded", async () => {
     await expect(
       collector.collect({

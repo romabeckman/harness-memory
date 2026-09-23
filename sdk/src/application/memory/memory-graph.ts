@@ -61,23 +61,33 @@ export class MemoryGraph {
     return graph;
   }
 
-  public reconcile(proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument): GraphDocument {
+  public reconcile(proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument, preserveLocalDocuments = false): GraphDocument {
     const entities = new Map<string, EntityFact>();
     for (const entity of previous?.entities.filter(memoryEntity) ?? []) entities.set(entity.key, structuredClone(entity));
     for (const entity of local.entities) entities.set(entity.key, structuredClone(entity));
-    const archives: RelationFact[] = [];
     for (const entity of proposed.entities) {
-      const original = entities.get(entity.key);
-      if (original && DOCUMENT_TYPES.has(original.type) && typeof original.metadata?.content === "string" &&
-          typeof entity.metadata?.content === "string" && original.metadata.content !== entity.metadata.content) {
-        const archiveKey = `document_revision:${digest(original.key + original.metadata.content).slice(0, 32)}`;
-        entities.set(archiveKey, { ...structuredClone(original), key: archiveKey, type: "document_revision",
-          metadata: { ...original.metadata, document_key: original.key, lifecycle: "archived" } });
-        archives.push(this.edge(entity.key, "supersedes", archiveKey));
-      }
+      if (preserveLocalDocuments && DOCUMENT_TYPES.has(entity.type)) continue;
       entities.set(entity.key, structuredClone(entity));
     }
     const prior = new Map(previous?.entities.map(e => [e.key, e]) ?? []);
+    const revisions: RelationFact[] = [];
+    for (const entity of [...entities.values()].filter(item => DOCUMENT_TYPES.has(item.type))) {
+      const currentContent = entity.metadata?.content;
+      if (typeof currentContent !== "string") continue;
+      const previousContent = prior.get(entity.key)?.metadata?.content;
+      const originalExists = [...entities.values()].some(item =>
+        item.type === "document_revision" && item.metadata?.document_key === entity.key && item.metadata?.version === "original");
+      if (!originalExists) {
+        const original = typeof previousContent === "string" ? previousContent : currentContent;
+        const key = `document_revision:${digest(`${entity.key}|original|${original}`).slice(0, 40)}`;
+        entities.set(key, { key, type: "document_revision", name: entity.name,
+          metadata: { document_key: entity.key, path: entity.metadata?.path, version: "original",
+            content: original, content_sha256: digest(original) } });
+        revisions.push(this.edge(entity.key, "supersedes", key));
+      }
+      if (typeof previousContent !== "string" || previousContent === currentContent) continue;
+      this.addLineRevisions(entity, previousContent, currentContent, entities, revisions);
+    }
     for (const entity of entities.values()) {
       if (!memoryEntity(entity)) continue;
       entity.metadata ??= {};
@@ -92,13 +102,82 @@ export class MemoryGraph {
       if (old && typeof before === "string") entity.metadata.previous_sha256 = digest(before);
     }
     const relations = new Map<string, RelationFact>();
-    for (const relation of [...(previous?.relations ?? []), ...local.relations, ...proposed.relations, ...archives]) {
+    for (const relation of [...(previous?.relations ?? []), ...local.relations, ...proposed.relations, ...revisions]) {
       if (entities.has(relation.source_entity_key) && entities.has(relation.target_entity_key)) relations.set(relation.ref, relation);
     }
     const evidence = [...(previous?.evidence ?? []), ...local.evidence, ...proposed.evidence]
       .filter(e => !e.relation_ref || relations.has(e.relation_ref));
     return { schema_version: "1.0", entities: [...entities.values()], relations: [...relations.values()],
       evidence: [...new Map(evidence.map(e => [JSON.stringify(e), e])).values()] };
+  }
+
+  private addLineRevisions(
+    entity: EntityFact, before: string, after: string,
+    entities: Map<string, EntityFact>, relations: RelationFact[],
+  ): void {
+    const oldLines = before.split(/\r?\n/);
+    const newLines = after.split(/\r?\n/);
+    const aligned = this.alignLines(oldLines, newLines);
+    let oldIndex = 0;
+    let newIndex = 0;
+    let operation = 0;
+    while (operation < aligned.length) {
+      if (aligned[operation] === "equal") { oldIndex++; newIndex++; operation++; continue; }
+      const removed: string[] = [];
+      const added: string[] = [];
+      while (operation < aligned.length && aligned[operation] !== "equal") {
+        if (aligned[operation] === "removed") removed.push(oldLines[oldIndex++]);
+        else added.push(newLines[newIndex++]);
+        operation++;
+      }
+      for (let offset = 0; offset < Math.max(removed.length, added.length); offset++) {
+        const oldLine = removed[offset];
+        const newLine = added[offset];
+        const line = newLine === undefined ? oldIndex - removed.length + offset + 1 : newIndex - added.length + offset + 1;
+        this.addLineRevision(entity, before, after, oldLine, newLine, line, entities, relations);
+      }
+    }
+  }
+
+  private addLineRevision(
+    entity: EntityFact, before: string, after: string, oldLine: string | undefined,
+    newLine: string | undefined, line: number, entities: Map<string, EntityFact>, relations: RelationFact[],
+  ): void {
+      const content = newLine ?? oldLine ?? "";
+      const key = `document_revision:${digest(`${entity.key}|${digest(before)}|${digest(after)}|${line}|${oldLine ?? ""}|${newLine ?? ""}`).slice(0, 40)}`;
+      const marker = `<<<<<<< HEAD\n${newLine ?? ""}\n=======\n${oldLine ?? ""}\n>>>>>>> published-baseline`;
+      entities.set(key, { key, type: "document_revision", name: entity.name,
+        metadata: { document_key: entity.key, path: entity.metadata?.path, version: "line",
+          line, content, change: newLine === undefined ? "removed" : oldLine === undefined ? "added" : "modified",
+          conflict_marker: marker, source_commit_sha: entity.metadata?.source_commit_sha } });
+      relations.push(this.edge(entity.key, "supersedes", key));
+  }
+
+  private alignLines(before: string[], after: string[]): Array<"equal" | "added" | "removed"> {
+    const rows = before.length;
+    const columns = after.length;
+    if (rows * columns > 4_000_000) {
+      throw new GraphValidationError("Document line diff exceeds 4,000,000 comparisons");
+    }
+    const lcs = Array.from({ length: rows + 1 }, () => new Uint32Array(columns + 1));
+    for (let i = rows - 1; i >= 0; i--) {
+      for (let j = columns - 1; j >= 0; j--) {
+        lcs[i][j] = before[i] === after[j] ? 1 + lcs[i + 1][j + 1] : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+      }
+    }
+    const changes: Array<"equal" | "added" | "removed"> = [];
+    let i = 0;
+    let j = 0;
+    while (i < rows || j < columns) {
+      if (i < rows && j < columns && before[i] === after[j]) {
+        changes.push("equal"); i++; j++;
+      } else if (j < columns && (i === rows || lcs[i][j + 1] >= lcs[i + 1][j])) {
+        changes.push("added"); j++;
+      } else {
+        changes.push("removed"); i++;
+      }
+    }
+    return changes;
   }
 
   private edge(source: string, type: RelationType, target: string): RelationFact {

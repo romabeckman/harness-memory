@@ -13,6 +13,7 @@ export class CollectContextPhase extends AbstractPublicationPhase {
       headRef: options.headRef || "HEAD",
       maxFiles: options.maxFiles ?? 2000,
       maxBytes: options.maxBytes ?? 10485760,
+      excludePaths: options.excludePaths,
     });
   }
 }

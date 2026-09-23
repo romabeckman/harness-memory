@@ -47,6 +47,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/application/publish-snapshot/phases/publish-phase.ts",
     "sdk/src/application/memory/project-memory-workflow.ts",
     "sdk/src/application/memory/project-memory-prompt.ts",
+    "sdk/src/application/memory/source-batch-planner.ts",
     "sdk/src/application/memory/memory-graph.ts",
     "sdk/src/application/memory/memory-document-validator.ts",
     "sdk/src/application/memory/document-content-codec.ts",
@@ -74,6 +75,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
     "sdk/tests/unit/application/memory/document-content-codec.test.ts",
     "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
+    "sdk/tests/unit/application/memory/source-batch-planner.test.ts",
     "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
     "sdk/tests/integration/infrastructure/memory/local-docs-store.test.ts",
     "sdk/tests/unit/application/publish-snapshot.use-case.test.ts",
@@ -94,7 +96,7 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
 
 ## OVERVIEW
 
-The SDK and CLI collect Git context, synthesize knowledge, validate graphs, and publish through REST.
+The SDK collects Git context, validates generated graphs, and publishes through REST.
 
 ## FOLDER STRUCTURE
 
@@ -110,11 +112,11 @@ sdk/
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers. Each passes shared state onward.
-- **Memory workflow**: Separate baseline loading, context budgeting, generation, and publication preparation. Validate documents and rule evidence in `MemoryDocumentValidator`.
-- **Dry run**: The publication handler returns validation metadata without calling the REST client. A failed phase stops the chain and preserves its existing error.
-- **Git collector**: Collects files and diffs with path and memory-budget checks.
-- **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, launch Codex through `cmd.exe` for npm's `.cmd` shim.
+- **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
+- **Memory workflow**: Compare complete local docs with the latest published graph; bootstrap missing docs from bounded source batches. Validate documents and rule evidence.
+- **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
+- **Git collector**: Collects files and diffs with path and memory-budget checks. `--exclude-paths` skips explicit source files or directories before budget checks; `docs/` cannot be excluded.
+- **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, launch Codex through `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters before launch.
 - **Validator**: Check Schema 1.0; accept string, null, or omitted `canonical_key` per API; compute canonical SHA-256.
 - **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
 - **Exit codes**: Map domain failures to stable CLI statuses.
@@ -123,24 +125,23 @@ sdk/
 
 ### Project memory process
 
-1. Collect repository context and fetch the current graph for the authenticated tenant, project, and environment. Only HTTP 404 means no baseline.
-2. Read existing `docs/.graph.json`, complete ADR/feature/spec Markdown, digest, index, and business rules, including untracked documentation.
-3. Run the bundled **project-memory prompt** with baseline, documents, and source context. Bootstrap architecture, tests, digest, index, and one feature when absent.
-4. Map rules, evidence, feature context, source/test routing, and changes while preserving keys. Extract explicit constraints deterministically.
-5. Reconcile documents and rules; retain content and archive replaced documents.
-6. Write validated local Markdown and regenerate the compact document index, then publish the normal graph payload. Concurrent local edits and symlink paths abort writes.
+1. Collect Git context and fetch the latest graph for the authenticated project and environment; HTTP 404 means no baseline.
+2. Read local documentation, including untracked files. Complete project-memory docs are authoritative: compare them with the baseline without sending source contents to Codex.
+3. When docs are absent or incomplete, use the bundled **project-memory prompt** to create architecture, tests, digest, index, and feature docs. Summarize all source files in bounded batches when a single prompt is too large.
+4. Reconcile stable keys, rules, evidence, and document content. Preserve the first full version in `document_revision.metadata.content`; record later changed lines as revisions with each line in `content` and Git-style conflict markers in `metadata.conflict_marker`.
+5. Validate and write Markdown and the compact document index, then publish the graph. Concurrent edits and symlink paths abort writes. `--dry-run` skips local and remote writes.
 
 ### Storage and history
 
 REQUIRED: Store documentation in **entities, relations, and evidence**, never an additional `project_memory` field. Documents contain `metadata.path`, complete `content`, SHA-256, source commit, and change state. Large content uses ordered `document_section` entities with `part_of` edges and checksums; decoding restores the exact text.
 
-Rules contain complete statements and document-scoped `defines` relations with evidence. Features retain their micrograph as context. Immutable snapshots preserve prior versions; changed local content is compared with the baseline. Explicit removal uses lifecycle `removed`; omission alone does not delete prior memory. Review carried-forward rules when project policy changes.
+Rules retain full statements and cited `defines` relations. Features retain micrographs. Immutable snapshots and document revisions preserve earlier versions; omission alone does not remove prior memory. Review carried-forward rules when policy changes.
 
 ### Optional harness-kit integration
 
-**harness-kit project-memory is optional.** The SDK bundles its own prompt. Document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1` as provenance markers.
+**harness-kit project-memory is optional.** The SDK bundles its prompt. Document metadata records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`.
 
-Local files are written **before the REST POST**. Remote failure leaves local drafts. `--dry-run` validates without local writes or publication; credentials still allow baseline reads. Collection budgets apply; baseline responses are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
+Local files are written **before the REST POST**. Remote failure leaves drafts. `--dry-run` validates without writes or publication; credentials allow baseline reads. Baselines are limited to 50 MiB. `docs/workflow/` and `docs/harness-history/` are excluded.
 
 ### Prerequisites
 1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
@@ -150,7 +151,7 @@ Local files are written **before the REST POST**. Remote failure leaves local dr
 1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
 2. Run publication via CLI or programmatic use case.
 
-For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docsStore, validator)` as the fifth `PublishSnapshotUseCase` argument. All adapters are exported from the SDK.
+For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docsStore, validator)` as the fifth `PublishSnapshotUseCase` argument.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -164,6 +165,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Yes | Harness Memory API endpoint | — |
 | `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_KEY` |
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
+| `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Comma-separated repository-relative source paths; JSON config and SDK accept `excludePaths` arrays | — |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
 
 ## EXIT CODES
@@ -191,7 +193,7 @@ PROHIBITED: Retrying on HTTP 400, 401, 403, or 409 response codes.
 
 ## TIPS
 
-Use `--dry-run` to validate without publication. The CLI enables memory by default. A four-argument `PublishSnapshotUseCase` retains graph-only behavior; the fifth argument enables memory processing.
+Use `--dry-run` to validate. The CLI enables memory by default. The fifth `PublishSnapshotUseCase` argument enables memory processing.
 
 ## DOCUMENT MAP
 

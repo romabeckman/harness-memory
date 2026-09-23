@@ -96,6 +96,7 @@ export interface PublishSnapshotOptions {
   timeout?: number;
   maxFiles?: number;
   maxBytes?: number;
+  excludePaths?: string[];
   verbose?: boolean;
 }
 

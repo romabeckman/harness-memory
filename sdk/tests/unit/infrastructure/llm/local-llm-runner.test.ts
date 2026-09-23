@@ -24,6 +24,19 @@ describe("LocalLlmRunner", () => {
     diffs: [],
   };
 
+  it("rejects an oversized Codex prompt before launching the executable", async () => {
+    const missingRunner = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "codex-cli", command: "non-existent-executable-987654321",
+      buildArgs: () => [], parseOutput: (stdout) => stdout,
+    }]));
+    await expect(missingRunner.run({
+      agent: "codex-cli", model: "test-model", effort: "high",
+      timeoutSeconds: 5,
+      projectKey: "catalog", environment: "staging",
+      context: { ...dummyContext, files: [{ path: "large.ts", sha256: "abc", content: "x".repeat(1_048_576) }] },
+    })).rejects.toThrow(/Codex input.*1048576.*--exclude-paths/);
+  });
+
   it("fails with LlmExecutionError when executable is not found", async () => {
     await expect(
       runner.run({
