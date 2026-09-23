@@ -3,10 +3,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.domain.environment.aggregates.environment import Environment as DomainEnvironment
-from core.domain.environment.value_objects.environment_name import EnvironmentName
 from core.domain.environment.value_objects.environment_type import EnvironmentType
-from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.project import Project as ModelProject
@@ -73,6 +70,28 @@ class TestPostgresEnvironmentRepository:
         repo = PostgresEnvironmentRepository(engine=engine)
         assert repo.resolve("checkout", "staging", tenant_id="tenant-b") is None
         assert repo.resolve("checkout", "production", tenant_id="tenant-a") is None
+
+    def test_global_lookup_rejects_ambiguous_project_key(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        first = _seed_project(engine, "tenant-a", "checkout")
+        second = _seed_project(engine, "tenant-b", "checkout")
+        with Session(engine) as session:
+            session.add_all([
+                ModelEnvironment(id=uuid4(), tenant_id="tenant-a", project_id=first.id,
+                                 name="staging", type="staging"),
+                ModelEnvironment(id=uuid4(), tenant_id="tenant-b", project_id=second.id,
+                                 name="staging", type="staging"),
+            ])
+            session.commit()
+
+        repo = PostgresEnvironmentRepository(engine=engine)
+        try:
+            repo.resolve("checkout", "staging", tenant_id=None)
+        except ValueError as error:
+            assert "multiple tenants" in str(error)
+        else:
+            raise AssertionError("global lookup must reject ambiguous project keys")
 
     def test_promotes_active_snapshot(self) -> None:
         engine = create_engine("sqlite://")

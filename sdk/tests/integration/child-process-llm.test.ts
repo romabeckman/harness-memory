@@ -20,11 +20,11 @@ describe("Child process LLM integration", () => {
     diffs: [],
   };
 
-  it("ensures HARNESS_MEMORY_API_TOKEN is stripped from child environment and parses graph output", async () => {
+  it("ensures HARNESS_MEMORY_API_KEY is stripped from child environment and parses graph output", async () => {
     // Fake LLM script in node that checks process.env for token, reads stdin, and writes valid graph
     const fakeLlmScript = `
       const fs = require('fs');
-      if (process.env.HARNESS_MEMORY_API_TOKEN || process.env.API_ADMIN_TOKEN) {
+      if (process.env.HARNESS_MEMORY_API_KEY || process.env.API_ADMIN_TOKEN) {
         process.stderr.write("LEAKED_TOKEN");
         process.exit(99);
       }
@@ -39,15 +39,15 @@ describe("Child process LLM integration", () => {
         const doc = {
           schema_version: '1.0',
           entities: [
-            { key: 'service:payments', type: 'service', name: 'Payments' },
-            { key: 'api:payments', type: 'api', name: 'Payments API' }
+            { key: 'feature:payments', type: 'feature', name: 'Payments' },
+            { key: 'adr:payments', type: 'adr', name: 'Payments Decision' }
           ],
           relations: [
             {
               ref: 'payments-owns-api',
-              source_entity_key: 'service:payments',
-              type: 'provides',
-              target_entity_key: 'api:payments',
+              source_entity_key: 'feature:payments',
+              type: 'references',
+              target_entity_key: 'adr:payments',
               provenance: 'declared'
             }
           ],
@@ -60,11 +60,12 @@ describe("Child process LLM integration", () => {
     `;
 
     // Temporarily set tokens in process.env to verify they are NOT passed
-    process.env.HARNESS_MEMORY_API_TOKEN = "super-secret-token";
+    process.env.HARNESS_MEMORY_API_KEY = "super-secret-token";
     process.env.API_ADMIN_TOKEN = "super-admin-secret";
 
     try {
       const doc = await runner.run({
+        agent: "codex-cli",
         model: "codex",
         effort: "high",
         llmCommand: process.execPath,
@@ -78,10 +79,10 @@ describe("Child process LLM integration", () => {
       expect(doc.schema_version).toBe("1.0");
       const validated = validator.validateAndCanonicalize(doc);
       expect(validated.counts).toEqual({ entities: 2, relations: 1, evidence: 1 });
-      expect(validated.document.entities[0].key).toBe("api:payments");
-      expect(validated.document.entities[1].key).toBe("service:payments");
+      expect(validated.document.entities[0].key).toBe("adr:payments");
+      expect(validated.document.entities[1].key).toBe("feature:payments");
     } finally {
-      delete process.env.HARNESS_MEMORY_API_TOKEN;
+      delete process.env.HARNESS_MEMORY_API_KEY;
       delete process.env.API_ADMIN_TOKEN;
     }
   });

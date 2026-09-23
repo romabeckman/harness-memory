@@ -1,7 +1,7 @@
 ---
 doc_type: feature
 domain: snapshot_publisher
-stack: [TypeScript 5.x, Node.js 20+, Vitest 1.x, Git, REST, JSON Schema]
+stack: [TypeScript 7.x, Node.js 20+, Vitest 1.x, Git, REST, JSON Schema]
 node_id: "feature:snapshot-publisher"
 tags: [sdk, cli, publication, pipeline, snapshots]
 edges:
@@ -15,7 +15,7 @@ edges:
     target: "feature:environment-snapshots"
   - relation: references
     target: "adr:security"
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # Snapshot Publisher SDK
 Extract repository context, synthesize knowledge graph via local LLM, validate schema, and publish snapshots over REST.
@@ -27,26 +27,67 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
   "implements": ["adr:architecture"],
   "tested_by": ["adr:tests"],
   "entrypoints": ["sdk/src/cli/index.ts", "sdk/src/index.ts"],
-  "registration_files": ["sdk/package.json", "sdk/src/cli/cli-app.ts"],
+  "registration_files": [
+    "sdk/package.json",
+    "sdk/src/cli/cli-app.ts",
+    "sdk/src/infrastructure/llm/agent-runner-factory.ts"
+  ],
   "reference_files": [
     "sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts",
+    "sdk/src/application/publish-snapshot/phases/abstract-publication-phase.ts",
     "sdk/src/infrastructure/api/rest-publication-client.ts",
     "sdk/src/infrastructure/validator/graph-validator.ts"
   ],
   "code_files": [
+    "sdk/src/application/publish-snapshot/phases/publication-phase-context.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-options-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-publication-target-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/collect-context-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/generate-with-docs-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/route-documentation-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/publish-phase.ts",
+    "sdk/src/application/memory/project-memory-workflow.ts",
+    "sdk/src/application/memory/project-memory-completeness.ts",
+    "sdk/src/application/memory/project-memory-prompt.ts",
+    "sdk/src/application/memory/memory-graph.ts",
+    "sdk/src/application/memory/memory-document-validator.ts",
+    "sdk/src/application/memory/document-content-codec.ts",
+    "sdk/src/application/ports/docs-store.port.ts",
+    "sdk/src/application/ports/documentation-directory.port.ts",
+    "sdk/src/application/ports/memory-workflow.port.ts",
+    "sdk/src/application/ports/publication-baseline.port.ts",
+    "sdk/src/infrastructure/memory/local-docs-store.ts",
+    "sdk/src/infrastructure/memory/local-docs-directory.ts",
+    "sdk/src/infrastructure/api/publication-baseline-client.ts",
+    "sdk/src/application/ports/llm-runner.port.ts",
     "sdk/src/application/ports/publication-client.port.ts",
     "sdk/src/domain/contracts.ts",
     "sdk/src/domain/exit-code.ts",
+    "sdk/src/domain/llm-agent.ts",
     "sdk/src/domain/publisher-error.ts",
     "sdk/src/infrastructure/config/config-resolver.ts",
     "sdk/src/infrastructure/git/git-context-collector.ts",
+    "sdk/src/infrastructure/llm/llm-agent-runner.ts",
+    "sdk/src/infrastructure/llm/codex-cli-runner.ts",
+    "sdk/src/infrastructure/llm/claude-cli-runner.ts",
     "sdk/src/infrastructure/llm/local-llm-runner.ts"
   ],
   "test_files": [
+    "sdk/tests/unit/application/publish-snapshot/publish-snapshot-phases.test.ts",
+    "sdk/tests/unit/application/memory/memory-graph.test.ts",
+    "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
+    "sdk/tests/unit/application/memory/document-content-codec.test.ts",
+    "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
+    "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
+    "sdk/tests/integration/infrastructure/memory/local-docs-store.test.ts",
     "sdk/tests/unit/application/publish-snapshot.use-case.test.ts",
     "sdk/tests/unit/cli/cli-app.test.ts",
     "sdk/tests/unit/infrastructure/api/rest-publication-client.test.ts",
     "sdk/tests/unit/infrastructure/git/git-context-collector.test.ts",
+    "sdk/tests/unit/infrastructure/llm/agent-runner-factory.test.ts",
+    "sdk/tests/unit/infrastructure/llm/codex-cli-runner.test.ts",
+    "sdk/tests/unit/infrastructure/llm/claude-cli-runner.test.ts",
     "sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts",
     "sdk/tests/unit/infrastructure/validator/graph-validator.test.ts",
     "sdk/tests/integration/child-process-llm.test.ts",
@@ -58,87 +99,99 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
 
 ## OVERVIEW
 
-The Snapshot Publisher SDK is a provider-independent TypeScript library and CLI (`harness-memory`). It runs in CI/CD pipelines to collect Git context, synthesize knowledge via local LLM, validate schema compliance, and publish snapshots to the REST API.
+The SDK collects Git context, validates generated graphs, and publishes through REST.
 
 ## FOLDER STRUCTURE
 
 ```text
 sdk/
-├── src/
-│   ├── domain/               # Errors, exit codes, contracts
-│   ├── application/          # PublishSnapshotUseCase and ports
-│   ├── infrastructure/       # Git, LLM runner, validator, REST client
-│   └── cli/                  # CLI app entrypoint and config resolver
-└── tests/{unit,integration,e2e}/ # Vitest test tiers
+  src/{domain,application,infrastructure,cli}/
+  tests/{unit,integration,e2e}/
 ```
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Git Context Collector**: Collects diff between `baseRef` and `headRef`. Prevents symlink breakouts (`lstatSync`/`realpathSync`) and checks cumulative heap bounds (`maxBytes`) before loading files.
-- **Local LLM Runner**: Invokes local model command (`codex`). Sanitizes environment and stdin secrets; streams payload chunks with `drain` backpressure handling.
-- **Graph Validator**: Validates payload against Schema 1.0, checks non-empty collections, and calculates deterministic canonical SHA-256 (`payload_sha256`).
-- **REST Publication Client**: Posts snapshots to `POST /v1/knowledge-publications` with bearer token (`memory:publish`). Handles backoff with jitter on 429/5xx, timeouts, and idempotent activations (201/200).
-- **Exit Code Protocol**: Maps domain exceptions to stable CLI exit codes (0, 2..8, 130).
+- **Publication phases**: Validate options and the live API target before Git collection, then route docs, validate the graph, and publish. Dry runs skip target checks.
+- **Memory workflow**: Require complete local docs. Synthesize when ADR/feature text changes beyond whitespace. Return `NO_CHANGES` without a snapshot when publishable docs and graph index match the active baseline; reconcile other docs without model execution.
+- **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries; otherwise generate project key + UTC timestamp + UUID.
+- **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
+- **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
+- **Agent runners**: Select `codex-cli` or `claude-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
+- **Validator**: Check Schema 1.0, canonicalize `canonical_key`, and compute SHA-256.
+- **REST client**: Preflight project, environment, and deployment identity with `memory:publish`; publish after graph validation and retry 429/5xx with jitter.
+- **CLI progress**: Send phases to stderr and JSON to stdout. `--debug` adds redacted timings; `--verbose` prints repository and target.
+- **Exit codes**: Map domain failures to stable CLI statuses.
 
 ## HOW TO PUBLISH SNAPSHOTS
 
+### Preflight validation
+
+1. Validate target field formats and query the API for the exact project key before collecting repository context. Stop with setup guidance when the project does not exist. Select `--tenant-id` when the key exists in multiple tenants.
+2. Check matching environments and publications. Allow a missing environment because the first publication may provision it; reject ambiguous matches.
+3. Reject a deployment ID already associated with another version. Allow same-version retries; the API still detects changed content under that deployment identity.
+4. Use a `memory:publish` token. This scope can read project, environment, and publication target metadata across tenants for preflight; dry runs skip API checks. Pass the resolved tenant ID through baseline and publication requests.
+
+### Project memory process
+
+1. Generate project documentation with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit) before publishing.
+2. Collect Git context and require `docs/`. If missing, stop and show the documentation setup guidance.
+3. Load the authenticated baseline (HTTP 404 means none) and local docs, including untracked files. Docs are authoritative; source content is not sent to Codex.
+4. Compare `docs/adr/` and `docs/feature/` text with the baseline. Ignore whitespace; any other text or document-set change triggers synthesis.
+5. Publish ADR/feature Markdown and `docs/.digest.md` as document entities. Store `docs/.graph.json` in snapshot metadata.
+6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`.
+7. Validate the graph before publishing. `--dry-run` skips publication.
+### Storage and history
+
+REQUIRED: Store docs as **entities, relations, and evidence**, never `project_memory`. Preserve path, Markdown, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with checksums and `part_of` edges; decode content exactly.
+
+Publish only `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Exclude README, BUSINESS, specs, and extracted rules. Immutable snapshots and line revisions preserve both document versions.
+
+REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
+
 ### Prerequisites
-1. Node.js 20+ with local LLM (`codex`) in path.
-2. Token with `memory:publish` in `HARNESS_MEMORY_API_TOKEN`.
+Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a `memory:publish` token.
 
 ### Steps
-1. Set configuration flags or environment variables.
-2. Run publication via CLI or programmatic use case.
-
-```typescript
-// CORRECT: Programmatic use case invocation
-import { PublishSnapshotUseCase, GitContextCollector, LocalLlmRunner, GraphValidator, RestPublicationClient } from "@harness-memory/sdk";
-const uc = new PublishSnapshotUseCase(new GitContextCollector(), new LocalLlmRunner(), new GraphValidator(), new RestPublicationClient());
-const res = await uc.execute({ environment: "prod", projectKey: "svc", deploymentId: "d-1", version: "v1", apiUrl: "http://api/v1", token: process.env.HARNESS_MEMORY_API_TOKEN });
-
-// WRONG: Passing secrets or tenant via CLI flags
-// execSync("harness-memory --tenant acme --token secret");
-```
+1. Set `--agent` and publication options.
+2. Run the CLI or `PublishSnapshotUseCase` with `ProjectMemoryWorkflow` and `LocalDocsDirectory`.
 
 ## PARAMETERS / CONFIGURATIONS
 
 | Option | Env Var | Required | Description | Default |
 |--------|---------|----------|-------------|---------|
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli` or `claude-cli`; JSON config may supply it | — |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target deployment environment | — |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Target project identifier | — |
-| `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | Deployment execution ID | CI fallback |
+| `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | No | Deployment execution ID; explicit and CI values take precedence | Project key + UTC timestamp + UUID |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version / git SHA | CI fallback |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Yes | Harness Memory API endpoint | — |
-| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_TOKEN` |
+| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_KEY` |
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
+| `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Repository-relative paths; JSON config and SDK accept `excludePaths` arrays | — |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
+| `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and target to stderr | `false` |
+| `--debug` | `HARNESS_MEMORY_DEBUG` | No | Print timings and redacted diagnostics to stderr | `false` |
 
 ## EXIT CODES
 
 | Code | Name | Cause |
 |------|------|-------|
-| `0` | `SUCCESS` | Snapshot published or already active |
-| `2` | `USAGE_OR_CONFIG` | Invalid options or forbidden flags (`--tenant`, `--token`) |
-| `3` | `CONTEXT_COLLECTION` | Git error, symlink escape, or size limit |
-| `4` | `LLM_EXECUTION` | Child process failure or timeout |
-| `5` | `VALIDATION` | Schema 1.0 violation or bad counts |
-| `6` | `API_AUTH` | 401 unauthenticated or 403 scope error |
-| `7` | `CONFLICT` | 409 conflicting deployment identity |
-| `8` | `API_SERVER_OR_RETRY_EXHAUSTED` | 5xx or exhausted retries |
-| `130` | `INTERRUPTED` | SIGINT / SIGTERM signal |
+| `0` | `SUCCESS` | Published or validated |
+| `0` | `NO_CHANGES` | Documentation matches the active baseline; no snapshot was created |
+| `2` | `USAGE_OR_CONFIG` | Invalid options |
+| `3` | `CONTEXT_COLLECTION` | Git, path, or budget failure |
+| `4` | `LLM_EXECUTION` | Runner failure |
+| `5` | `VALIDATION` | Invalid graph |
+| `6` | `API_AUTH` | 401/403 |
+| `7` | `CONFLICT` | 409 |
+| `8` | `API_SERVER_OR_RETRY_EXHAUSTED` | Server failure |
+| `130` | `INTERRUPTED` | Signal |
 
 ## BEST PRACTICES
 
-REQUIRED: Provide credentials via `HARNESS_MEMORY_API_TOKEN`; forbidden flags (`--tenant`, `--token`) exit with code 2.
-REQUIRED: Sanitize child LLM process environment and stdin to prevent token leakage.
-REQUIRED: Check symlink targets before reading file contents to prevent filesystem traversal.
-REQUIRED: Handle backpressure on stdin stream using `drain` events during chunked transfer.
-PROHIBITED: Publishing knowledge snapshots over interactive MCP tool channels.
-PROHIBITED: Retrying on HTTP 400, 401, 403, or 409 response codes.
-
-## TIPS
-
-Run with `--dry-run` in pre-merge checks to validate LLM synthesis and schema conformance without mutating remote state.
+REQUIRED: Default to `HARNESS_MEMORY_API_KEY`; pass alternatives through `--token-env` or programmatic `token`. Reject `--tenant` and `--token` with exit code 2.
+REQUIRED: Sanitize child LLM environments, keep symlinks inside the repository, and honor stdin backpressure.
+PROHIBITED: Publish snapshots through MCP or retry HTTP 400, 401, 403, or 409 responses.
 
 ## DOCUMENT MAP
 

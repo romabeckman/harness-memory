@@ -15,11 +15,13 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
 | [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
 | [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Recommended |
+| [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters for knowledge tables, tenants, projects, and snapshots. | Optional |
 | [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication boundary for CI/CD deployments and environment snapshots. | Optional |
+| [**scopes.md**](./feature/api/scopes.md) | API and MCP scope permissions, credential boundaries, and current route exceptions. | Optional |
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
 | [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
-| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Bounded entity discovery from the active project snapshot. | Optional |
+| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Project lookup and bounded entity discovery from active snapshots. | Optional |
 | [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Environment context, pipeline publication, and snapshot comparison. | Optional |
 | [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis over bounded consumers. | Optional |
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |
@@ -31,7 +33,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | Database-backed bearer authentication for MCP clients. | Optional |
-| [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | Snapshot Publisher TypeScript CLI and SDK for CI/CD pipeline deployments. | Optional |
+| [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | SDK target preflight, publication, document comparison, and line-level revision history. | Optional |
 
 ## Recommended Reading Order
 

@@ -40,6 +40,8 @@ services:
       MCP_HOST: 0.0.0.0
       MCP_PORT: "8000"
       MCP_AUTH_MODE: database
+      API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
+      HARNESS_MEMORY_API_KEY: ${HARNESS_MEMORY_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -51,13 +53,18 @@ services:
   api:
     build:
       context: .
-    command: ["uvicorn", "api.server.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    command: ["uvicorn", "api.server.app:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
     environment:
       DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       APP_PORT: "8080"
       API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
+      HARNESS_MEMORY_API_KEY: ${HARNESS_MEMORY_API_KEY:-}
     ports:
       - "8080:8080"
+    volumes:
+      - ./api:/app/api
+      - ./core:/app/core
+      - ./harness_memory_mcp:/app/harness_memory_mcp
     healthcheck:
       test:
         [

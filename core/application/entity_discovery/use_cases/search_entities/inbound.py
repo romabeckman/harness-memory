@@ -31,6 +31,16 @@ class SearchEntitiesInput(BaseModel):
         StrictStr | None,
         Field(max_length=255, description="Match one project key exactly."),
     ] = None
+    query: Annotated[
+        StrictStr | None,
+        Field(
+            max_length=255,
+            description=(
+                "Find this literal phrase in entity keys, names, or metadata content, "
+                "ignoring case."
+            ),
+        ),
+    ] = None
     limit: StrictInt = Field(
         default=25,
         ge=1,
@@ -47,7 +57,7 @@ class SearchEntitiesInput(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    @field_validator("key", "name", "project")
+    @field_validator("key", "name", "project", "query")
     @classmethod
     def trim_text_filter(cls, value: str | None) -> str | None:
         if value is None:

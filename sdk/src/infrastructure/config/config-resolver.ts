@@ -1,13 +1,17 @@
 import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
+import { isLlmAgentType } from "../../domain/llm-agent.js";
 
 const ALLOWED_FLAGS = new Set([
+  "--agent",
   "--model",
   "--effort",
   "--environment",
   "--project-key",
+  "--tenant-id",
   "--deployment-id",
   "--version",
   "--api-url",
@@ -20,14 +24,15 @@ const ALLOWED_FLAGS = new Set([
   "--timeout",
   "--max-files",
   "--max-bytes",
+  "--exclude-paths",
   "--dry-run",
   "--output",
   "--verbose",
+  "--debug",
 ]);
 
 const FORBIDDEN_FLAGS = new Set([
   "--tenant",
-  "--tenant-id",
   "--token",
   "--prompt",
   "--interactive",
@@ -39,6 +44,7 @@ const FORBIDDEN_FLAGS = new Set([
 export interface ResolvedCliConfig extends PublishSnapshotOptions {
   outputFormat: "json" | "text";
   configPath: string;
+  debug: boolean;
 }
 
 export class ConfigResolver {
@@ -61,6 +67,17 @@ export class ConfigResolver {
       fileConfig.model ||
       "";
 
+    const agent =
+      parsedCli["--agent"] ||
+      env.HARNESS_MEMORY_AGENT ||
+      fileConfig.agent;
+    if (!agent) throw new ConfigurationError("agent is required");
+    if (!isLlmAgentType(agent)) {
+      throw new ConfigurationError(
+        `agent must be one of: codex-cli, claude-cli; received '${agent}'`
+      );
+    }
+
     const effort =
       (parsedCli["--effort"] ||
         env.HARNESS_MEMORY_EFFORT ||
@@ -79,6 +96,15 @@ export class ConfigResolver {
       fileConfig.projectKey ||
       "";
 
+    const tenantId =
+      parsedCli["--tenant-id"] ||
+      env.HARNESS_MEMORY_TENANT_ID ||
+      fileConfig.tenantId;
+    if (tenantId !== undefined &&
+      (typeof tenantId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId))) {
+      throw new ConfigurationError("tenant-id must be a UUID");
+    }
+
     const deploymentId =
       parsedCli["--deployment-id"] ||
       env.HARNESS_MEMORY_DEPLOYMENT_ID ||
@@ -87,7 +113,7 @@ export class ConfigResolver {
       env.GITHUB_RUN_ID ||
       env.BUILD_ID ||
       env.CI_JOB_ID ||
-      "";
+      this.createDeploymentId(projectKey);
 
     const version =
       parsedCli["--version"] ||
@@ -107,9 +133,9 @@ export class ConfigResolver {
       parsedCli["--token-env"] ||
       env.HARNESS_MEMORY_TOKEN_ENV ||
       fileConfig.tokenEnv ||
-      "HARNESS_MEMORY_API_TOKEN";
+      "HARNESS_MEMORY_API_KEY";
 
-    const token = env[tokenEnv] || undefined;
+    const token = env[tokenEnv];
 
     const repository =
       parsedCli["--repository"] ||
@@ -134,8 +160,7 @@ export class ConfigResolver {
     const llmCommand =
       parsedCli["--llm-command"] ||
       env.HARNESS_MEMORY_LLM_COMMAND ||
-      fileConfig.llmCommand ||
-      "codex";
+      fileConfig.llmCommand;
 
     const rawTimeout =
       parsedCli["--timeout"] ||
@@ -163,6 +188,16 @@ export class ConfigResolver {
       "10485760";
     const maxBytes = Number.parseInt(String(rawMaxBytes), 10);
 
+    const rawExcludePaths: unknown = parsedCli["--exclude-paths"] ??
+      env.HARNESS_MEMORY_EXCLUDE_PATHS ?? fileConfig.excludePaths;
+    if (rawExcludePaths !== undefined && typeof rawExcludePaths !== "string" &&
+      (!Array.isArray(rawExcludePaths) || rawExcludePaths.some((path) => typeof path !== "string"))) {
+      throw new ConfigurationError("excludePaths must be a comma-separated string or an array of strings");
+    }
+    const excludePaths = typeof rawExcludePaths === "string"
+      ? rawExcludePaths.split(",").map((path) => path.trim())
+      : rawExcludePaths;
+
     const dryRun =
       parsedCli["--dry-run"] === "true" ||
       env.HARNESS_MEMORY_DRY_RUN === "true" ||
@@ -173,6 +208,11 @@ export class ConfigResolver {
       env.HARNESS_MEMORY_VERBOSE === "true" ||
       fileConfig.verbose === true;
 
+    const debug =
+      parsedCli["--debug"] === "true" ||
+      env.HARNESS_MEMORY_DEBUG === "true" ||
+      fileConfig.debug === true;
+
     const outputRaw =
       parsedCli["--output"] ||
       env.HARNESS_MEMORY_OUTPUT ||
@@ -180,10 +220,12 @@ export class ConfigResolver {
     const outputFormat = outputRaw === "text" ? "text" : "json";
 
     return {
+      agent,
       model,
       effort,
       environment,
       projectKey,
+      tenantId,
       deploymentId,
       version,
       apiUrl,
@@ -195,8 +237,10 @@ export class ConfigResolver {
       timeout,
       maxFiles,
       maxBytes,
+      excludePaths,
       dryRun,
       verbose,
+      debug,
       outputFormat,
       configPath,
     };
@@ -232,7 +276,7 @@ export class ConfigResolver {
         throw new ConfigurationError(`Unknown flag: '${flag}'`);
       }
 
-      if (flag === "--dry-run" || flag === "--verbose") {
+      if (flag === "--dry-run" || flag === "--verbose" || flag === "--debug") {
         result[flag] = "true";
         continue;
       }
@@ -263,5 +307,10 @@ export class ConfigResolver {
         `Failed to parse config file at '${configPath}': ${err.message}`
       );
     }
+  }
+
+  private createDeploymentId(projectKey: string): string {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `${projectKey}-${timestamp}-${randomUUID()}`;
   }
 }

@@ -20,12 +20,13 @@ def test_input_accepts_each_discovery_filter_and_defaults_limit():
     assert SearchEntitiesInput(name=" Payments ").name == "Payments"
     assert SearchEntitiesInput(type="api").type is EntityType.API
     assert SearchEntitiesInput(project=" payments ").project == "payments"
+    assert SearchEntitiesInput(query=" database ").query == "database"
     assert SearchEntitiesInput(key="x").limit == 25
 
 
 @pytest.mark.parametrize(
     "payload",
-    [{"key": "  "}, {"name": "  "}, {"project": "  "}],
+    [{"key": "  "}, {"name": "  "}, {"project": "  "}, {"query": "  "}],
 )
 def test_input_rejects_blank_text_filter(payload):
     with pytest.raises(ValidationError):
@@ -40,7 +41,7 @@ def test_input_accepts_missing_filters_for_tool_boundary_validation():
         EntitySearchCriteria()
 
 
-@pytest.mark.parametrize("field", ["key", "name", "project"])
+@pytest.mark.parametrize("field", ["key", "name", "project", "query"])
 def test_input_rejects_text_outside_bounds(field):
     with pytest.raises(ValidationError):
         SearchEntitiesInput(**{field: "x" * 256})
@@ -59,16 +60,28 @@ def test_input_rejects_unknown_fields_and_unsupported_type():
         SearchEntitiesInput(type="database")
 
 
-def test_criteria_normalizes_exact_filters_and_literal_name_prefix():
+def test_criteria_normalizes_exact_filters_and_literal_search_terms():
     criteria = EntitySearchCriteria(
-        key="Payments-API", name="Payments_%", type=EntityType.API, project="Company/Payments"
+        key="Payments-API", name="Payments_%", type=EntityType.API,
+        project="Company/Payments", query=" PostgreSQL_% "
     )
 
     assert criteria.key == "Payments-API"
     assert criteria.name == "payments_%"
     assert criteria.type is EntityType.API
     assert criteria.project == "Company/Payments"
-    assert criteria.name_like == "payments\\_\\%"
+    assert criteria.name_like == "payments!_!%"
+    assert criteria.query_like == "postgresql!_!%"
+
+
+def test_criteria_escapes_like_markers_without_using_backslash():
+    criteria = EntitySearchCriteria(
+        name=r"Rate_%!\X", project=r"Project_%!\X", query=r"DB_%!\X"
+    )
+
+    assert criteria.name_like == r"rate!_!%!!\x"
+    assert criteria.project == r"Project_%!\X"
+    assert criteria.query_like == r"db!_!%!!\x"
 
 
 def test_search_item_is_bounded_and_page_is_immutable():

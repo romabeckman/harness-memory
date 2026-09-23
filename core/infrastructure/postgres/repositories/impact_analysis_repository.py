@@ -26,6 +26,7 @@ from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresImpactAnalysisRepository:
@@ -175,7 +176,7 @@ class PostgresImpactAnalysisRepository:
                 Project,
                 and_(
                     Project.id == Entity.project_id,
-                    Project.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Project.tenant_id),
                 ),
             )
             .join(
@@ -183,12 +184,12 @@ class PostgresImpactAnalysisRepository:
                 and_(
                     Snapshot.id == Entity.snapshot_id,
                     Snapshot.project_id == Entity.project_id,
-                    Snapshot.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Snapshot.tenant_id),
                 ),
             )
             .where(
                 or_(Entity.id == entity_id, Entity.identity_id == entity_id),
-                Entity.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Entity.tenant_id),
                 Project.active_snapshot_id == Entity.snapshot_id,
             )
         ).first()
@@ -370,7 +371,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type.in_(self._DEPENDENCY_TYPES),
                 target_node,
             )
@@ -428,7 +429,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type.in_(PostgresImpactAnalysisRepository._DEPENDENCY_TYPES),
                 target_node.in_(current_ids),
                 source_node.not_in(tuple(visited)),
@@ -513,7 +514,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 (
                     Relation.source_entity_id.in_(entity_ids)
                     | Relation.source_identity_id.in_(entity_ids)
@@ -563,7 +564,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                Relation.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type == RelationType.OWNED_BY.value,
                 target.entity_type == EntityType.TEAM.value,
                 ranked.c.impact_owner_rank <= owner_limit + 1,
@@ -600,7 +601,7 @@ class PostgresImpactAnalysisRepository:
             rows = session.execute(
                 select(Evidence)
                 .where(
-                    Evidence.tenant_id == scope.tenant_id,
+                    tenant_scope_predicate(scope, Evidence.tenant_id),
                     Evidence.relation_id == relation_id,
                 )
                 .order_by(Evidence.id.asc())

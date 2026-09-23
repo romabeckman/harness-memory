@@ -21,9 +21,13 @@ async def test_search_tool_delegates_and_maps_success():
     )
 
     async with Client(server) as client:
-        result = await client.call_tool("search_entities", {"request": {"key": "payments"}})
+        result = await client.call_tool(
+            "search_entities", {"request": {"key": "payments", "query": "database"}}
+        )
 
     assert result.data == {"items": [], "count": 0, "limit": 25, "next_cursor": None}
+    _, criteria, _, _ = repository.search.call_args.args
+    assert criteria.query == "database"
 
 
 @pytest.mark.asyncio
@@ -48,7 +52,7 @@ async def test_search_tool_is_registered_and_returns_stable_empty_success():
     "payload",
     [
         {},
-        {"key": None, "name": None, "type": None, "project": None},
+        {"key": None, "name": None, "type": None, "project": None, "query": None},
     ],
 )
 @pytest.mark.asyncio

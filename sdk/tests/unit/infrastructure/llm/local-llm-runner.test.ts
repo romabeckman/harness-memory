@@ -2,8 +2,20 @@ import { describe, expect, it } from "vitest";
 import { LocalLlmRunner } from "../../../../src/infrastructure/llm/local-llm-runner.js";
 import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js";
 import { RepositoryContext } from "../../../../src/application/ports/git-context-collector.port.js";
+import { Writable } from "node:stream";
+import { AgentRunnerFactory } from "../../../../src/infrastructure/llm/agent-runner-factory.js";
 
 describe("LocalLlmRunner", () => {
+  it("removes backpressure listeners after every drained write", async () => {
+    const stdin = new Writable({ highWaterMark: 1, write(_chunk, _encoding, callback) { setImmediate(callback); } });
+    const runner = new LocalLlmRunner();
+    await (runner as any).streamPayloadToStdin(stdin, {
+      projectKey: "demo", environment: "test", context: { commitSha: "a", headRef: "HEAD", diffs: [],
+        files: Array.from({ length: 30 }, (_, i) => ({ path: `${i}.ts`, content: "content", sha256: "hash" })) },
+    });
+    expect(stdin.listenerCount("error")).toBe(0);
+    expect(stdin.listenerCount("drain")).toBe(0);
+  });
   const runner = new LocalLlmRunner();
   const dummyContext: RepositoryContext = {
     commitSha: "abc1234",
@@ -12,9 +24,23 @@ describe("LocalLlmRunner", () => {
     diffs: [],
   };
 
+  it("rejects an oversized Codex prompt before launching the executable", async () => {
+    const missingRunner = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "codex-cli", command: "non-existent-executable-987654321",
+      buildArgs: () => [], parseOutput: (stdout) => stdout,
+    }]));
+    await expect(missingRunner.run({
+      agent: "codex-cli", model: "test-model", effort: "high",
+      timeoutSeconds: 5,
+      projectKey: "catalog", environment: "staging",
+      context: { ...dummyContext, files: [{ path: "large.ts", sha256: "abc", content: "x".repeat(1_048_576) }] },
+    })).rejects.toThrow(/Codex input.*1048576.*--exclude-paths/);
+  });
+
   it("fails with LlmExecutionError when executable is not found", async () => {
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "gpt-5",
         effort: "high",
         llmCommand: "non-existent-executable-987654321",
@@ -24,6 +50,26 @@ describe("LocalLlmRunner", () => {
         context: dummyContext,
       })
     ).rejects.toThrow(LlmExecutionError);
+  });
+
+  it("reports the resolved default executable when it is not found", async () => {
+    const executable = "non-existent-default-executable-987654321";
+    const missingRunner = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "codex-cli",
+      command: executable,
+      buildArgs: () => [],
+      parseOutput: (stdout) => stdout,
+    }]));
+
+    await expect(missingRunner.run({
+      agent: "codex-cli",
+      model: "test-model",
+      effort: "high",
+      timeoutSeconds: 5,
+      projectKey: "catalog",
+      environment: "staging",
+      context: dummyContext,
+    })).rejects.toThrow(`LLM executable not found: '${executable}'`);
   });
 
   it("runs node script as fake llm and parses json stdout", async () => {
@@ -43,6 +89,7 @@ describe("LocalLlmRunner", () => {
     `;
 
     const doc = await runner.run({
+      agent: "codex-cli",
       model: "test-model",
       effort: "medium",
       llmCommand: process.execPath, // node
@@ -65,6 +112,7 @@ describe("LocalLlmRunner", () => {
 
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "test-model",
         effort: "low",
         llmCommand: process.execPath,
@@ -85,6 +133,7 @@ describe("LocalLlmRunner", () => {
 
     await expect(
       runner.run({
+        agent: "codex-cli",
         model: "test-model",
         effort: "low",
         llmCommand: process.execPath,
@@ -125,6 +174,7 @@ describe("LocalLlmRunner", () => {
     };
 
     const doc = await runner.run({
+      agent: "codex-cli",
       model: "test-model",
       effort: "medium",
       llmCommand: process.execPath,

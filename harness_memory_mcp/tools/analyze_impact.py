@@ -134,8 +134,9 @@ def register_analyze_impact(
                     max_result_bytes=max_result_bytes,
                 ),
             )
+            scope = TenantScope(context.tenant_id, context.is_admin)
             if audited_operation is None:
-                result = handler.execute(request, TenantScope(context.tenant_id))
+                result = handler.execute(request, scope)
             else:
                 principal = tenant_context.security_context.current() or AuthenticatedPrincipal(
                     subject="in-process",
@@ -143,7 +144,7 @@ def register_analyze_impact(
                     scopes=frozenset({"memory:impact"}),
                 )
                 result = audited_operation.execute(
-                    operation=lambda: handler.execute(request, TenantScope(context.tenant_id)),
+                    operation=lambda: handler.execute(request, scope),
                     principal=principal,
                     request_id=None,
                     event_type=AuditEventType.IMPACT_ANALYSIS,

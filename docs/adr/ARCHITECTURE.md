@@ -1,7 +1,7 @@
 ---
 doc_type: adr
 domain: architecture
-stack: [Python 3.12+, TypeScript 5.x, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
+stack: [Python 3.12+, TypeScript 7.x, FastAPI, FastMCP 4.x, Pydantic 2.x, SQLAlchemy 2.x, PostgreSQL, Alembic, Docker, OpenTelemetry]
 node_id: "adr:architecture"
 tags: [architecture, design-patterns, folder-structure]
 edges:
@@ -11,7 +11,7 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "adr:tests"
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # Project Architecture
 
@@ -56,7 +56,7 @@ harness-memory/
 REQUIRED: Inject repository ports and boundary services through constructors or explicit handler arguments.
 REQUIRED: Keep API PostgreSQL adapters in `core/infrastructure/postgres`; keep SQLAlchemy out of `api/domain` and `api/application`.
 REQUIRED: Verify API-issued MCP tokens by stored digest, active lifetime, and owning user.
-REQUIRED: Keep graph queries tenant-scoped and active-snapshot bounded.
+REQUIRED: Keep graph queries active-snapshot bounded and apply tenant filters when supplied.
 REQUIRED: Keep pipeline publication independent of CI providers through the TypeScript SDK or REST API.
 PROHIBITED: Import FastAPI, FastMCP, SQLAlchemy, PostgreSQL drivers, or infrastructure implementations into domain code.
 PROHIBITED: Let prompts execute business logic or MCP tools mutate graph facts outside complete snapshot publication.

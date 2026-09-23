@@ -6,17 +6,33 @@ import {
   LlmInvocationOptions,
   LlmRunnerPort,
 } from "../../application/ports/llm-runner.port.js";
+import { AgentRunnerFactory } from "./agent-runner-factory.js";
 
 const MAX_STDOUT_BYTES = 50 * 1024 * 1024;
 const MAX_STDERR_BYTES = 1 * 1024 * 1024;
+const MAX_CODEX_INPUT_CHARS = 1_048_576;
 
 export interface ExtendedLlmInvocationOptions extends LlmInvocationOptions {
   commandArgs?: string[];
 }
 
 export class LocalLlmRunner implements LlmRunnerPort {
+  constructor(private readonly agentRunnerFactory = new AgentRunnerFactory()) {}
+
   public async run(options: ExtendedLlmInvocationOptions): Promise<GraphDocument> {
-    let execPath = options.llmCommand.trim();
+    const agentRunner = this.agentRunnerFactory.create(options.agent);
+    if (options.agent === "codex-cli" &&
+      (!options.llmCommand?.trim() || /(?:^|[\\/\s])codex(?:\.cmd|\.exe)?(?:\s|$)/i.test(options.llmCommand))) {
+      let inputChars = 0;
+      for (const chunk of this.payloadChunks(options)) inputChars += chunk.length;
+      if (inputChars > MAX_CODEX_INPUT_CHARS) {
+        throw new LlmExecutionError(
+          `Codex input has ${inputChars} characters, exceeding the ${MAX_CODEX_INPUT_CHARS} character limit. ` +
+          "Use --exclude-paths with explicit source paths to reduce the context."
+        );
+      }
+    }
+    let execPath = options.llmCommand?.trim() || agentRunner.command;
     let baseArgs: string[] = [];
 
     if (!existsSync(execPath)) {
@@ -31,13 +47,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
       }
     }
 
-    const args = options.commandArgs ?? [
-      ...baseArgs,
-      "--model",
-      options.model,
-      "--effort",
-      options.effort,
-    ];
+    const args = options.commandArgs ?? [...baseArgs, ...agentRunner.buildArgs(options)];
 
     // Minimal sanitized environment strictly excluding tokens and secrets
     const safeEnv: Record<string, string> = {};
@@ -92,7 +102,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
         if (err.code === "ENOENT") {
           reject(
             new LlmExecutionError(
-              `LLM executable not found: '${options.llmCommand}'`
+              `LLM executable not found: '${execPath}'`
             )
           );
         } else {
@@ -149,7 +159,16 @@ export class LocalLlmRunner implements LlmRunnerPort {
           );
         }
 
-        const trimmed = stdout.trim();
+        let trimmed: string;
+        try {
+          trimmed = agentRunner.parseOutput(stdout).trim();
+        } catch (err: any) {
+          return reject(
+            err instanceof LlmExecutionError
+              ? err
+              : new LlmExecutionError(`Failed to read ${agentRunner.type} output`)
+          );
+        }
         if (!trimmed) {
           return reject(new LlmExecutionError("LLM process emitted empty stdout"));
         }
@@ -197,17 +216,33 @@ export class LocalLlmRunner implements LlmRunnerPort {
         if (canContinue) {
           resolve();
         } else {
-          stdin.once("drain", resolve);
-          stdin.once("error", reject);
+          const cleanup = () => {
+            stdin.removeListener("drain", drained);
+            stdin.removeListener("error", failed);
+            stdin.removeListener("close", closed);
+          };
+          const drained = () => { cleanup(); resolve(); };
+          const failed = (error: Error) => { cleanup(); reject(error); };
+          const closed = () => { cleanup(); resolve(); };
+          stdin.once("drain", drained);
+          stdin.once("error", failed);
+          stdin.once("close", closed);
         }
       });
     };
 
+    for (const chunk of this.payloadChunks(options)) await writeChunk(chunk);
+    stdin.end();
+  }
+
+  private *payloadChunks(options: ExtendedLlmInvocationOptions): Generator<string> {
     const envelope = {
-      instruction:
+      instruction: options.instruction ??
         "Generate a complete environment knowledge graph for the given repository and project. Output strictly one JSON document matching schema_version 1.0.",
       project_key: options.projectKey,
       environment: options.environment,
+      baseline_graph: options.baselineGraph,
+      documentation_graph: options.documentationGraph,
       context: {
         commit_sha: options.context.commitSha,
         base_ref: options.context.baseRef,
@@ -218,7 +253,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
 
     const envelopeStr = JSON.stringify(envelope);
     const prefix = (envelopeStr.endsWith("}}") ? envelopeStr.slice(0, -2) : envelopeStr.slice(0, -1)) + ',"files":[';
-    await writeChunk(prefix);
+    yield prefix;
 
     const files = options.context.files;
     for (let i = 0; i < files.length; i++) {
@@ -229,11 +264,10 @@ export class LocalLlmRunner implements LlmRunnerPort {
         content: f.content,
       });
       const separator = i === files.length - 1 ? "" : ",";
-      await writeChunk(fileJson + separator);
+      yield fileJson + separator;
     }
 
-    await writeChunk("]}}");
-    stdin.end();
+    yield "]}}";
   }
 
   private redact(message: string): string {

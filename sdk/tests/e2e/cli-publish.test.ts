@@ -1,19 +1,77 @@
 import { createServer, Server } from "node:http";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it, afterEach, beforeEach, vi } from "vitest";
 import { CliApp } from "../../src/cli/cli-app.js";
 import { ExitCode } from "../../src/domain/exit-code.js";
+import { MemoryGraph } from "../../src/application/memory/memory-graph.js";
+import { LocalDocsStore } from "../../src/infrastructure/memory/local-docs-store.js";
 
 describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   let server: Server;
   let serverUrl: string;
   let apiCalls: number;
+  let baselineCalls: number;
+  let targetValidationCalls: number;
+  let temporary: string;
+  let repository: string;
   let lastRequestBody: any;
+  let baselineGraph: unknown;
 
   beforeEach(async () => {
     apiCalls = 0;
+    baselineCalls = 0;
+    targetValidationCalls = 0;
+    baselineGraph = undefined;
+    temporary = mkdtempSync(join(tmpdir(), "memory-cli-e2e-"));
+    repository = join(temporary, "repository");
+    execFileSync("git", ["clone", "--local", "--quiet", resolve("../"), repository]);
     server = createServer((req, res) => {
-      apiCalls++;
+      if (req.method === "GET" && req.url?.startsWith("/v1/knowledge-publications/latest?")) {
+        baselineCalls++;
+        if (baselineGraph) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ graph: baselineGraph }));
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
+        return;
+      }
+      if (req.method === "GET" && req.url) {
+        const url = new URL(req.url, "http://localhost");
+        if (url.pathname === "/v1/projects") {
+          targetValidationCalls++;
+          const projects = url.searchParams.get("key") === "missing-project"
+            ? []
+            : [{ id: "project-1", key: url.searchParams.get("key"),
+                 tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" }];
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(projects));
+          return;
+        }
+        if (url.pathname === "/v1/environments") {
+          targetValidationCalls++;
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify([]));
+          return;
+        }
+        if (url.pathname === "/v1/knowledge-publications") {
+          targetValidationCalls++;
+          const deploymentId = url.searchParams.get("deployment_id");
+          const existing = deploymentId === "version-conflict"
+            ? [{ deployment_id: deploymentId, version: "0.9.0" }]
+            : deploymentId === "already-dep"
+              ? [{ deployment_id: deploymentId, version: "v1.0.0" }]
+              : [];
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify(existing));
+          return;
+        }
+      }
+      if (req.method === "POST") apiCalls++;
       let data = "";
       req.on("data", (chunk) => {
         data += chunk;
@@ -69,6 +127,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
   afterEach(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    rmSync(temporary, { recursive: true, force: true });
   });
 
   it("AC 1: publishes valid graph through API and exits 0", async () => {
@@ -78,7 +137,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       stdout: (msg) => stdoutLines.push(msg),
       stderr: (msg) => stderrLines.push(msg),
       env: {
-        HARNESS_MEMORY_API_TOKEN: "valid-publish-token",
+        HARNESS_MEMORY_API_KEY: "valid-publish-token",
       },
     });
 
@@ -86,6 +145,8 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
     const code = await app.run([
       "publish",
+      "--agent", "codex-cli",
+      "--debug",
       "--model",
       "gpt-5",
       "--effort",
@@ -101,7 +162,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
       "--output",
@@ -110,9 +171,93 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
 
     expect(code).toBe(ExitCode.SUCCESS);
     expect(apiCalls).toBe(1);
+    expect(baselineCalls).toBe(1);
+    expect(targetValidationCalls).toBe(3);
+    const targetValidationIndex = stderrLines.findIndex(line => line.includes("Validating publication target"));
+    const collectionIndex = stderrLines.findIndex(line => line.includes("Collecting repository context"));
+    expect(targetValidationIndex).toBeGreaterThanOrEqual(0);
+    expect(targetValidationIndex).toBeLessThan(collectionIndex);
+    expect(lastRequestBody).not.toHaveProperty("project_memory");
+    expect(lastRequestBody.tenant_id).toBe("b0377492-0f1c-4a7e-ab65-e30c2424fd57");
+    expect(lastRequestBody.metadata.nodes.some((node: any) => node.path === "docs/feature/sdk/snapshot-publisher.md")).toBe(true);
+    expect(lastRequestBody.entities.some((entity: any) => entity.type === "feature" && entity.metadata.content)).toBe(true);
+    expect(lastRequestBody.entities.every((entity: any) => !["docs/README.md", "docs/BUSINESS.md", "docs/.graph.json"].includes(entity.metadata?.path))).toBe(true);
     const parsedStdout = JSON.parse(stdoutLines.join("\n"));
     expect(parsedStdout.status).toBe("ACTIVATED");
     expect(parsedStdout.project_key).toBe("payments");
+    expect(stderrLines).toEqual(expect.arrayContaining([
+      "→ Checking publication settings...",
+      "✓ Checking publication settings",
+      "→ Collecting repository context...",
+      "→ Fetching previous snapshot and building knowledge graph...",
+      "→ Validating knowledge graph...",
+      "→ Publishing snapshot...",
+      "✓ Publishing snapshot",
+    ]));
+    expect(stderrLines.join("\n")).toContain("[debug] Memory: model graph entities=");
+  });
+
+  it("rejects unknown project key before collecting repository context", async () => {
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "missing-project",
+      "--deployment-id", "missing-project-1", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository,
+    ]);
+
+    expect(code).toBe(ExitCode.USAGE_OR_CONFIG);
+    expect(targetValidationCalls).toBe(1);
+    expect(baselineCalls).toBe(0);
+    expect(apiCalls).toBe(0);
+    expect(stderrLines.join("\n")).toContain(
+      "Project key 'missing-project' was not found. Create the project before publishing."
+    );
+    expect(stderrLines.join("\n")).not.toContain("Collecting repository context");
+  });
+
+  it("rejects deployment ID reuse for a different version before context collection", async () => {
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments",
+      "--deployment-id", "version-conflict", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository,
+    ]);
+
+    expect(code).toBe(ExitCode.CONFLICT);
+    expect(targetValidationCalls).toBe(3);
+    expect(baselineCalls).toBe(0);
+    expect(apiCalls).toBe(0);
+    expect(stderrLines.join("\n")).toContain("Use a new deployment ID.");
+    expect(stderrLines.join("\n")).not.toContain("Collecting repository context");
+  });
+
+  it("explains how to generate docs when a repository has no documentation", async () => {
+    rmSync(join(repository, "docs"), { recursive: true, force: true });
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--debug", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments", "--deployment-id", "missing-docs-1",
+      "--version", "v1.0.0", "--api-url", serverUrl, "--repository", repository,
+      "--llm-command", `node ${resolve("tests/fixtures/fake-llm.cjs")}`,
+    ]);
+
+    expect(code).toBe(ExitCode.USAGE_OR_CONFIG);
+    expect(apiCalls).toBe(0);
+    expect(baselineCalls).toBe(0);
+    expect(existsSync(join(repository, "docs"))).toBe(false);
+    expect(existsSync(join(repository, ".docs"))).toBe(false);
+    expect(stderrLines.join("\n")).toMatch(/project has no documentation.*project-memory.*https:\/\/github.com\/romabeckman\/harness-kit/i);
   });
 
   it("AC 5: returns ALREADY_PUBLISHED and exits 0 on duplicate deployment", async () => {
@@ -120,12 +265,13 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const app = new CliApp({
       stdout: (msg) => stdoutLines.push(msg),
       stderr: () => {},
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
 
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -141,7 +287,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
       "--output",
@@ -153,17 +299,43 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(parsedStdout.status).toBe("ALREADY_PUBLISHED");
   });
 
+  it("reports unchanged documentation and skips snapshot publication", async () => {
+    baselineGraph = new MemoryGraph().seed(new LocalDocsStore().read(repository), "baseline");
+    const stdoutLines: string[] = [];
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: message => stdoutLines.push(message),
+      stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments",
+      "--deployment-id", "unchanged-docs-new-deployment", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository, "--output", "json",
+    ]);
+
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(baselineCalls).toBe(1);
+    expect(apiCalls).toBe(0);
+    expect(targetValidationCalls).toBe(3);
+    const result = JSON.parse(stdoutLines.join("\n"));
+    expect(result.status).toBe("NO_CHANGES");
+    expect(result.message).toBe("No documentation changes detected; no snapshot was created.");
+    expect(stderrLines.join("\n")).not.toContain("Publishing snapshot");
+  });
+
   it("AC 6: exits 7 on deployment conflict (409)", async () => {
     const stderrLines: string[] = [];
     const app = new CliApp({
       stdout: () => {},
       stderr: (msg) => stderrLines.push(msg),
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
 
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -179,7 +351,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       fakeLlmCommand,
     ]);
@@ -188,17 +360,18 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(stderrLines.some((l) => l.includes("Deployment conflict"))).toBe(true);
   });
 
-  it("AC 7: exits 5 without calling API when graph validation fails", async () => {
+  it("AC 7: never publishes invalid model output after reading baseline", async () => {
     const stderrLines: string[] = [];
     const app = new CliApp({
       stdout: () => {},
       stderr: (msg) => stderrLines.push(msg),
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     // In this test, we test that invalid graph output causes validator to reject
-    // and no API call is made
+    // and no publication POST is made
     const code = await app.run([
+      "--agent", "codex-cli",
       "--model",
       "gpt-5",
       "--effort",
@@ -214,14 +387,16 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "--api-url",
       serverUrl,
       "--repository",
-      resolve("../"),
+      repository,
       "--llm-command",
       process.execPath,
     ]);
 
     // When node runs without script args, it exits with invalid JSON / error -> exits 4 or 5
-    // But API was NOT called!
+    // Baseline read is permitted, publication is not.
     expect(apiCalls).toBe(0);
+    expect(baselineCalls).toBe(1);
+    expect([ExitCode.LLM_EXECUTION, ExitCode.VALIDATION]).toContain(code);
   });
 
   it("AC 9: exits 2 on unknown or forbidden flags", async () => {

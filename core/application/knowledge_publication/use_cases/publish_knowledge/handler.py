@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 from typing import Any
@@ -14,6 +15,10 @@ from core.application.knowledge_publication.use_cases.publish_knowledge.inbound 
 from core.application.knowledge_publication.use_cases.publish_knowledge.outbound import (
     PublishKnowledgeOutput,
 )
+from core.application.snapshot_publication.services.payload_hash_calculator import (
+    PayloadHashCalculator,
+)
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.domain.environment.value_objects.environment_name import EnvironmentName
 from core.domain.knowledge_publication.aggregates.knowledge_publication import (
     KnowledgePublication,
@@ -27,6 +32,7 @@ from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot impo
 from core.domain.snapshot_publication.entities.entity_fact import EntityFact
 from core.domain.snapshot_publication.entities.evidence_fact import EvidenceFact
 from core.domain.snapshot_publication.entities.relation_fact import RelationFact
+from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
 from core.domain.snapshot_publication.types.entity_type import EntityType
 from core.domain.snapshot_publication.types.provenance_kind import ProvenanceKind
 from core.domain.snapshot_publication.types.relation_type import RelationType
@@ -37,9 +43,6 @@ from core.domain.snapshot_publication.value_objects.project_key import ProjectKe
 from core.domain.snapshot_publication.value_objects.relation_reference import RelationReference
 from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.domain.snapshot_publication.value_objects.schema_version import SchemaVersion
-from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
-from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
-from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 
 
 def _normalize_entity(item: Any) -> EntityFact:
@@ -158,13 +161,17 @@ class PublishKnowledgeHandler:
         try:
             revision_val = int(input.version)
         except (ValueError, TypeError):
-            revision_val = int.from_bytes(sha256(input.version.encode()).digest()[:8], "big") % 2147483647 + 1
+            revision_val = (
+                int.from_bytes(sha256(input.version.encode()).digest()[:8], "big")
+                % 2147483647
+                + 1
+            )
 
         return ProjectKnowledgeSnapshot(
             schema_version=SchemaVersion("1.0"),
             project_key=ProjectKey(input.project_key),
             project_name=input.project_key,
-            project_metadata=MetadataObject({}),
+            project_metadata=MetadataObject(input.metadata),
             revision=Revision(revision_val),
             generated_at=GeneratedAt(datetime.now(timezone.utc)),
             entities=tuple(_normalize_entity(e) for e in input.entities),
@@ -174,15 +181,17 @@ class PublishKnowledgeHandler:
 
     def execute(self, input: PublishKnowledgeInput) -> PublishKnowledgeOutput:
         snapshot = self._build_snapshot(input)
-        content = snapshot_payload(snapshot)
-        content.pop("generated_at", None)
-        payload_hash = PayloadHashCalculator().calculate(content).value
         existing = self._publication_repository.find_by_deployment(
             project_key=input.project_key,
             env_name=input.environment_name,
             deployment_id=input.deployment_id,
             tenant_id=input.tenant_id,
         )
+        if existing is not None and existing.snapshot_revision is not None:
+            snapshot = replace(snapshot, revision=Revision(existing.snapshot_revision))
+        content = snapshot_payload(snapshot)
+        content.pop("generated_at", None)
+        payload_hash = PayloadHashCalculator().calculate(content).value
         if existing is not None and existing.status == PublicationStatus.COMPLETED:
             if existing.payload_hash is not None and existing.payload_hash != payload_hash:
                 raise RevisionConflict("deployment identity was reused with different content")

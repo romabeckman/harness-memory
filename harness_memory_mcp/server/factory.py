@@ -1,6 +1,7 @@
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.middleware import AuthMiddleware
+from sqlalchemy.orm import sessionmaker
 
 from core.application.snapshot_publication.use_cases.publish_project_snapshot.handler import (
     PublishProjectSnapshotHandler,
@@ -14,6 +15,9 @@ from core.infrastructure.postgres.engine_factory import PostgresEngineFactory
 from core.infrastructure.postgres.repositories.api_token_repository import ApiTokenRepository
 from core.infrastructure.postgres.repositories.entity_search_repository import (
     PostgresEntitySearchRepository,
+)
+from core.infrastructure.postgres.repositories.knowledge_read_repository import (
+    KnowledgeReadRepository,
 )
 from core.infrastructure.postgres.repositories.impact_analysis_repository import (
     PostgresImpactAnalysisRepository,
@@ -49,6 +53,7 @@ from harness_memory_mcp.services.component_scope_policy import (
     component_scope_auth,
 )
 from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
+from harness_memory_mcp.services.admin_token_verifier import AdminTokenVerifier
 from harness_memory_mcp.services.security_audit_middleware import (
     AuditingTokenVerifier,
     SecurityAuditMiddleware,
@@ -62,6 +67,7 @@ from harness_memory_mcp.tools.get_context import register_get_context
 from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
 from harness_memory_mcp.tools.get_environment import register_get_environment
 from harness_memory_mcp.tools.search_entities import register_search_entities
+from harness_memory_mcp.tools.search_projects import register_search_projects
 
 
 def create_mcp_server(
@@ -71,6 +77,7 @@ def create_mcp_server(
     repository=None,
     search_handler=None,
     search_repository=None,
+    project_search_repository=None,
     entity_search_handler=None,
     entity_search_repository=None,
     relationship_repository=None,
@@ -129,7 +136,9 @@ def create_mcp_server(
                 postgres = PostgresSettings(database_url=settings.database_url)
                 engine = PostgresEngineFactory.create(postgres)
                 api_token_repository = ApiTokenRepository(engine=engine)
-            auth_provider = DatabaseTokenVerifier(api_token_repository)
+            auth_provider = DatabaseTokenVerifier(api_token_repository,
+                admin_token=settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
+                read_api_key=settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
         else:
             auth_provider = JWTVerifier(
                 jwks_uri=str(settings.mcp_jwks_uri),
@@ -138,6 +147,11 @@ def create_mcp_server(
                 algorithm="RS256",
             )
             auth_provider.logger.disabled = True
+            if settings.api_admin_token or settings.harness_memory_api_key:
+                auth_provider = AdminTokenVerifier(
+                    auth_provider,
+                    settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
+                    settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )
@@ -165,6 +179,16 @@ def create_mcp_server(
 
     server = FastMCP(
         name="harness-memory",
+        instructions=(
+            "Discover project records with search_projects. Use key for an exact project "
+            "key or query for a partial key or name. A project without an active snapshot "
+            "has no current graph data. For facts, use search_entities with the exact "
+            "project key and a short query phrase; query searches entity keys, names, and "
+            "metadata content, including document sections. Use get_context on selected "
+            "entity IDs to inspect matching facts. search_entities reads active snapshots. "
+            "If a search is empty, verify the project with search_projects and try a more "
+            "specific entity key or content phrase before reporting the fact as unknown."
+        ),
         auth=auth_provider,
         lifespan=lifespan_manager.lifespan if lifespan_manager is not None else None,
     )
@@ -207,6 +231,20 @@ def create_mcp_server(
             )
 
             environment_repository = PostgresEnvironmentRepository(engine=engine)
+    if (
+        project_search_repository is None
+        and settings is not None
+        and settings.database_url is not None
+    ):
+        if engine is None:
+            engine = PostgresEngineFactory.create(
+                PostgresSettings(database_url=settings.database_url)
+            )
+            if lifespan_manager is not None:
+                lifespan_manager.attach_engine(engine)
+        project_search_repository = KnowledgeReadRepository(
+            sessionmaker(bind=engine, expire_on_commit=False)
+        )
     context = tenant_context or TenantContextProvider()
     server.middleware.append(TelemetryMiddleware(tracer=telemetry_tracer, tenant_context=context))
     if production and context.has_fixed_context():
@@ -264,6 +302,14 @@ def create_mcp_server(
         search_handler = SearchEntitiesHandler(search_repository)
     if search_handler is not None:
         register_search_entities(server, search_handler, context)
+    if project_search_repository is not None:
+        from core.application.entity_discovery.use_cases.search_projects.handler import (
+            SearchProjectsHandler,
+        )
+
+        register_search_projects(
+            server, SearchProjectsHandler(project_search_repository), context
+        )
     relationship_repository = relationship_repository or relationship_query_repository
     if relationship_repository is not None:
         from core.application.relationship_context.use_cases.get_context.handler import (

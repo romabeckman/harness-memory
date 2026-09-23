@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import uuid4
 
@@ -9,10 +10,10 @@ from sqlalchemy.pool import StaticPool
 from api.server.app import create_app
 from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
 from core.infrastructure.postgres.models.api_service_account import ApiServiceAccount
+from core.infrastructure.postgres.models.api_user import ApiUser
 from core.infrastructure.postgres.models.base import Base
+from core.infrastructure.postgres.models.project import Project
 from core.infrastructure.postgres.models.snapshot import Snapshot
-
-
 from core.infrastructure.postgres.models.tenant import Tenant
 
 
@@ -47,13 +48,21 @@ def _client(scopes: tuple[str, ...]) -> tuple[TestClient, str, str, sessionmaker
             )
         )
         session.commit()
-    return TestClient(create_app(factory, admin_token="admin-secret")), plaintext, tenant_id, factory
+    return (
+        TestClient(create_app(factory, admin_token="admin-secret")),
+        plaintext,
+        tenant_id,
+        factory,
+    )
 
 
 def test_management_routes_require_admin_bearer_token() -> None:
     client, _, _, _ = _client(("memory:read",))
 
-    assert client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).status_code == 401
+    assert (
+        client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).status_code
+        == 401
+    )
     assert (
         client.post(
             "/v1/users",
@@ -72,15 +81,59 @@ def test_management_routes_require_admin_bearer_token() -> None:
     )
 
 
+def test_admin_management_collections_support_search_filters_and_pagination() -> None:
+    client, _, tenant_id, _ = _client(("memory:read",))
+    admin = {"Authorization": "Bearer admin-secret"}
+    assert client.post(
+        "/v1/users", headers=admin,
+        json={"name": "Ada Lovelace", "email": "ada@example.com"},
+    ).status_code == 201
+    assert client.post(
+        "/v1/users", headers=admin,
+        json={"name": "Bob Jones", "email": "bob@example.com"},
+    ).status_code == 201
+
+    users = client.get("/v1/users", params={"q": "ada"}, headers=admin)
+    accounts = client.get(
+        "/v1/service-accounts", params={"tenant_id": tenant_id, "q": "pipeline"},
+        headers=admin,
+    )
+    tokens = client.get(
+        "/v1/tokens", params={"scope": "memory:read", "q": "pipeline"}, headers=admin
+    )
+
+    assert users.status_code == 200
+    assert [item["email"] for item in users.json()] == ["ada@example.com"]
+    assert accounts.status_code == 200
+    assert [item["name"] for item in accounts.json()] == ["pipeline"]
+    assert tokens.status_code == 200
+    assert [item["name"] for item in tokens.json()] == ["pipeline"]
+    assert client.get("/v1/users", params={"limit": 0}, headers=admin).status_code == 422
+
+
+def test_publish_scope_can_validate_target_metadata_without_general_graph_reads() -> None:
+    client, publisher, _, _ = _client(("memory:publish",))
+    headers = {"Authorization": f"Bearer {publisher}"}
+
+    assert client.get("/v1/projects", params={"key": "catalog"}, headers=headers).status_code == 200
+    assert client.get(
+        "/v1/environments", params={"project_key": "catalog", "name": "production"},
+        headers=headers,
+    ).status_code == 200
+    assert client.get(
+        "/v1/knowledge-publications",
+        params={"project_key": "catalog", "environment": "production", "deployment_id": "dep-1"},
+        headers=headers,
+    ).status_code == 200
+    assert client.get("/v1/entities", headers=headers).status_code == 403
+
+
 def test_publication_derives_tenant_from_publish_token_and_provisions_environment() -> None:
     client, plaintext, tenant_id, factory = _client(("memory:publish",))
 
     response = client.post(
         "/v1/knowledge-publications",
-        headers={
-            "Authorization": f"Bearer {plaintext}",
-            "X-Tenant-ID": "spoofed-tenant",
-        },
+        headers={"Authorization": f"Bearer {plaintext}"},
         json={
             "project_key": "catalog",
             "environment": "staging",
@@ -95,6 +148,172 @@ def test_publication_derives_tenant_from_publish_token_and_provisions_environmen
     assert response.status_code == 201
     with factory() as session:
         assert session.scalar(select(Snapshot.tenant_id)) == tenant_id
+
+
+def test_user_token_can_publish_for_its_tenant() -> None:
+    client, _, tenant_id, factory = _client(("memory:publish",))
+    user_id = uuid4()
+    token = "hm_user_publish"
+    with factory() as session:
+        session.add(ApiUser(id=user_id, tenant_id=tenant_id, name="Ada", email="ada@example.com"))
+        session.add(ApiAccessToken(id=uuid4(), user_id=user_id, name="publisher",
+            token_hash=sha256(token.encode()).hexdigest(), scopes=["memory:publish"],
+            expires_at=datetime.now(UTC) + timedelta(days=1)))
+        session.commit()
+    response = client.post("/v1/knowledge-publications",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"project_key": "catalog", "environment": "staging", "deployment_id": "user-1",
+              "version": "1", "entities": [], "relations": [], "evidence": []})
+    assert response.status_code == 201
+    with factory() as session:
+        assert session.scalar(select(Snapshot.tenant_id)) == tenant_id
+
+
+def test_user_and_service_tokens_can_read_and_publish_in_another_tenant() -> None:
+    client, service_token, owner_tenant_id, factory = _client(("memory:read", "memory:publish"))
+    target_tenant_id = uuid4()
+    user_id = uuid4()
+    user_token = "hm_cross_tenant_user"
+    with factory() as session:
+        session.add(Tenant(id=target_tenant_id, key="target", name="Target", status="active"))
+        session.add(Project(id=uuid4(), tenant_id=target_tenant_id, key="send", name="Send"))
+        session.add(ApiUser(id=user_id, tenant_id=owner_tenant_id, name="Ada", email="ada@example.com"))
+        session.add(ApiAccessToken(
+            id=uuid4(), user_id=user_id, name="cross-tenant publisher",
+            token_hash=sha256(user_token.encode()).hexdigest(),
+            scopes=["memory:read", "memory:publish"],
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+        ))
+        session.commit()
+
+    for token, deployment_id in ((service_token, "service-cross-tenant"), (user_token, "user-cross-tenant")):
+        headers = {"Authorization": f"Bearer {token}"}
+        projects = client.get("/v1/projects", params={"key": "send"}, headers=headers)
+        assert projects.status_code == 200
+        assert [project["tenant_id"] for project in projects.json()] == [str(target_tenant_id)]
+        assert client.get("/v1/tenants/current", headers=headers).json()["id"] == owner_tenant_id
+
+        published = client.post(
+            "/v1/knowledge-publications", headers=headers,
+            json={"tenant_id": str(target_tenant_id), "project_key": "send",
+                  "environment": "production", "deployment_id": deployment_id,
+                  "version": "v1", "entities": [], "relations": [], "evidence": []},
+        )
+        assert published.status_code == 201
+        snapshot = client.get(f"/v1/snapshots/{published.json()['snapshot_id']}", headers=headers)
+        assert snapshot.status_code == 200
+        assert snapshot.json()["tenant_id"] == str(target_tenant_id)
+        environments = client.get(
+            "/v1/environments", params={"tenant_id": str(target_tenant_id), "project_key": "send"},
+            headers=headers,
+        )
+        assert environments.status_code == 200
+        assert [item["tenant_id"] for item in environments.json()] == [str(target_tenant_id)]
+
+
+def test_admin_publication_requires_tenant_destination_in_body() -> None:
+    client, _, tenant_id, factory = _client(("memory:read",))
+    payload = {"project_key": "catalog", "environment": "staging", "deployment_id": "admin-1",
+               "version": "1", "entities": [], "relations": [], "evidence": []}
+    admin = {"Authorization": "Bearer admin-secret"}
+    assert client.post("/v1/knowledge-publications", headers=admin, json=payload).status_code == 400
+    assert client.post("/v1/knowledge-publications", headers=admin,
+        json={**payload, "tenant_id": "invalid"}).status_code == 422
+    assert client.post("/v1/knowledge-publications", headers=admin,
+        json={**payload, "tenant_id": str(uuid4())}).status_code == 404
+    response = client.post("/v1/knowledge-publications", headers=admin,
+        json={**payload, "tenant_id": tenant_id})
+    assert response.status_code == 201
+    with factory() as session:
+        assert session.scalar(select(Snapshot.tenant_id)) == tenant_id
+
+
+def test_read_scope_can_fetch_publication_baseline_but_cannot_publish() -> None:
+    client, read_token, tenant_id, _ = _client(("memory:read",))
+    params = {"project_key": "catalog", "environment": "staging"}
+    response = client.get("/v1/knowledge-publications/latest", params=params,
+        headers={"Authorization": f"Bearer {read_token}"})
+    assert response.status_code == 404
+    admin = {"Authorization": "Bearer admin-secret"}
+    assert client.get("/v1/knowledge-publications/latest", params=params,
+        headers=admin).status_code == 404
+
+
+def test_publish_scope_still_reads_baseline_for_incremental_publication() -> None:
+    client, token, _, _ = _client(("memory:publish",))
+    response = client.get("/v1/knowledge-publications/latest",
+        params={"project_key": "catalog", "environment": "staging"},
+        headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 404
+
+
+def test_data_reads_are_tenant_scoped_and_admin_selects_tenant() -> None:
+    client, token, tenant_id, _ = _client(("memory:read",))
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.get("/v1/tenants/current", headers=headers).json()["id"] == tenant_id
+    assert client.get("/v1/projects", headers=headers).json() == []
+    assert client.get("/v1/projects/missing", headers=headers).status_code == 404
+    assert client.get("/v1/snapshots/" + str(uuid4()), headers=headers).status_code == 404
+    admin = {"Authorization": "Bearer admin-secret"}
+    assert client.get("/v1/tenants/current", headers=admin).status_code == 400
+    assert [item["id"] for item in client.get("/v1/tenants", headers=admin).json()] == [tenant_id]
+    assert client.get("/v1/projects", headers=admin).json() == []
+
+
+def test_scoped_reader_and_admin_can_read_across_tenants() -> None:
+    client, publisher, tenant_id, factory = _client(("memory:read", "memory:publish"))
+    headers = {"Authorization": f"Bearer {publisher}"}
+    payload = {"project_key": "catalog", "environment": "staging", "deployment_id": "read-1",
+               "version": "1", "entities": [], "relations": [], "evidence": []}
+    published = client.post("/v1/knowledge-publications", headers=headers, json=payload)
+    assert published.status_code == 201
+    snapshot_id = published.json()["snapshot_id"]
+    assert client.get("/v1/projects", headers=headers).json()[0]["key"] == "catalog"
+    assert client.get("/v1/projects/catalog", headers=headers).json()["key"] == "catalog"
+    assert (
+        client.get("/v1/projects/catalog/snapshots", headers=headers).json()[0]["id"]
+        == snapshot_id
+    )
+    assert client.get(f"/v1/snapshots/{snapshot_id}", headers=headers).json()["payload"]
+
+    foreign_id = uuid4()
+    foreign_project_id = uuid4()
+    foreign_snapshot_id = uuid4()
+    with factory() as session:
+        session.add(Tenant(id=foreign_id, key="foreign", name="Foreign", status="active"))
+        session.add(
+            Project(
+                id=foreign_project_id,
+                tenant_id=foreign_id,
+                key="foreign",
+                name="Foreign",
+            )
+        )
+        session.add(
+            Snapshot(
+                id=foreign_snapshot_id,
+                tenant_id=foreign_id,
+                project_id=foreign_project_id,
+                revision=1,
+                schema_version="1.0",
+                payload_hash="f" * 64,
+                payload={"tenant": "foreign"},
+                metadata_json={},
+            )
+        )
+        session.commit()
+    admin_headers = {"Authorization": "Bearer admin-secret"}
+    admin_projects = client.get("/v1/projects", headers=admin_headers).json()
+    assert {item["key"] for item in admin_projects} == {"catalog", "foreign"}
+    assert {item["tenant_id"] for item in admin_projects} == {tenant_id, str(foreign_id)}
+    assert client.get(f"/v1/snapshots/{snapshot_id}", headers=admin_headers).status_code == 200
+    assert client.get(f"/v1/snapshots/{foreign_snapshot_id}", headers=headers).status_code == 200
+    admin_snapshot = client.get(
+        f"/v1/snapshots/{foreign_snapshot_id}", headers=admin_headers
+    ).json()
+    assert admin_snapshot["tenant_id"] == str(foreign_id)
+    assert client.get(f"/v1/tenants/{foreign_id}", headers=headers).status_code == 200
+    assert client.get(f"/v1/tenants/{foreign_id}", headers=admin_headers).status_code == 200
 
 
 def test_publication_rejects_missing_scope_and_invalid_fact_type() -> None:
@@ -143,12 +362,20 @@ def test_publication_allows_same_version_across_environments_and_rejects_changed
         "evidence": [{"source": "git:abc123", "excerpt": "deployed"}],
     }
 
-    assert client.post("/v1/knowledge-publications", headers=headers, json=payload).status_code == 201
+    assert (
+        client.post("/v1/knowledge-publications", headers=headers, json=payload).status_code
+        == 201
+    )
     production_payload = {**payload, "environment": "production", "deployment_id": "deploy-2"}
     assert (
-        client.post("/v1/knowledge-publications", headers=headers, json=production_payload).status_code
+        client.post(
+            "/v1/knowledge-publications", headers=headers, json=production_payload
+        ).status_code
         == 201
     )
     payload["entities"] = [{"key": "changed-api", "type": "service"}]
 
-    assert client.post("/v1/knowledge-publications", headers=headers, json=payload).status_code == 409
+    assert (
+        client.post("/v1/knowledge-publications", headers=headers, json=payload).status_code
+        == 409
+    )

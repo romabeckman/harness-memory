@@ -47,17 +47,20 @@ The MVP combines an MCP interface for contextual knowledge access with a persist
 
 ## CURRENT IMPLEMENTATION
 
-The API implements `POST /v1/knowledge-publications` for CI/CD publication. It requires
-an active tenant-bound service-account token with the exact `memory:publish` scope and
-derives tenant identity from that credential. A separate `API_ADMIN_TOKEN` protects all
-user, service-account, and token management routes.
+The API accepts active user or service-account tokens for scoped reads and
+complete snapshot publication. `memory:read` grants data reads; `memory:publish`
+grants publication. API and MCP accept the same bearer token. `API_ADMIN_TOKEN` grants
+full admin REST access. `HARNESS_MEMORY_API_KEY` grants global `memory:read` only. Other
+credentials must match active rows in `tokens` and use stored scopes. Data reads can span
+tenants; publication uses the selected destination tenant. The token owner's tenant
+remains part of the authenticated identity and the default publication destination.
 
-REQUIRED: Keep management and publication credentials separate.
+REQUIRED: Enforce stored scopes on ordinary tokens and reserve management for the admin token.
 PROHIBITED: Treat an unauthenticated tenant header or the default tenant as trusted authorization.
 
 ## REFERENCES
 
-- `docs/specs/harness-memory-environment-snapshots-v2.md`: Product scope for environment snapshots and publication.
+- `docs/specs/snapshot-publisher-sdk-pbb.md`: SDK publication product backlog and technical refinement.
 - `docs/feature/core/environment-snapshots.md`: Environment context, publication flow, and snapshot comparison.
 - `docs/feature/core/snapshot-publication.md`: Immutable snapshot activation and history rules.
 - `docs/feature/api/knowledge-publication.md`: Implemented REST publication contract.

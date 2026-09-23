@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from api.adapters.http.schemas.service_account_create import ServiceAccountCreate
 from api.adapters.http.schemas.service_account_response import ServiceAccountResponse
@@ -20,10 +20,23 @@ def create_service_account_router(service: ServiceAccountService) -> APIRouter:
         return ServiceAccountResponse(id=account.id, tenant_id=account.tenant_id, name=account.name)
 
     @router.get("", response_model=list[ServiceAccountResponse])
-    def list_service_accounts(tenant_id: UUID | None = None) -> list[ServiceAccountResponse]:
+    def list_service_accounts(
+        tenant_id: UUID | None = None,
+        name: str | None = None,
+        q: str | None = None,
+        limit: int = Query(100, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+    ) -> list[ServiceAccountResponse]:
+        accounts = service.list(tenant_id)
+        if name:
+            needle = name.casefold()
+            accounts = [item for item in accounts if needle in item.name.casefold()]
+        if q:
+            needle = q.casefold()
+            accounts = [item for item in accounts if needle in item.name.casefold()]
         return [
             ServiceAccountResponse(id=item.id, tenant_id=item.tenant_id, name=item.name)
-            for item in service.list(tenant_id)
+            for item in accounts[offset:offset + limit]
         ]
 
     @router.get("/{account_id}", response_model=ServiceAccountResponse)

@@ -135,3 +135,16 @@ def test_snapshot_resource_hides_foreign_tenant_snapshot():
     except ResourceNotFound:
         return
     raise AssertionError("foreign snapshot must be indistinguishable from missing snapshot")
+
+
+def test_admin_scope_reads_snapshot_across_tenants():
+    _, session_factory = _repository()
+    snapshot_id, _, _ = _seed_snapshot(session_factory)
+    result = PostgresMemoryResourceRepository(session_factory).load_snapshot(
+        SnapshotResourceInput(snapshot_id=snapshot_id),
+        TenantScope("*", is_admin=True),
+        ResourceReadBounds(),
+    )
+
+    assert result.snapshot.id == snapshot_id
+    assert result.facts.entities

@@ -18,16 +18,18 @@ edges:
   - relation: references
     target: "feature:api-tokens"
   - relation: references
+    target: "feature:api-knowledge-reads"
+  - relation: references
     target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # API Architecture
 
 ## PURPOSE
 
-`api/` exposes FastAPI endpoints for user, tenant-bound service-account, access-token,
+`api/` exposes FastAPI endpoints for user, service-account, access-token,
 and knowledge-publication operations. A static administrator bearer secret protects
 management routes. API-issued owner-bound tokens authorize MCP reads and API publication,
 but never management routes.
@@ -60,7 +62,7 @@ flowchart LR
 REQUIRED: Keep SQLAlchemy and database sessions out of `api/domain/` and `api/application/`.
 REQUIRED: Keep route functions thin and create route routers through injected application services.
 REQUIRED: Reuse `core/infrastructure/postgres` configuration, models, and repositories rather than creating an API-local database stack.
-PROHIBITED: Use API access tokens for REST management authentication.
+PROHIBITED: Use ordinary API access tokens for REST management authentication.
 
 ## HTTP SURFACE
 
@@ -74,27 +76,43 @@ PROHIBITED: Use API access tokens for REST management authentication.
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
 | POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
+| GET | `/v1/environments`, `/v1/knowledge-publications` | Search environment and publication records by target fields. |
+| GET | `/v1/knowledge-publications/latest` | Read the active baseline graph for a project and environment. |
+| GET | `/v1/snapshots`, `/v1/entities`, `/v1/relations`, `/v1/evidence` | Search immutable snapshot facts with table-specific filters and bounded pagination. |
+| POST, GET | `/v1/tenants` | Admin creates tenants; scoped credentials read according to identity. |
+| GET, PATCH, DELETE | `/v1/tenants/{tenant_id}` | Read tenant; admin updates or deletes an empty tenant. |
+| GET | `/v1/tenants/current` | Read the authenticated tenant for owner-bound credentials. |
+| POST, GET | `/v1/projects` | Admin creates projects; credentials read within their access scope. |
+| GET, PATCH, DELETE | `/v1/projects/{project_key}` | Read project; admin updates or deletes a project without dependent data. |
+| GET | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history and payloads; filter by tenant when supplied. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
 Prefix management endpoints with `/v1`. Keep health and API documentation routes unversioned.
 
 Publication requests use the shared environment/publication handler. Require an active
-owner-bound token with the exact `memory:publish` scope, derive the tenant from its owner,
-and ignore caller-supplied tenant headers. The handler creates missing project and
-environment records during the first trusted publication.
+user or service-account token with `memory:publish`, or the admin token. Ordinary tokens
+may select body `tenant_id` and otherwise default to their owner's tenant. Admin
+publication requires body `tenant_id` as its write destination. The handler creates
+missing project and environment records on first publication.
 
-Require `API_ADMIN_TOKEN` for every REST management route. Keep health and generated API
-documentation public. Never accept API-issued user or service-account tokens as the
-management credential.
+Require `API_ADMIN_TOKEN` for every REST management route. `HARNESS_MEMORY_API_KEY` grants
+global `memory:read` for knowledge tables; identity and token metadata remain admin-only.
+Validate other bearers against shared `tokens` and apply their persisted scopes. Tokens
+with `memory:publish` may read project, environment, and publication target
+metadata for SDK preflight; other knowledge-table reads still require `memory:read`. API
+and MCP accept the same token value.
+Keep health and generated API documentation public. Never accept API-issued user or
+service-account tokens as the management credential.
 
 ## TOKEN HANDOFF TO MCP
 
 Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
-The verifier hashes the presented bearer token and asks the shared token repository for
-an active record and its owner. The owner supplies trusted subject and tenant context;
-the token supplies only its explicitly persisted scopes. MCP accepts read/impact scopes,
-while the publication API accepts the exact `memory:publish` scope.
+The verifier hashes an ordinary bearer token and asks the shared token repository for
+an active record and owner. Owner type does not change eligible permissions. The owner
+supplies a default tenant context; the token supplies its persisted scopes. General reads require
+`memory:read`; publication requires `memory:publish`. Target metadata reads used by SDK
+preflight accept either scope. The baseline also accepts `memory:publish` for publishers.
 
 ## DOCUMENT MAP
 

@@ -37,7 +37,7 @@ def register_project_resource(
             decoded_key = unquote(project_key)
             request = ProjectResourceInput(project_key=decoded_key)
             context = tenant_context.require_scope("memory:read")
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

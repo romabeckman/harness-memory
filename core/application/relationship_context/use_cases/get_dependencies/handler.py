@@ -31,7 +31,8 @@ class GetDependenciesHandler:
             scope = tenant_scope
         else:
             try:
-                scope = TenantScope(getattr(tenant_scope, "tenant_id", ""))
+                scope = TenantScope(getattr(tenant_scope, "tenant_id", ""),
+                                    getattr(tenant_scope, "is_admin", False))
             except (TypeError, ValueError, AttributeError):
                 raise MissingTenantContext("trusted tenant context is required") from None
         input_model = (

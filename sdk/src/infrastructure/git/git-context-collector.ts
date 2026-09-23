@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { isAbsolute, normalize, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   CollectedFile,
@@ -60,7 +60,18 @@ export class GitContextCollector implements GitContextCollectorPort {
     headRef: string;
     maxFiles: number;
     maxBytes: number;
+    excludePaths?: string[];
   }): Promise<RepositoryContext> {
+    const excludedPaths = (options.excludePaths ?? []).map((path) => {
+      const normalizedPath = path.replace(/\\/g, "/").replace(/\/$/, "");
+      const segments = normalizedPath.split("/");
+      if (!normalizedPath || isAbsolute(path) || /^[A-Za-z]:/.test(path) ||
+        segments.some((segment) => !segment || segment === "." || segment === "..") ||
+        segments[0].toLowerCase() === "docs") {
+        throw new ContextCollectionError(`Invalid source exclusion: '${path}'`);
+      }
+      return normalizedPath;
+    });
     const resolvedRepoPath = resolve(options.repository);
     let repoPath: string;
     try {
@@ -158,6 +169,9 @@ export class GitContextCollector implements GitContextCollectorPort {
     const normalizedFiles = trackedFiles
       .map((f) => f.replace(/\\/g, "/"))
       .filter((filePath) => {
+        if (excludedPaths.some((path) => filePath === path || filePath.startsWith(`${path}/`))) {
+          return false;
+        }
         if (EXCLUDED_DIR_PATTERNS.some((p) => p.test(filePath))) {
           return false;
         }

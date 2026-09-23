@@ -1,9 +1,14 @@
 from collections.abc import Callable
+from dataclasses import replace
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from core.application.snapshot_publication.services.payload_hash_calculator import (
+    PayloadHashCalculator,
+)
+from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.domain.environment.value_objects.environment_name import EnvironmentName
 from core.domain.knowledge_publication.aggregates.knowledge_publication import (
     KnowledgePublication as DomainKnowledgePublication,
@@ -15,18 +20,58 @@ from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot impo
     ProjectKnowledgeSnapshot,
 )
 from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
+from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.knowledge_publication import (
     KnowledgePublication as ModelKnowledgePublication,
 )
 from core.infrastructure.postgres.models.project import Project as ModelProject
-from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import SnapshotPersistenceMapper
-from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 from core.infrastructure.postgres.models.snapshot import Snapshot as ModelSnapshot
-from core.application.snapshot_publication.services.payload_hash_calculator import PayloadHashCalculator
+from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import (
+    SnapshotPersistenceMapper,
+)
 
 
 class PostgresKnowledgePublicationRepository:
+    def load_latest_graph(
+        self, project_key: str, environment: str, tenant_id: str | None = None
+    ) -> dict:
+        with self._session_factory() as session:
+            statement = (
+                select(ModelSnapshot)
+                .join(
+                    ModelEnvironment,
+                    (ModelEnvironment.current_snapshot_id == ModelSnapshot.id)
+                    & (ModelEnvironment.id == ModelSnapshot.environment_id)
+                    & (ModelEnvironment.project_id == ModelSnapshot.project_id)
+                    & (ModelEnvironment.tenant_id == ModelSnapshot.tenant_id),
+                )
+                .join(
+                    ModelProject,
+                    (ModelProject.id == ModelSnapshot.project_id)
+                    & (ModelProject.tenant_id == ModelSnapshot.tenant_id),
+                )
+                .where(ModelProject.key == project_key, ModelEnvironment.name == environment)
+            )
+            if tenant_id is not None:
+                statement = statement.where(ModelSnapshot.tenant_id == tenant_id)
+            rows = session.scalars(statement).all()
+            if not rows:
+                raise LookupError("publication baseline not found")
+            if len(rows) > 1:
+                raise ValueError("publication baseline matches multiple tenants; provide tenant_id")
+            row = rows[0]
+            graph = {
+                key: row.payload[key]
+                for key in ("schema_version", "entities", "relations", "evidence")
+            }
+            graph["metadata"] = row.metadata_json
+            return {
+                "snapshot_id": str(row.id),
+                "payload_hash": row.payload_hash,
+                "graph": graph,
+            }
+
     def __init__(
         self,
         session_factory: Callable[[], Session] | None = None,
@@ -35,6 +80,8 @@ class PostgresKnowledgePublicationRepository:
         mapper: SnapshotPersistenceMapper | None = None,
     ) -> None:
         if session_factory is None and engine is not None:
+            if engine.dialect.name == "postgresql":
+                engine = engine.execution_options(isolation_level="READ COMMITTED")
             session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         if session_factory is None:
             raise ValueError("session_factory or engine is required")
@@ -66,8 +113,9 @@ class PostgresKnowledgePublicationRepository:
                 )
             )
             result = session.execute(
-                stmt.with_only_columns(ModelKnowledgePublication, ModelSnapshot.payload_hash)
-                .outerjoin(
+                stmt.with_only_columns(
+                    ModelKnowledgePublication, ModelSnapshot.payload_hash, ModelSnapshot.revision
+                ).outerjoin(
                     ModelSnapshot,
                     (ModelSnapshot.id == ModelKnowledgePublication.snapshot_id)
                     & (ModelSnapshot.tenant_id == ModelKnowledgePublication.tenant_id),
@@ -75,7 +123,7 @@ class PostgresKnowledgePublicationRepository:
             ).first()
             if result is None:
                 return None
-            row, payload_hash = result
+            row, payload_hash, snapshot_revision = result
 
             return DomainKnowledgePublication(
                 id=PublicationId(row.id),
@@ -86,6 +134,7 @@ class PostgresKnowledgePublicationRepository:
                 status=PublicationStatus(row.status),
                 snapshot_id=row.snapshot_id,
                 payload_hash=payload_hash,
+                snapshot_revision=snapshot_revision,
             )
 
     def save(self, publication: DomainKnowledgePublication, tenant_id: str) -> None:
@@ -148,16 +197,28 @@ class PostgresKnowledgePublicationRepository:
                     session.flush()
 
                 env = session.scalars(
-                    select(ModelEnvironment).where(
+                    select(ModelEnvironment)
+                    .where(
                         ModelEnvironment.tenant_id == tenant_id,
                         ModelEnvironment.id == environment_id,
                     )
+                    .with_for_update()
                 ).first()
                 if env is None:
                     raise ValueError(f"environment {environment_id} not found")
 
+                latest_revision = session.scalar(
+                    select(func.max(ModelSnapshot.revision)).where(
+                        ModelSnapshot.tenant_id == tenant_id,
+                        ModelSnapshot.project_id == proj.id,
+                        ModelSnapshot.environment_id == env.id,
+                    )
+                )
+                rebased = latest_revision is not None and snapshot.revision.value <= latest_revision
+                if rebased:
+                    snapshot = replace(snapshot, revision=Revision(latest_revision + 1))
                 payload_hash = publication.payload_hash
-                if payload_hash is None:
+                if payload_hash is None or rebased:
                     content = snapshot_payload(snapshot)
                     content.pop("generated_at", None)
                     payload_hash = self._hash_calculator.calculate(content).value

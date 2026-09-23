@@ -21,7 +21,7 @@ edges:
 updated: 2026-09-21
 ---
 # API Users
-Manage human API identities that also provide the default tenant identity for user-owned MCP tokens.
+Manage human API identities whose tenant binding scopes user-owned tokens.
 
 ```graph
 {
@@ -81,10 +81,10 @@ tests/{unit,integration,e2e}/   # Service, persistence, and HTTP checks
 REQUIRED: Trim names and reject empty values.
 REQUIRED: Trim emails, lowercase them, and reject invalid values.
 REQUIRED: Reject duplicate email ownership with a conflict.
-REQUIRED: Use the user UUID as `tenant_id` for user-owned MCP identity.
+REQUIRED: Use the user's tenant binding as `tenant_id` for user-owned credentials.
 REQUIRED: Keep token deletion coupled to user deletion through database cascade.
 PROHIBITED: Put normalization or duplicate checks in route functions.
-PROHIBITED: Change a user's UUID to change tenant identity.
+PROHIBITED: Let a token request override the user's tenant binding.
 
 ## INPUTS AND OUTPUTS
 

@@ -1,6 +1,6 @@
 from typing import Callable
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Text, and_, cast, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
@@ -14,6 +14,7 @@ from core.application.entity_discovery.value_objects.search_cursor import Search
 from ..models.entity import Entity
 from ..models.project import Project
 from ..models.snapshot import Snapshot
+from .tenant_scope_predicate import tenant_scope_predicate
 
 
 class PostgresEntitySearchRepository:
@@ -68,9 +69,9 @@ class PostgresEntitySearchRepository:
     ):
         stable_entity_id = func.coalesce(Entity.identity_id, Entity.id)
         predicates = [
-            Project.tenant_id == scope.tenant_id,
-            Entity.tenant_id == scope.tenant_id,
-            Snapshot.tenant_id == scope.tenant_id,
+            tenant_scope_predicate(scope, Project.tenant_id),
+            tenant_scope_predicate(scope, Entity.tenant_id),
+            tenant_scope_predicate(scope, Snapshot.tenant_id),
             Entity.project_id == Project.id,
             Entity.snapshot_id == Project.active_snapshot_id,
             Entity.snapshot_id == Snapshot.id,
@@ -80,18 +81,25 @@ class PostgresEntitySearchRepository:
         if criteria.key is not None:
             predicates.append(Entity.entity_key == criteria.key)
         if criteria.project is not None:
-            predicates.append(
-                func.lower(Project.key).like(f"{criteria.project_like}%", escape="\\")
-            )
+            predicates.append(Project.key == criteria.project)
         if criteria.type is not None:
             predicates.append(Entity.entity_type == criteria.type.value)
         if criteria.name_like is not None:
             predicates.append(
                 or_(
-                    func.lower(Entity.name).like(f"{criteria.name_like}%", escape="\\"),
+                    func.lower(Entity.name).like(f"{criteria.name_like}%", escape="!"),
                     func.lower(Entity.entity_key).like(
-                        f"{criteria.name_like}%", escape="\\"
+                        f"{criteria.name_like}%", escape="!"
                     ),
+                )
+            )
+        if criteria.query_like is not None:
+            pattern = f"%{criteria.query_like}%"
+            predicates.append(
+                or_(
+                    func.lower(Entity.entity_key).like(pattern, escape="!"),
+                    func.lower(Entity.name).like(pattern, escape="!"),
+                    func.lower(cast(Entity.metadata_json, Text)).like(pattern, escape="!"),
                 )
             )
         if cursor is not None:

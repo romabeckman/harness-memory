@@ -51,6 +51,7 @@ def test_principal_factory_and_scope_policy_are_deny_by_default():
     assert policy.required_scope("tool", "compare_environments") == "memory:read"
     assert policy.required_scope("tool", "new_component") is None
     assert policy.can_access(result, "tool", "search_entities")
+    assert policy.can_access(result, "tool", "search_projects")
     assert not policy.can_access(result, "tool", "publish_project_snapshot")
     with pytest.raises(PermissionError):
         policy.authorize(result, "tool", "new_component")
@@ -92,6 +93,16 @@ def test_request_context_is_reset_for_success_failure_and_concurrency():
         return await asyncio.gather(run(first), run(second))
 
     assert asyncio.run(concurrent()) == ["tenant-a", "tenant-b"]
+
+
+def test_database_token_read_scope_uses_global_query_context_without_admin_privileges():
+    context = TenantContextProvider()
+    reader = principal(scopes=("memory:read", "memory:impact"))
+
+    with context.bind_principal(reader):
+        assert context.current_principal().is_admin is False
+        assert context.require_scope("memory:read").is_admin is True
+        assert context.require_scope("memory:impact").is_admin is False
 
 
 def test_audited_operation_blocks_on_attempt_and_records_completion():

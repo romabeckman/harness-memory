@@ -6,6 +6,7 @@ It performs this pipeline:
 
 ```text
 Git repository
+  -> API preflight for project, environment, and deployment target
   -> tracked source files and optional diff
   -> local LLM graph synthesis
   -> schema validation and canonical SHA-256
@@ -14,14 +15,20 @@ Git repository
 
 The SDK is the deterministic publication client. MCP is the read-only interface for querying the knowledge graph. Do not publish through MCP.
 
+Before collecting Git context for a real publication, the SDK validates target field
+formats and queries the API for the project, environment, and deployment ID. Unknown
+projects and deployment IDs reused with another version stop with a clear error. The first
+publication may create its environment. Dry runs skip API preflight.
+
 ## Prerequisites
 
 - Node.js 20 or newer.
 - npm.
 - A Git repository.
-- A local LLM command. The default command is `codex`.
+- A complete `docs/` folder generated with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit).
+- The selected local LLM command (`codex` or `claude`).
 - A running Harness Memory API for a real publication.
-- An active tenant-bound service-account token with the exact `memory:publish` scope.
+- An active user or service-account token with `memory:publish`.
 
 For local development, start the API from the repository root with Docker Compose:
 
@@ -54,7 +61,8 @@ The compiled CLI is `sdk/dist/cli/index.js`. To use the command name locally aft
 cd sdk
 npm link
 cd ..
-harness-memory publish \
+hrns-memo publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -69,9 +77,10 @@ harness-memory publish \
 Set the publication token in the environment. Never put it in a command argument, config file, source file, or log.
 
 ```bash
-export HARNESS_MEMORY_API_TOKEN='replace-with-service-account-token'
+export HARNESS_MEMORY_API_KEY='replace-with-issued-token'
 
 node sdk/dist/cli/index.js publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort high \
   --environment production \
@@ -97,6 +106,7 @@ Use dry run in pull-request or pre-merge validation. It collects the repository,
 
 ```bash
 node sdk/dist/cli/index.js publish \
+  --agent codex-cli \
   --model gpt-5 \
   --effort medium \
   --environment staging \
@@ -108,7 +118,7 @@ node sdk/dist/cli/index.js publish \
   --verbose
 ```
 
-Dry run still requires `model`, `effort`, `environment`, `project-key`, `deployment-id`, and `version`. It does not require `api-url` or a token.
+Dry run still requires `agent`, `model`, `effort`, `environment`, `project-key`, `deployment-id`, and `version`. It does not require `api-url` or a token.
 
 ## Configuration
 
@@ -125,6 +135,7 @@ Example `.harness-memory.json`:
 
 ```json
 {
+  "agent": "codex-cli",
   "model": "gpt-5",
   "effort": "high",
   "environment": "production",
@@ -132,11 +143,10 @@ Example `.harness-memory.json`:
   "deploymentId": "deploy-123",
   "version": "v1.2.3",
   "apiUrl": "https://memory.example.com",
-  "tokenEnv": "HARNESS_MEMORY_API_TOKEN",
+  "tokenEnv": "HARNESS_MEMORY_API_KEY",
   "repository": ".",
   "baseRef": "origin/main",
   "headRef": "HEAD",
-  "llmCommand": "codex",
   "timeout": 600,
   "maxFiles": 2000,
   "maxBytes": 10485760,
@@ -153,8 +163,8 @@ When values are absent, the resolver uses these fallbacks:
 - `version`: `CI_COMMIT_SHA`, `GITHUB_SHA`, then `GIT_COMMIT`.
 - `base-ref`: `CI_MERGE_REQUEST_DIFF_BASE_SHA`, then `GITHUB_BASE_REF`.
 - `head-ref`: `HEAD`.
-- `llm-command`: `codex`.
-- `token-env`: `HARNESS_MEMORY_API_TOKEN`.
+- `llm-command`: selected runner command (`codex` or `claude`).
+- `token-env`: `HARNESS_MEMORY_API_KEY` by default.
 - `timeout`: 600 seconds.
 - `max-files`: 2,000.
 - `max-bytes`: 10,485,760 bytes.
@@ -164,18 +174,20 @@ When values are absent, the resolver uses these fallbacks:
 
 | Flag | Environment variable | Required | Description |
 | --- | --- | --- | --- |
-| `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the LLM command. |
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli` or `claude-cli`; JSON config may also supply `agent`. |
+| `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the selected runner. |
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Stable project identifier. |
+| `--tenant-id` | `HARNESS_MEMORY_TENANT_ID` | No | Tenant UUID when the project key exists in multiple tenants. |
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | Yes | CI deployment execution identifier. |
 | `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version or commit identifier. |
 | `--api-url` | `HARNESS_MEMORY_API_URL` | Real publish only | API origin. |
-| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Environment variable containing token. Default: `HARNESS_MEMORY_API_TOKEN`. |
+| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Environment variable containing token. Default: `HARNESS_MEMORY_API_KEY`. |
 | `--repository` | `HARNESS_MEMORY_REPOSITORY` | No | Repository path. Default: `.`. |
 | `--base-ref` | `HARNESS_MEMORY_BASE_REF` | No | Git ref used to calculate the diff. |
 | `--head-ref` | `HARNESS_MEMORY_HEAD_REF` | No | Git ref to publish. Default: `HEAD`. |
-| `--llm-command` | `HARNESS_MEMORY_LLM_COMMAND` | No | LLM executable. Default: `codex`. |
+| `--llm-command` | `HARNESS_MEMORY_LLM_COMMAND` | No | Executable override for the selected runner. |
 | `--config` | `HARNESS_MEMORY_CONFIG` | No | JSON configuration path. |
 | `--timeout` | `HARNESS_MEMORY_TIMEOUT` | No | LLM timeout in seconds, from 1 to 3,600. |
 | `--max-files` | `HARNESS_MEMORY_MAX_FILES` | No | Maximum tracked files loaded into context. |
@@ -198,7 +210,7 @@ The publication step is independent of the CI provider. The pipeline must provid
 - name: Publish Harness Memory snapshot
   env:
     HARNESS_MEMORY_API_URL: ${{ secrets.HARNESS_MEMORY_API_URL }}
-    HARNESS_MEMORY_API_TOKEN: ${{ secrets.HARNESS_MEMORY_API_TOKEN }}
+    HARNESS_MEMORY_API_KEY: ${{ secrets.HARNESS_MEMORY_API_KEY }}
     HARNESS_MEMORY_ENVIRONMENT: production
     HARNESS_MEMORY_PROJECT_KEY: payments
     HARNESS_MEMORY_DEPLOYMENT_ID: ${{ github.run_id }}
@@ -207,6 +219,7 @@ The publication step is independent of the CI provider. The pipeline must provid
     npm --prefix sdk ci
     npm --prefix sdk run build
     node sdk/dist/cli/index.js publish \
+      --agent codex-cli \
       --model gpt-5 \
       --effort high \
       --output json
@@ -233,6 +246,7 @@ Default collection limits are 2,000 files and 10 MiB. Increase them only when th
 node sdk/dist/cli/index.js publish \
   --max-files 5000 \
   --max-bytes 52428800 \
+  --agent codex-cli \
   --model gpt-5 \
   --effort high \
   --environment production \
@@ -242,7 +256,7 @@ node sdk/dist/cli/index.js publish \
   --dry-run
 ```
 
-The child LLM process receives a sanitized environment. Variables whose names contain `TOKEN`, `SECRET`, `PASSWORD`, `KEY`, or `AUTH` are removed. The LLM must write one JSON graph document to stdout. Markdown fences, explanatory text, or empty stdout fail validation.
+The child LLM process receives a sanitized environment. Variables whose names contain `TOKEN`, `SECRET`, `PASSWORD`, `KEY`, or `AUTH` are removed. The selected runner extracts one final response, which must contain a JSON graph document. Markdown fences, explanatory text, or empty output fail validation.
 
 ## Graph contract
 
@@ -283,7 +297,13 @@ Authorization: Bearer <service-account-token>
 Content-Type: application/json
 ```
 
-The API derives tenant identity from the token owner. Tenant flags and tenant fields are not accepted by the SDK. These flags are deliberately rejected: `--tenant`, `--tenant-id`, `--token`, `--prompt`, `--interactive`, `--database`, `--db-url`, and `--postgres`.
+The SDK resolves the project's tenant during preflight and sends it with baseline and
+publication requests. Use `--tenant-id` when a project key appears in multiple tenants.
+Without `--tenant-id`, the API uses the token owner's tenant for direct publication.
+A `memory:publish` token may read project, environment, and publication target metadata
+across tenants for preflight; other graph reads still require `memory:read`.
+These flags are deliberately rejected: `--tenant`, `--token`, `--prompt`,
+`--interactive`, `--database`, `--db-url`, and `--postgres`.
 
 Use HTTPS for non-localhost API URLs. HTTP is allowed only for `localhost`, `127.0.0.1`, and `::1`.
 
@@ -312,7 +332,7 @@ The JSON result includes status, publication and snapshot identifiers when avail
 | `3` | Git context collection error | Check repository, refs, symlinks, and limits. |
 | `4` | LLM execution error | Check command, model, timeout, and pure JSON stdout. |
 | `5` | Graph validation error | Fix schema, keys, refs, types, or metadata. |
-| `6` | API authentication or scope error | Use an active tenant-bound token with `memory:publish`. |
+| `6` | API authentication or scope error | Use an active token with `memory:publish`. |
 | `7` | Deployment conflict | Use a new deployment ID or publish the original content. |
 | `8` | API failure or exhausted retries | Check API health, URL, network, and server logs. |
 | `130` | Interrupted by SIGINT or SIGTERM | Retry only when the deployment is safe to retry. |
@@ -325,23 +345,31 @@ The package exports the use case, ports, domain contracts, and default adapters:
 import {
   GraphValidator,
   GitContextCollector,
+  LocalDocsDirectory,
+  LocalDocsStore,
   LocalLlmRunner,
+  ProjectMemoryWorkflow,
+  PublicationBaselineClient,
   PublishSnapshotUseCase,
   RestPublicationClient,
 } from "@harness-memory/sdk";
 
 const apiUrl = process.env.HARNESS_MEMORY_API_URL;
-const token = process.env.HARNESS_MEMORY_API_TOKEN;
+const token = process.env.HARNESS_MEMORY_API_KEY;
 
 if (!apiUrl || !token) {
-  throw new Error("HARNESS_MEMORY_API_URL and HARNESS_MEMORY_API_TOKEN are required");
+  throw new Error("HARNESS_MEMORY_API_URL and HARNESS_MEMORY_API_KEY are required");
 }
 
+const runner = new LocalLlmRunner();
+const validator = new GraphValidator();
+const docs = new LocalDocsStore();
 const publisher = new PublishSnapshotUseCase(
   new GitContextCollector(),
-  new LocalLlmRunner(),
-  new GraphValidator(),
+  validator,
   new RestPublicationClient(),
+  new ProjectMemoryWorkflow(runner, new PublicationBaselineClient(), docs, validator),
+  new LocalDocsDirectory(),
 );
 
 const result = await publisher.execute({
@@ -350,6 +378,7 @@ const result = await publisher.execute({
   environment: "production",
   deploymentId: "deploy-123",
   version: "v1.2.3",
+  agent: "codex-cli",
   model: "gpt-5",
   effort: "high",
   headRef: "HEAD",

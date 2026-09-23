@@ -75,7 +75,7 @@ def register_find_integration_paths(
                     owner_limit=owner_limit,
                 ),
             )
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

@@ -46,7 +46,7 @@ The platform has two deliberate boundaries:
 
 | Boundary | Responsibility | Write access |
 | --- | --- | --- |
-| REST API | Manage users, service accounts, tokens, and CI/CD publications. | Management and complete snapshot publication. |
+| REST API | Manage identities, read project memory, and publish snapshots. | Full admin access; scoped data access for API-issued tokens. |
 | MCP over Streamable HTTP | Search, inspect, compare, and analyze stored knowledge. | Read-only. |
 
 MCP cannot create projects, users, tokens, resources, graph facts, or snapshots. The
@@ -73,12 +73,14 @@ Use these scopes:
 | --- | --- |
 | `memory:read` | Search, context, dependencies, paths, environments, comparisons, resources, and prompts. |
 | `memory:impact` | Analyze downstream consumers and change impact. |
-| `memory:publish` | REST publication by a tenant-bound service account. MCP has no write tool. |
+| `memory:publish` | Complete REST snapshot publication. MCP has no write tool. |
 
 ## Register users and generate tokens
 
-Management routes require the separate `API_ADMIN_TOKEN`. Never use it as an MCP or SDK
-publication token.
+`API_ADMIN_TOKEN` has full API privileges and no tenant owner. Admin data access spans
+tenants; an endpoint requires a target tenant only when its operation needs one, such as
+snapshot publication. Never use the admin token as an MCP or SDK credential. User and
+service-account tokens with the same scopes have the same data permissions.
 
 ```bash
 export API_BASE_URL='http://localhost:8080'
@@ -137,12 +139,15 @@ curl --fail --request POST "$API_BASE_URL/v1/tokens" \
     "service_account_id":"<SERVICE_ACCOUNT_ID>",
     "name":"CI publication",
     "expires_at":"2026-12-15T23:59:59Z",
-    "scopes":["memory:publish"]
+    "scopes":["memory:read", "memory:publish"]
   }'
 ```
 
+The SDK needs `memory:publish` to send a complete snapshot; its baseline endpoint accepts
+either `memory:read` or `memory:publish`. Add `memory:read` for general API or MCP reads.
 Service-account tokens may omit `expires_at`, but finite expiry and regular rotation are
-recommended. Store plaintext as `HARNESS_MEMORY_API_TOKEN` in the CI secret store.
+recommended. Store the SDK token as `HARNESS_MEMORY_API_KEY`; the SDK still accepts
+`HARNESS_MEMORY_API_TOKEN` as a legacy fallback.
 
 ## Register projects, environments, and resources
 
@@ -158,6 +163,9 @@ version:       <commit SHA or release version>
 
 The SDK sends complete `entities`, `relations`, and `evidence` arrays. The API validates
 the payload, creates an immutable snapshot, and activates it for the selected environment.
+The SDK also reads repository documentation and bootstraps its project-memory documents
+when needed. A normal run writes validated Markdown to the checkout before publishing;
+`--dry-run` skips local writes and publication.
 
 Keep `project_key` and environment names stable. Use a unique `deployment_id` for every
 CI execution. Repeating the same deployment with the same content returns

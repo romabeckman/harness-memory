@@ -21,7 +21,7 @@ edges:
     target: "feature:snapshot-publication"
     read: optional
     when: "Read when changing snapshot construction, activation, idempotency, or publication persistence."
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # API Knowledge Publication
 Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate it for a project environment.
@@ -41,6 +41,8 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "core/infrastructure/postgres/repositories/environment_repository.py"
   ],
   "code_files": [
+    "core/application/knowledge_publication/ports/publication_baseline_reader.py",
+    "core/application/knowledge_publication/use_cases/get_publication_baseline.py",
     "api/adapters/http/schemas/knowledge_publication_request.py",
     "api/adapters/http/schemas/knowledge_publication_response.py",
     "core/application/knowledge_publication/use_cases/publish_knowledge/inbound.py",
@@ -55,6 +57,9 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "migrations/versions/009_token_scopes_and_environment_revisions.py"
   ],
   "test_files": [
+    "tests/unit/api/adapters/http/test_publication_baseline_routes.py",
+    "tests/unit/core/application/knowledge_publication/use_cases/test_document_graph.py",
+    "tests/integration/core/infrastructure/postgres/repositories/test_publication_baseline.py",
     "tests/unit/api/adapters/http/test_knowledge_publication_routes.py",
     "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/unit/core/application/knowledge_publication/use_cases/test_publish_knowledge.py",
@@ -83,9 +88,11 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Item | Contract |
 |------|----------|
 | Method and path | `POST /v1/knowledge-publications` |
-| Header | Required `Authorization: Bearer <token>` with exact `memory:publish` scope. |
+| Header | `Authorization: Bearer <token>` with `memory:publish`, or the admin bearer. |
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
+| Admin destination | `tenant_id` in the JSON body; required only for `API_ADMIN_TOKEN` |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
+| Snapshot metadata | `metadata` JSON object; the SDK sends the generated `docs/.graph.json` object here. |
 | New publication | HTTP 201 with status `ACTIVATED` |
 | Completed retry | HTTP 200 with status `ALREADY_PUBLISHED` |
 | Divergent retry | HTTP 409 when the same deployment ID carries different content. |
@@ -94,11 +101,27 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 
 ## PUBLICATION RULES
 
-REQUIRED: Resolve project and environment inside the trusted tenant context.
-REQUIRED: Derive tenant identity from the token owner; never from headers or payloads.
+### Baseline read
+
+Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with `memory:read` or `memory:publish` to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `metadata`, `entities`, `relations`, `evidence`). The `metadata` field is the snapshot metadata, including the SDK's generated documentation graph index. Resolve the environment's current snapshot.
+
+REQUIRED: Query across tenants unless `tenant_id` is supplied; scope project/environment joins to that selected tenant when present. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
+
+### Graph-native documentation
+
+The SDK publishes `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Keep complete ADR, feature, and digest Markdown in entity metadata; keep the generated graph index in snapshot metadata. The API still accepts its existing entity enum for other clients.
+
+REQUIRED: Persist the graph index in `snapshots.metadata` and document facts in normalized entity/relation/evidence rows. Keep prior document versions in immutable snapshots and line revisions with Git merge conflict markers. Content and snapshot metadata changes participate in payload hashing and deployment-conflict checks. Existing database columns require no migration.
+
+### Activation
+
+REQUIRED: Resolve project and environment inside the selected destination tenant.
+REQUIRED: Accept body `tenant_id` from a token with `memory:publish`; otherwise default to its owner tenant. Admin publication requires a destination `tenant_id` in the body.
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
+REQUIRED: Allocate a distinct snapshot revision under the environment lock when another deployment already uses the version-derived revision. Hash the stored revision and compare retries against that revision.
+REQUIRED: Use PostgreSQL `READ COMMITTED` for the locked revision allocation so a transaction waiting on the environment lock sees earlier commits.
 REQUIRED: Create and promote the snapshot in one persistence operation.
 REQUIRED: Preserve deployment ID, version, publication ID, and snapshot ID.
 PROHIBITED: Treat a deployment as active before environment resolution succeeds.
@@ -106,9 +129,9 @@ PROHIBITED: Let callers mutate individual graph facts through this route.
 
 ## SECURITY BOUNDARY
 
-The publication credential is separate from `API_ADMIN_TOKEN`. Only an active API token
-owned by a tenant-bound identity and carrying exactly `memory:publish` can publish. User
-input cannot select or override the tenant.
+An active user or service-account token with `memory:publish` may publish to any
+existing tenant by setting body `tenant_id`; without it, the owner tenant is used.
+`API_ADMIN_TOKEN` requires body `tenant_id` to select the destination.
 
 ## DOCUMENT MAP
 

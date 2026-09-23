@@ -22,6 +22,7 @@ async def test_all_registered_tools_and_arguments_have_descriptions():
     server = create_mcp_server(
         handler=Mock(),
         search_repository=Mock(),
+        project_search_repository=Mock(),
         relationship_repository=Mock(),
         integration_path_repository=Mock(),
         impact_repository=Mock(),
@@ -33,6 +34,7 @@ async def test_all_registered_tools_and_arguments_have_descriptions():
 
     expected_tools = {
         "search_entities",
+        "search_projects",
         "get_context",
         "get_dependencies",
         "find_integration_paths",

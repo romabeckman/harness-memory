@@ -37,8 +37,9 @@ curl http://localhost:8080/health
 ## CREATE DEVELOPMENT CREDENTIALS
 
 Management routes require `API_ADMIN_TOKEN`. Use a **user token with `memory:read`** for
-interactive MCP work. Use a **tenant-bound service-account token with
-`memory:publish`** only in a CI pipeline that must publish snapshots.
+interactive MCP work. Use a **tenant-bound service-account token with `memory:publish`**
+for SDK or direct REST publication. Add `memory:read` when the credential also needs
+general API or MCP reads; the SDK's baseline endpoint accepts `memory:publish`.
 
 1. Export the administrator secret in the current shell:
 
@@ -75,8 +76,8 @@ For a local publication smoke test, create a separate service account. Copy the 
 account ID into `SERVICE_ACCOUNT_ID`, then keep the returned token as `PUBLISH_TOKEN`:
 
 ```bash
-# CORRECT: bind automation to one tenant and grant publication only
-export TENANT_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+# CORRECT: use an existing organization-approved tenant
+export TENANT_ID='paste-an-organization-approved-tenant-uuid'
 curl -X POST http://localhost:8080/v1/service-accounts \
   -H "Authorization: Bearer $API_ADMIN_TOKEN" \
   -H 'Content-Type: application/json' \
@@ -127,8 +128,8 @@ curl -X POST http://localhost:8080/v1/knowledge-publications \
 
 The first publication creates the project/environment pair when needed. An equivalent
 retry returns `ALREADY_PUBLISHED`; reusing a deployment ID with different content returns
-`409 Conflict`. The authenticated token supplies the tenant, so omit `tenant_id` and
-`X-Tenant-ID`.
+`409 Conflict`. The authenticated service-account token supplies the tenant, so omit
+`tenant_id` from this publication request.
 
 ## RUN TESTS LOCALLY
 

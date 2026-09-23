@@ -38,7 +38,7 @@ LLM client; CI/CD publishes verified project snapshots through the REST API or S
 | Explainable AI assistance | Preserve provenance and evidence so answers can be reviewed instead of accepted as guesses. |
 | Environment awareness | Compare staging and production snapshots and identify active project state. |
 | Repeatable delivery knowledge | Publish complete snapshots from CI/CD with version, deployment identity, and idempotent retries. |
-| Governed access | Separate administration, publication, and read-only MCP access with tenant-scoped tokens. |
+| Governed access | Separate administration, publication, and read-only MCP access with tenant-scoped user tokens and global admin access. |
 
 ## Core capabilities
 
@@ -71,8 +71,11 @@ docker compose up --build -d
 curl --fail http://localhost:8080/health
 ```
 
-Connect an MCP client at `http://localhost:8000/mcp`. Use an API-issued token with the
-minimum required scope; keep `API_ADMIN_TOKEN` for REST management only.
+Connect an MCP client at `http://localhost:8000/mcp`. Use the same bearer token for API
+and MCP. `API_ADMIN_TOKEN` grants full REST access; database credentials use stored scopes
+and owner tenant. `HARNESS_MEMORY_API_KEY` grants global read-only `memory:read` access
+when configured. Use it as the SDK client credential or provide another bearer token.
+Admin data calls read across tenants. Admin publication requires a `tenant_id` destination.
 
 Build and test the SDK:
 
@@ -155,6 +158,7 @@ The MCP surface is read-only and exposes the following tools:
 
 | Tool | Purpose |
 | --- | --- |
+| `search_projects` | Find project records and check for active snapshots. |
 | `search_entities` | Search known entities by key, name, type, or project. |
 | `get_context` | Retrieve bounded context around an entity. |
 | `get_dependencies` | Query inbound and outbound dependencies. |
@@ -182,7 +186,9 @@ review_change_impact
 ## Tech Stack
 
 - Python 3.12+
+- TypeScript 7.x and Node.js 20+ for the Snapshot Publisher SDK
 - FastMCP 4.x
+- Vitest 1.x for SDK tests
 - Pydantic
 - PostgreSQL 17
 - Alembic
@@ -281,7 +287,7 @@ that the database revision equals Alembic `head`; it never runs implicit migrati
 
 ## Database Migrations
 
-Schema migrations are managed by Alembic and run automatically before the MCP service starts.
+Schema migrations are managed by Alembic and run before the API and MCP services start.
 
 To run migrations manually:
 
@@ -373,7 +379,7 @@ to create a non-expiring service-account token. See the [API guide](api/README.m
 Send that value through `Authorization: Bearer <token>`. The MCP server hashes the
 value, accepts only an active stored token, and derives subject and tenant identity
 from its owner. API-issued tokens authenticate MCP reads and, for tenant-bound service
-accounts with the exact `memory:publish` scope, API publication requests. They never
+accounts or users with the `memory:publish` scope, API publication requests. They never
 authenticate REST management endpoints.
 
 ### Set the MCP token environment variable
@@ -384,7 +390,7 @@ the token secret; do not commit it or put it directly in the MCP configuration.
 On Windows, use PowerShell to create a persistent user environment variable:
 
 ```powershell
-setx HARNESS_MEMORY_TOKEN "<token>"
+setx HARNESS_MEMORY_API_KEY "<token>"
 ```
 
 Restart Codex so it reads the updated environment.
@@ -392,7 +398,7 @@ Restart Codex so it reads the updated environment.
 On Linux, export the variable in the shell that starts Codex:
 
 ```bash
-export HARNESS_MEMORY_TOKEN="<token>"
+export HARNESS_MEMORY_API_KEY="<token>"
 ```
 
 This applies to the current shell and its child processes. For Bash login sessions,
@@ -400,7 +406,7 @@ add the `export` line to `~/.profile`, then start a new login session.
 
 ### Claude Code
 
-Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_TOKEN` in the
+Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_API_KEY` in the
 environment before starting Claude Code:
 
 ```json
@@ -410,7 +416,7 @@ environment before starting Claude Code:
       "type": "http",
       "url": "http://localhost:8000/mcp",
       "headers": {
-        "Authorization": "Bearer ${HARNESS_MEMORY_TOKEN}"
+        "Authorization": "Bearer ${HARNESS_MEMORY_API_KEY}"
       }
     }
   }
@@ -422,13 +428,13 @@ run `/mcp` to check its connection. See the [Claude Code MCP documentation](http
 
 ### OpenAI Codex
 
-Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_TOKEN` in the
+Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_API_KEY` in the
 environment before starting Codex:
 
 ```toml
 [mcp_servers.harness-memory]
 url = "http://localhost:8000/mcp"
-bearer_token_env_var = "HARNESS_MEMORY_TOKEN"
+bearer_token_env_var = "HARNESS_MEMORY_API_KEY"
 ```
 
 The Codex CLI, desktop app, and IDE extension share this configuration. Run

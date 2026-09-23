@@ -63,7 +63,7 @@ Issue and revoke scoped opaque credentials while keeping plaintext outside persi
 
 Expose token lifecycle operations under `/v1/tokens`. The API owns issuance, explicit
 scope assignment, metadata updates, and revocation. MCP consumes read/impact credentials;
-the publication API consumes tenant-bound `memory:publish` credentials.
+the publication API consumes `memory:publish` credentials for the selected tenant.
 
 ## FOLDER STRUCTURE
 
@@ -101,9 +101,9 @@ PROHIBITED: Accept a second owner or silently select an owner.
 
 ## MCP HANDOFF
 
-The token repository locates active records by digest and expiry. User ownership supplies
-the user UUID as tenant identity; service-account ownership supplies its assigned tenant
-UUID. The verifier grants only persisted scopes; it never expands them implicitly.
+The token repository locates active records by digest and expiry. Either owner's tenant
+binding supplies tenant identity. User and service-account tokens have the same eligible
+scopes. The verifier grants only persisted scopes; it never expands them implicitly.
 
 ## DOCUMENT MAP
 

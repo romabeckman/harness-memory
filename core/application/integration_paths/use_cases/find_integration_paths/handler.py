@@ -23,7 +23,8 @@ class FindIntegrationPathsHandler:
         scope = (
             tenant_scope
             if isinstance(tenant_scope, TenantScope)
-            else TenantScope(getattr(tenant_scope, "tenant_id", ""))
+            else TenantScope(getattr(tenant_scope, "tenant_id", ""),
+                             getattr(tenant_scope, "is_admin", False))
         )
         input_model = (
             request

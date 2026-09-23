@@ -26,7 +26,7 @@ class PostgresEnvironmentRepository:
         self._session_factory = session_factory
 
     def resolve(
-        self, project_key: str, name: str, tenant_id: str
+        self, project_key: str, name: str, tenant_id: str | None
     ) -> DomainEnvironment | None:
         with self._session_factory() as session:
             stmt = (
@@ -36,15 +36,16 @@ class PostgresEnvironmentRepository:
                     (ModelProject.id == ModelEnvironment.project_id)
                     & (ModelProject.tenant_id == ModelEnvironment.tenant_id),
                 )
-                .where(
-                    ModelEnvironment.tenant_id == tenant_id,
-                    ModelProject.key == project_key,
-                    ModelEnvironment.name == name,
-                )
+                .where(ModelProject.key == project_key, ModelEnvironment.name == name)
             )
-            row = session.scalars(stmt).first()
-            if row is None:
+            if tenant_id is not None:
+                stmt = stmt.where(ModelEnvironment.tenant_id == tenant_id)
+            rows = session.scalars(stmt).all()
+            if not rows:
                 return None
+            if len(rows) > 1:
+                raise ValueError("environment matches multiple tenants; provide tenant_id")
+            row = rows[0]
 
             return DomainEnvironment(
                 id=row.id,
@@ -90,7 +91,9 @@ class PostgresEnvironmentRepository:
                     session.add(project)
                     session.flush()
                 environment_type = (
-                    name if name in EnvironmentType._value2member_map_ else EnvironmentType.OTHER.value
+                    name
+                    if name in EnvironmentType._value2member_map_
+                    else EnvironmentType.OTHER.value
                 )
                 row = ModelEnvironment(
                     id=uuid4(),

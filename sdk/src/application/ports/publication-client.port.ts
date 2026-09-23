@@ -4,6 +4,7 @@ import { ValidatedGraph } from "./graph-validator.port.js";
 export interface PublishRequest {
   apiUrl: string;
   token: string;
+  tenantId?: string;
   projectKey: string;
   environment: string;
   deploymentId: string;
@@ -11,6 +12,12 @@ export interface PublishRequest {
   graph: ValidatedGraph;
 }
 
+export type PublicationTargetRequest = Pick<
+  PublishRequest,
+  "apiUrl" | "token" | "tenantId" | "projectKey" | "environment" | "deploymentId" | "version"
+>;
+
 export interface PublicationClientPort {
+  validateTarget(request: PublicationTargetRequest): Promise<string>;
   publish(request: PublishRequest): Promise<PublicationResult>;
 }

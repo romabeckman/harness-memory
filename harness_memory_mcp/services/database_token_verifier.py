@@ -1,20 +1,36 @@
 import asyncio
 from datetime import UTC, datetime
 from hashlib import sha256
+from hmac import compare_digest
 
 from fastmcp.server.auth import AccessToken, TokenVerifier
 
 from api.application.ports.token_repository import TokenRepository
+from harness_memory_mcp.services.admin_token_verifier import (
+    admin_access_token,
+    read_access_token,
+)
 
 
 class DatabaseTokenVerifier(TokenVerifier):
-    def __init__(self, repository: TokenRepository) -> None:
+    def __init__(
+        self,
+        repository: TokenRepository,
+        admin_token: str | None = None,
+        read_api_key: str | None = None,
+    ) -> None:
         super().__init__(required_scopes=None)
         self._repository = repository
+        self._admin_token = admin_token.strip() if admin_token else None
+        self._read_api_key = read_api_key.strip() if read_api_key else None
 
     async def verify_token(self, token: str) -> AccessToken | None:
         if not isinstance(token, str) or not token.strip():
             return None
+        if self._admin_token and compare_digest(token, self._admin_token):
+            return admin_access_token(token)
+        if self._read_api_key and compare_digest(token, self._read_api_key):
+            return read_access_token(token)
         token_hash = sha256(token.encode()).hexdigest()
         identity = await asyncio.to_thread(
             self._repository.find_active_by_hash,

@@ -24,7 +24,9 @@ def register_search_entities(
     @server.tool(
         name="search_entities",
         description=(
-            "Find tenant-visible entities by key, name, type, or project. "
+            "Find entities in active project snapshots. Use exact key and project filters, "
+            "name for a case-insensitive prefix, or query for a literal phrase in keys, "
+            "names, and metadata content. "
             "At least one filter is required. Results echo the page limit and are bounded. "
             "Requires memory:read."
         ),
@@ -37,13 +39,19 @@ def register_search_entities(
     ):
         if all(
             value is None
-            for value in (request.key, request.name, request.type, request.project)
+            for value in (
+                request.key,
+                request.name,
+                request.type,
+                request.project,
+                request.query,
+            )
         ):
             raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")
 
         try:
             context = tenant_context.require_scope("memory:read")
-            result = handler.execute(request, TenantScope(context.tenant_id))
+            result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
             return mapper.failure(error)

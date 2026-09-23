@@ -61,6 +61,28 @@ async def test_impact_tool_uses_trusted_scope_and_maps_direct_indirect_shape():
 
 
 @pytest.mark.asyncio
+async def test_impact_tool_runs_with_security_audit_enabled():
+    repository = Mock()
+    audit_handler = Mock()
+    entity_id = uuid4()
+    repository.analyze_impact.return_value = _output(entity_id)
+    server = create_mcp_server(
+        impact_analysis_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a", scopes={"memory:impact"}),
+        audit_handler=audit_handler,
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool(
+            "analyze_impact", {"entity_id": str(entity_id)}
+        )
+
+    assert result.data["changed_entity"]["id"] == str(entity_id)
+    assert repository.analyze_impact.call_args.args[0].tenant_id == "tenant-a"
+    assert audit_handler.execute.call_count == 2
+
+
+@pytest.mark.asyncio
 async def test_impact_tool_hides_unknown_target_and_rejects_tenant_payload():
     repository = Mock()
     repository.analyze_impact.side_effect = ImpactEntityNotFound("secret")
