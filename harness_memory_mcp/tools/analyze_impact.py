@@ -134,8 +134,8 @@ def register_analyze_impact(
                     max_result_bytes=max_result_bytes,
                 ),
             )
+            scope = TenantScope(context.tenant_id, context.is_admin)
             if audited_operation is None:
-                scope = TenantScope(context.tenant_id, context.is_admin)
                 result = handler.execute(request, scope)
             else:
                 principal = tenant_context.security_context.current() or AuthenticatedPrincipal(
