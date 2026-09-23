@@ -182,7 +182,7 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 
 ## BEST PRACTICES
 
-REQUIRED: Use `HARNESS_MEMORY_API_KEY` by default. When absent, provide another credential through `--token-env` or the programmatic `token` option. Legacy `HARNESS_MEMORY_API_TOKEN` remains a CLI fallback. Forbidden flags (`--tenant`, `--token`) exit with code 2.
+REQUIRED: Use `HARNESS_MEMORY_API_KEY` by default. When absent, provide another credential through `--token-env` or the programmatic `token` option. Forbidden flags (`--tenant`, `--token`) exit with code 2.
 REQUIRED: Sanitize child LLM process environment and stdin to prevent token leakage.
 REQUIRED: Check symlink targets before reading file contents to prevent filesystem traversal.
 REQUIRED: Handle backpressure on stdin stream using `drain` events during chunked transfer.

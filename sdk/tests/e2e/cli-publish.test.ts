@@ -95,7 +95,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       stdout: (msg) => stdoutLines.push(msg),
       stderr: (msg) => stderrLines.push(msg),
       env: {
-        HARNESS_MEMORY_API_TOKEN: "valid-publish-token",
+        HARNESS_MEMORY_API_KEY: "valid-publish-token",
       },
     });
 
@@ -141,7 +141,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const app = new CliApp({
       stdout: (msg) => stdoutLines.push(msg),
       stderr: () => {},
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
@@ -180,7 +180,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const app = new CliApp({
       stdout: () => {},
       stderr: (msg) => stderrLines.push(msg),
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     const fakeLlmCommand = `node ${resolve("tests/fixtures/fake-llm.cjs")}`;
@@ -216,7 +216,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const app = new CliApp({
       stdout: () => {},
       stderr: (msg) => stderrLines.push(msg),
-      env: { HARNESS_MEMORY_API_TOKEN: "valid-token" },
+      env: { HARNESS_MEMORY_API_KEY: "valid-token" },
     });
 
     // In this test, we test that invalid graph output causes validator to reject

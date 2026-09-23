@@ -164,7 +164,7 @@ describe("ConfigResolver", () => {
     const env = {
       GITHUB_SHA: "commit-sha-from-gh",
       GITHUB_RUN_ID: "run-id-123",
-      HARNESS_MEMORY_API_TOKEN: "token-abc",
+      HARNESS_MEMORY_API_KEY: "token-abc",
     };
 
     const config = resolver.resolve(rawArgs, env);

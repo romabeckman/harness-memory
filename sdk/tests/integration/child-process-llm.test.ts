@@ -20,11 +20,11 @@ describe("Child process LLM integration", () => {
     diffs: [],
   };
 
-  it("ensures HARNESS_MEMORY_API_TOKEN is stripped from child environment and parses graph output", async () => {
+  it("ensures HARNESS_MEMORY_API_KEY is stripped from child environment and parses graph output", async () => {
     // Fake LLM script in node that checks process.env for token, reads stdin, and writes valid graph
     const fakeLlmScript = `
       const fs = require('fs');
-      if (process.env.HARNESS_MEMORY_API_TOKEN || process.env.API_ADMIN_TOKEN) {
+      if (process.env.HARNESS_MEMORY_API_KEY || process.env.API_ADMIN_TOKEN) {
         process.stderr.write("LEAKED_TOKEN");
         process.exit(99);
       }
@@ -60,7 +60,7 @@ describe("Child process LLM integration", () => {
     `;
 
     // Temporarily set tokens in process.env to verify they are NOT passed
-    process.env.HARNESS_MEMORY_API_TOKEN = "super-secret-token";
+    process.env.HARNESS_MEMORY_API_KEY = "super-secret-token";
     process.env.API_ADMIN_TOKEN = "super-admin-secret";
 
     try {
@@ -82,7 +82,7 @@ describe("Child process LLM integration", () => {
       expect(validated.document.entities[0].key).toBe("api:payments");
       expect(validated.document.entities[1].key).toBe("service:payments");
     } finally {
-      delete process.env.HARNESS_MEMORY_API_TOKEN;
+      delete process.env.HARNESS_MEMORY_API_KEY;
       delete process.env.API_ADMIN_TOKEN;
     }
   });

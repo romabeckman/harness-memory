@@ -157,7 +157,7 @@ When values are absent, the resolver uses these fallbacks:
 - `base-ref`: `CI_MERGE_REQUEST_DIFF_BASE_SHA`, then `GITHUB_BASE_REF`.
 - `head-ref`: `HEAD`.
 - `llm-command`: selected runner command (`codex` or `claude`).
-- `token-env`: `HARNESS_MEMORY_API_KEY`. Legacy `HARNESS_MEMORY_API_TOKEN` remains a fallback.
+- `token-env`: `HARNESS_MEMORY_API_KEY` by default.
 - `timeout`: 600 seconds.
 - `max-files`: 2,000.
 - `max-bytes`: 10,485,760 bytes.

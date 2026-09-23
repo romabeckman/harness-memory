@@ -387,7 +387,7 @@ the token secret; do not commit it or put it directly in the MCP configuration.
 On Windows, use PowerShell to create a persistent user environment variable:
 
 ```powershell
-setx HARNESS_MEMORY_TOKEN "<token>"
+setx HARNESS_MEMORY_API_KEY "<token>"
 ```
 
 Restart Codex so it reads the updated environment.
@@ -395,7 +395,7 @@ Restart Codex so it reads the updated environment.
 On Linux, export the variable in the shell that starts Codex:
 
 ```bash
-export HARNESS_MEMORY_TOKEN="<token>"
+export HARNESS_MEMORY_API_KEY="<token>"
 ```
 
 This applies to the current shell and its child processes. For Bash login sessions,
@@ -403,7 +403,7 @@ add the `export` line to `~/.profile`, then start a new login session.
 
 ### Claude Code
 
-Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_TOKEN` in the
+Add this entry to the project-root `.mcp.json`. Set `HARNESS_MEMORY_API_KEY` in the
 environment before starting Claude Code:
 
 ```json
@@ -413,7 +413,7 @@ environment before starting Claude Code:
       "type": "http",
       "url": "http://localhost:8000/mcp",
       "headers": {
-        "Authorization": "Bearer ${HARNESS_MEMORY_TOKEN}"
+        "Authorization": "Bearer ${HARNESS_MEMORY_API_KEY}"
       }
     }
   }
@@ -425,13 +425,13 @@ run `/mcp` to check its connection. See the [Claude Code MCP documentation](http
 
 ### OpenAI Codex
 
-Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_TOKEN` in the
+Add this table to `~/.codex/config.toml`. Set `HARNESS_MEMORY_API_KEY` in the
 environment before starting Codex:
 
 ```toml
 [mcp_servers.harness-memory]
 url = "http://localhost:8000/mcp"
-bearer_token_env_var = "HARNESS_MEMORY_TOKEN"
+bearer_token_env_var = "HARNESS_MEMORY_API_KEY"
 ```
 
 The Codex CLI, desktop app, and IDE extension share this configuration. Run
