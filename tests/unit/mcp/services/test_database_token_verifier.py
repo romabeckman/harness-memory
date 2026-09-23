@@ -22,6 +22,20 @@ def test_admin_token_is_global_and_keeps_all_mcp_scopes():
     repository.find_active_by_hash.assert_not_called()
 
 
+def test_read_api_key_is_global_and_has_only_memory_read_scope():
+    repository = Mock()
+    verified = asyncio.run(
+        DatabaseTokenVerifier(repository, read_api_key="read-secret").verify_token(
+            "read-secret"
+        )
+    )
+
+    assert verified.claims["tenant_id"] == "*"
+    assert verified.claims["is_admin"] is True
+    assert set(verified.scopes) == {"memory:read"}
+    repository.find_active_by_hash.assert_not_called()
+
+
 def test_database_token_verifier_maps_active_api_token_to_mcp_identity():
     user = User(uuid4(), "Ada", "ada@example.com")
     stored = DomainAccessToken(

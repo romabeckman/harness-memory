@@ -41,6 +41,7 @@ services:
       MCP_PORT: "8000"
       MCP_AUTH_MODE: database
       API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
+      HARNESS_MEMORY_API_KEY: ${HARNESS_MEMORY_API_KEY:-}
     ports:
       - "8000:8000"
     depends_on:
@@ -57,6 +58,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       APP_PORT: "8080"
       API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
+      HARNESS_MEMORY_API_KEY: ${HARNESS_MEMORY_API_KEY:-}
     ports:
       - "8080:8080"
     healthcheck:

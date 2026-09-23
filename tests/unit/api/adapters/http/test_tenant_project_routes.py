@@ -13,7 +13,9 @@ from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.tenant import Tenant
 
 
-def _client(*, include_reader: bool = True) -> tuple[TestClient, str, str | None]:
+def _client(
+    *, include_reader: bool = True, read_api_key: str | None = None
+) -> tuple[TestClient, str, str | None]:
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -35,7 +37,9 @@ def _client(*, include_reader: bool = True) -> tuple[TestClient, str, str | None
             ))
         session.commit()
     return (
-        TestClient(create_app(factory, admin_token="admin-secret")),
+        TestClient(
+            create_app(factory, admin_token="admin-secret", read_api_key=read_api_key)
+        ),
         str(tenant_id),
         token if include_reader else None,
     )
@@ -116,20 +120,21 @@ def test_database_read_token_gets_tenant_reads_only() -> None:
     assert client.post("/v1/knowledge-publications", headers=reader, json={}).status_code == 403
 
 
-def test_harness_memory_api_key_is_not_a_static_read_credential(monkeypatch) -> None:
-    monkeypatch.setenv("HARNESS_MEMORY_API_KEY", "read-only-secret")
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-    )
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
-    client = TestClient(create_app(factory, admin_token="admin-secret"))
+def test_harness_memory_api_key_has_global_read_scope_only(monkeypatch) -> None:
+    monkeypatch.setenv("HARNESS_MEMORY_API_KEY", "global-read-secret")
+    client, tenant_id, _ = _client()
+    reader = {"Authorization": "Bearer global-read-secret"}
 
-    response = client.get(
-        "/v1/tenants", headers={"Authorization": "Bearer read-only-secret"}
-    )
-
-    assert response.status_code == 401
+    tenants = client.get("/v1/tenants", headers=reader)
+    assert tenants.status_code == 200
+    assert [item["id"] for item in tenants.json()] == [tenant_id]
+    assert client.get("/v1/tenants/current", headers=reader).status_code == 400
+    assert client.get("/v1/projects", headers=reader).status_code == 200
+    assert client.post(
+        "/v1/tenants", headers=reader, json={"key": "blocked", "name": "Blocked"}
+    ).status_code == 403
+    assert client.get("/v1/users", headers=reader).status_code == 403
+    assert client.post("/v1/knowledge-publications", headers=reader, json={}).status_code == 403
 
 
 def test_tenant_delete_requires_projects_to_be_removed_first() -> None:

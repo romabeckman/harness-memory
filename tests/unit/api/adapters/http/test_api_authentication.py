@@ -81,6 +81,36 @@ def test_management_routes_require_admin_bearer_token() -> None:
     )
 
 
+def test_admin_management_collections_support_search_filters_and_pagination() -> None:
+    client, _, tenant_id, _ = _client(("memory:read",))
+    admin = {"Authorization": "Bearer admin-secret"}
+    assert client.post(
+        "/v1/users", headers=admin,
+        json={"name": "Ada Lovelace", "email": "ada@example.com"},
+    ).status_code == 201
+    assert client.post(
+        "/v1/users", headers=admin,
+        json={"name": "Bob Jones", "email": "bob@example.com"},
+    ).status_code == 201
+
+    users = client.get("/v1/users", params={"q": "ada"}, headers=admin)
+    accounts = client.get(
+        "/v1/service-accounts", params={"tenant_id": tenant_id, "q": "pipeline"},
+        headers=admin,
+    )
+    tokens = client.get(
+        "/v1/tokens", params={"scope": "memory:read", "q": "pipeline"}, headers=admin
+    )
+
+    assert users.status_code == 200
+    assert [item["email"] for item in users.json()] == ["ada@example.com"]
+    assert accounts.status_code == 200
+    assert [item["name"] for item in accounts.json()] == ["pipeline"]
+    assert tokens.status_code == 200
+    assert [item["name"] for item in tokens.json()] == ["pipeline"]
+    assert client.get("/v1/users", params={"limit": 0}, headers=admin).status_code == 422
+
+
 def test_publication_derives_tenant_from_publish_token_and_provisions_environment() -> None:
     client, plaintext, tenant_id, factory = _client(("memory:publish",))
 

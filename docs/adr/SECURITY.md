@@ -29,9 +29,9 @@ operational controls that protect the corporate engineering graph.
 ## OVERVIEW
 
 Harness Memory separates **REST governance and publication** from the **read-only MCP
-surface**. API and MCP accept the same bearer token. Each compares the token to
-`API_ADMIN_TOKEN` for administrative access or verifies an active token digest, owner, and
-persisted scopes from the shared `tokens` table.
+surface**. API and MCP accept the same bearer token. `API_ADMIN_TOKEN` grants admin access;
+`HARNESS_MEMORY_API_KEY` grants global `memory:read`; other credentials are verified from
+active token digests, owners, and persisted scopes in the shared `tokens` table.
 
 ## TOKEN TYPES
 
@@ -44,6 +44,7 @@ persisted credential type.
 | **Service-account token** | `POST /v1/tokens` with `service_account_id`; stored in `tokens` | Owner is `ServiceAccount`; immutable `tenant_id`; expiration may be omitted | Same eligible permissions as user tokens, according to scopes; never REST management |
 | **MCP token** | No separate model; an active API token presented to `/mcp` | `DatabaseTokenVerifier` loads owner, expiry, and persisted scopes | Read-only tools, resources, and prompts through `ComponentScopePolicy` |
 | **`API_ADMIN_TOKEN`** | Environment variable passed to API and MCP; never persisted in PostgreSQL | Compared with constant-time `compare_digest`; no owner or tenant | All REST privileges and cross-tenant data access; MCP component scope checks remain |
+| **`HARNESS_MEMORY_API_KEY`** | Optional environment variable passed to API and MCP; never persisted | Compared with constant-time `compare_digest`; no owner or tenant | Global `memory:read`; no management, publication, or impact scope |
 
 REQUIRED: Request the smallest valid scope set: `memory:read` for exploration,
 `memory:impact` for impact analysis, and `memory:publish` for complete REST publication.
@@ -54,10 +55,10 @@ registration and its scope matrix denies unmapped components.
 ## AUTHENTICATION AND AUTHORIZATION
 
 1. `api/server/app.py` applies `ApiSecurity.require_admin` to management routers.
-2. `ApiSecurity` accepts the admin token globally or hashes an ordinary bearer, loads its
-   active owner, checks the persisted operation scope, and derives its tenant.
-3. `DatabaseTokenVerifier` performs the same active digest/owner lookup for MCP and copies
-   only the token’s persisted scopes into the MCP principal.
+2. `ApiSecurity` accepts configured admin and read keys, or hashes an ordinary bearer,
+   loads its active owner, checks persisted operation scopes, and derives its tenant.
+3. `DatabaseTokenVerifier` accepts the same configured keys for MCP; other tokens use the
+   active digest/owner lookup and receive only their persisted scopes.
 4. `ComponentScopePolicy` maps every public MCP tool, resource, and prompt to
    `memory:read` or `memory:impact`; unmapped components are denied.
 

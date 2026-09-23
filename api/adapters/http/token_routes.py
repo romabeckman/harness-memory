@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from api.adapters.http.schemas.token_create import TokenCreate
 from api.adapters.http.schemas.token_created_response import TokenCreatedResponse
@@ -41,7 +41,21 @@ def create_token_router(service: TokenService) -> APIRouter:
     def list_tokens(
         user_id: UUID | None = None,
         service_account_id: UUID | None = None,
+        name: str | None = None,
+        scope: str | None = None,
+        q: str | None = None,
+        limit: int = Query(100, ge=1, le=500),
+        offset: int = Query(0, ge=0),
     ) -> list[TokenResponse]:
+        tokens = service.list(user_id, service_account_id)
+        if name:
+            needle = name.casefold()
+            tokens = [item for item in tokens if needle in item.name.casefold()]
+        if scope:
+            tokens = [item for item in tokens if scope in item.scopes]
+        if q:
+            needle = q.casefold()
+            tokens = [item for item in tokens if needle in item.name.casefold()]
         return [
             TokenResponse(
                 id=item.id,
@@ -51,7 +65,7 @@ def create_token_router(service: TokenService) -> APIRouter:
                 expires_at=item.expires_at,
                 scopes=set(item.scopes),
             )
-            for item in service.list(user_id, service_account_id)
+            for item in tokens[offset:offset + limit]
         ]
 
     @router.get("/{token_id}", response_model=TokenResponse)

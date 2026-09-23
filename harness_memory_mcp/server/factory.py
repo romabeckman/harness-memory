@@ -131,7 +131,8 @@ def create_mcp_server(
                 engine = PostgresEngineFactory.create(postgres)
                 api_token_repository = ApiTokenRepository(engine=engine)
             auth_provider = DatabaseTokenVerifier(api_token_repository,
-                admin_token=settings.api_admin_token.get_secret_value() if settings.api_admin_token else None)
+                admin_token=settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
+                read_api_key=settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
         else:
             auth_provider = JWTVerifier(
                 jwks_uri=str(settings.mcp_jwks_uri),
@@ -140,9 +141,11 @@ def create_mcp_server(
                 algorithm="RS256",
             )
             auth_provider.logger.disabled = True
-            if settings.api_admin_token:
+            if settings.api_admin_token or settings.harness_memory_api_key:
                 auth_provider = AdminTokenVerifier(
-                    auth_provider, settings.api_admin_token.get_secret_value())
+                    auth_provider,
+                    settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
+                    settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )

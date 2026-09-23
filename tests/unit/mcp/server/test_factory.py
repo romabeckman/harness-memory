@@ -1,3 +1,5 @@
+import asyncio
+
 from harness_memory_mcp.config import RuntimeSettings
 from harness_memory_mcp.server.factory import create_mcp_server
 from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
@@ -17,6 +19,7 @@ def test_create_mcp_server_uses_api_token_repository_in_database_auth_mode():
     settings = RuntimeSettings(
         mcp_auth_mode="database",
         database_url="postgresql+psycopg2://user:pass@postgres/memory",
+        harness_memory_api_key="read-secret",
         mcp_production=True,
     )
 
@@ -31,3 +34,5 @@ def test_create_mcp_server_uses_api_token_repository_in_database_auth_mode():
 
     assert isinstance(server.auth, AuditingTokenVerifier)
     assert isinstance(server.auth.verifier, DatabaseTokenVerifier)
+    read_token = asyncio.run(server.auth.verifier.verify_token("read-secret"))
+    assert set(read_token.scopes) == {"memory:read"}

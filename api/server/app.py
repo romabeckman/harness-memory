@@ -9,6 +9,7 @@ from api.adapters.http.knowledge_publication_routes import (
     create_knowledge_publication_router,
 )
 from api.adapters.http.knowledge_read_routes import create_knowledge_read_router
+from api.adapters.http.knowledge_search_routes import create_knowledge_search_router
 from api.adapters.http.service_account_routes import create_service_account_router
 from api.adapters.http.tenant_project_management_routes import (
     create_tenant_project_management_router,
@@ -51,6 +52,7 @@ def create_app(
     session_factory: Callable[[], Session] | None = None,
     *,
     admin_token: str | None = None,
+    read_api_key: str | None = None,
 ) -> FastAPI:
     if session_factory is None:
         settings = PostgresSettings(
@@ -69,6 +71,7 @@ def create_app(
     security = ApiSecurity(
         token_repository,
         admin_token or os.getenv("API_ADMIN_TOKEN"),
+        read_api_key or os.getenv("HARNESS_MEMORY_API_KEY"),
     )
     application = FastAPI(
         title="Harness Memory API",
@@ -100,6 +103,7 @@ def create_app(
     )
     v1_router.include_router(management_router)
     v1_router.include_router(create_knowledge_read_router(read_repository, security.require_reader))
+    v1_router.include_router(create_knowledge_search_router(read_repository, security.require_reader))
     env_repository = PostgresEnvironmentRepository(session_factory=session_factory)
     pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
     publish_handler = PublishKnowledgeHandler(

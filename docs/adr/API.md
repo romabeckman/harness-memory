@@ -18,10 +18,12 @@ edges:
   - relation: references
     target: "feature:api-tokens"
   - relation: references
+    target: "feature:api-knowledge-reads"
+  - relation: references
     target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # API Architecture
 
@@ -74,6 +76,8 @@ PROHIBITED: Use ordinary API access tokens for REST management authentication.
 | POST, GET | `/v1/tokens` | Issue a user or service-account token, or list token metadata. |
 | GET, PATCH, DELETE | `/v1/tokens/{token_id}` | Read, update metadata/expiry, or revoke a token. |
 | POST | `/v1/knowledge-publications` | Publish deployment facts and activate an environment snapshot. |
+| GET | `/v1/environments`, `/v1/knowledge-publications` | Search environment and publication records with tenant, project, state, version, deployment, and text filters. |
+| GET | `/v1/snapshots`, `/v1/entities`, `/v1/relations`, `/v1/evidence` | Search immutable snapshot facts with table-specific filters and bounded pagination. |
 | POST, GET | `/v1/tenants` | Admin creates tenants; scoped credentials read according to identity. |
 | GET, PATCH, DELETE | `/v1/tenants/{tenant_id}` | Read tenant; admin updates or deletes an empty tenant. |
 | GET | `/v1/tenants/current` | Read the authenticated tenant for owner-bound credentials. |
@@ -89,9 +93,10 @@ user or service-account token with `memory:publish`, or the admin token. Ordinar
 derive tenant from their owner. Admin publication requires body `tenant_id` as its write
 destination. The handler creates missing project and environment records on first publication.
 
-Require `API_ADMIN_TOKEN` for every REST management route. Validate every other bearer
-against the shared `tokens` table; apply its persisted scopes and owner tenant. API and MCP
-accept the same token value.
+Require `API_ADMIN_TOKEN` for every REST management route. `HARNESS_MEMORY_API_KEY` grants
+global `memory:read` for knowledge tables; identity and token metadata remain admin-only.
+Validate other bearers against shared `tokens` and apply their persisted scopes and owner
+tenant. API and MCP accept the same token value.
 Keep health and generated API documentation public. Never accept API-issued user or
 service-account tokens as the management credential.
 

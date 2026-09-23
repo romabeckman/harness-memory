@@ -22,9 +22,11 @@ class ApiSecurity:
         self,
         token_repository: TokenRepository,
         admin_token: str | None,
+        read_api_key: str | None = None,
     ) -> None:
         self._token_repository = token_repository
         self._admin_token = admin_token.strip() if admin_token else None
+        self._read_api_key = read_api_key.strip() if read_api_key else None
 
     def require_admin(
         self,
@@ -43,6 +45,11 @@ class ApiSecurity:
             )
         if compare_digest(credentials.credentials, self._admin_token):
             return
+        if self._matches_read_key(credentials.credentials):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="insufficient scope",
+            )
         if self._find_active_token(credentials.credentials) is not None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -90,6 +97,19 @@ class ApiSecurity:
                 scopes=frozenset({"memory:read", "memory:impact", "memory:publish"}),
                 is_admin=True,
             )
+        if self._matches_read_key(credentials.credentials):
+            if "memory:read" not in required_scope.split():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="insufficient scope",
+                    headers={"WWW-Authenticate": f'Bearer scope="{required_scope}"'},
+                )
+            return AuthenticatedPrincipal(
+                subject="read-api-key",
+                tenant_id=ADMIN_TENANT_ID,
+                scopes=frozenset({"memory:read"}),
+                is_admin=True,
+            )
         identity = self._find_active_token(credentials.credentials)
         if identity is None:
             raise HTTPException(
@@ -115,3 +135,6 @@ class ApiSecurity:
     ) -> tuple[AccessToken, User | ServiceAccount] | None:
         token_hash = sha256(plaintext.encode()).hexdigest()
         return self._token_repository.find_active_by_hash(token_hash, now=datetime.now(UTC))
+
+    def _matches_read_key(self, plaintext: str) -> bool:
+        return bool(self._read_api_key and compare_digest(plaintext, self._read_api_key))

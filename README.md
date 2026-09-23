@@ -72,10 +72,10 @@ curl --fail http://localhost:8080/health
 ```
 
 Connect an MCP client at `http://localhost:8000/mcp`. Use the same bearer token for API
-and MCP. `API_ADMIN_TOKEN` grants full REST access; other credentials must match an active
-row in `tokens` and use its stored scopes and owner tenant. Set `HARNESS_MEMORY_API_KEY`
-as the SDK client credential, or provide a bearer token directly. Admin data calls can
-read across tenants. Admin snapshot publication requires a `tenant_id` destination.
+and MCP. `API_ADMIN_TOKEN` grants full REST access; database credentials use stored scopes
+and owner tenant. `HARNESS_MEMORY_API_KEY` grants global read-only `memory:read` access
+when configured. Use it as the SDK client credential or provide another bearer token.
+Admin data calls read across tenants. Admin publication requires a `tenant_id` destination.
 
 Build and test the SDK:
 

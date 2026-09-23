@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, Query, Response, status
 
 from api.adapters.http.schemas.user_create import UserCreate
 from api.adapters.http.schemas.user_response import UserResponse
@@ -20,10 +20,29 @@ def create_user_router(service: UserService) -> APIRouter:
         return UserResponse(id=user.id, name=user.name, email=user.email)
 
     @router.get("", response_model=list[UserResponse])
-    def list_users() -> list[UserResponse]:
+    def list_users(
+        name: str | None = None,
+        email: str | None = None,
+        q: str | None = None,
+        limit: int = Query(100, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+    ) -> list[UserResponse]:
+        users = service.list()
+        if name:
+            needle = name.casefold()
+            users = [item for item in users if needle in item.name.casefold()]
+        if email:
+            needle = email.casefold()
+            users = [item for item in users if needle in item.email.casefold()]
+        if q:
+            needle = q.casefold()
+            users = [
+                item for item in users
+                if needle in item.name.casefold() or needle in item.email.casefold()
+            ]
         return [
             UserResponse(id=item.id, name=item.name, email=item.email)
-            for item in service.list()
+            for item in users[offset:offset + limit]
         ]
 
     @router.get("/{user_id}", response_model=UserResponse)

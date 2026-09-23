@@ -78,12 +78,14 @@ Production HTTP requests require bearer authentication. Docker Compose uses data
 | `MCP_PORT` | HTTP port. Defaults to `8000`. |
 | `MCP_AUTH_MODE` | `database` for API-issued tokens or `jwt` for an external identity provider. |
 | `DATABASE_URL` | Shared PostgreSQL connection. Required for database token authentication. |
+| `API_ADMIN_TOKEN` | Optional global administrator bearer token accepted by API and MCP. |
+| `HARNESS_MEMORY_API_KEY` | Optional global bearer token with `memory:read` only. |
 | `MCP_ISSUER` | HTTPS issuer URL for external JWT authentication. |
 | `MCP_JWKS_URI` | HTTPS JWKS URL for external JWT authentication. |
 | `MCP_AUDIENCE` | Expected JWT audience. |
 | `MCP_TENANT_CLAIM` | JWT claim containing tenant identity. Defaults to `tenant_id`. |
 
-When using JWT mode, configure the issuer, JWKS URL, audience, and tenant claim. Never trust tenant identity from a request payload. Database-mode MCP accepts user or service-account tokens with their issued scopes. `API_ADMIN_TOKEN` works in both modes with cross-tenant reads; existing MCP tool permissions remain enforced.
+When using JWT mode, configure the issuer, JWKS URL, audience, and tenant claim. Never trust tenant identity from a request payload. Database-mode MCP accepts user or service-account tokens with their issued scopes. `HARNESS_MEMORY_API_KEY` grants global `memory:read` only. `API_ADMIN_TOKEN` works in both modes with global admin access; MCP tool scope checks remain enforced.
 
 The startup migration service applies schema changes before the server starts. The MCP server checks the schema version and does not run migrations automatically.
 

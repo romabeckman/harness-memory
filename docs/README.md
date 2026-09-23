@@ -15,7 +15,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
 | [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
 | [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Recommended |
-| [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Tenant-scoped REST reads for tenants, projects, and snapshots. | Optional |
+| [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters for knowledge tables, tenants, projects, and snapshots. | Optional |
 | [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication boundary for CI/CD deployments and environment snapshots. | Optional |
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
