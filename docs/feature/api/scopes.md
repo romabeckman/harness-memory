@@ -77,8 +77,8 @@ tests/{unit,e2e}/              # Authorization contracts
 | Surface | Permission |
 | --- | --- |
 | REST POST | Publish a complete snapshot through `/v1/knowledge-publications`. |
-| REST GET | Read project, environment, publication target metadata, and latest baseline for preflight. |
-| Excluded | Use other REST POST/PATCH/DELETE routes; read general snapshot/entity/relation/evidence data; publish through MCP. |
+| REST GET | Read project, environment, and publication target metadata. Read the latest baseline, including its complete active graph, for preflight. |
+| Excluded | Use other REST POST/PATCH/DELETE routes; call general snapshot/entity/relation/evidence GET routes; publish through MCP. |
 
 ## MEMORY:IMPACT
 
