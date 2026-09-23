@@ -112,7 +112,7 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: Validate options and the live API target before Git collection, then route docs, validate the graph, and publish. Dry runs skip target checks.
-- **Memory workflow**: Require complete local docs. Load docs and baseline, then synthesize only when ADR or feature text changes beyond whitespace; first publication runs synthesis.
+- **Memory workflow**: Require complete local docs. Synthesize when ADR/feature text changes beyond whitespace. Return `NO_CHANGES` without a snapshot when publishable docs and graph index match the active baseline; reconcile other docs without model execution.
 - **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries; otherwise generate project key + UTC timestamp + UUID.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
@@ -140,7 +140,6 @@ sdk/
 5. Publish ADR/feature Markdown and `docs/.digest.md` as document entities. Store `docs/.graph.json` in snapshot metadata.
 6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`.
 7. Validate the graph before publishing. `--dry-run` skips publication.
-
 ### Storage and history
 
 REQUIRED: Store docs as **entities, relations, and evidence**, never `project_memory`. Preserve path, Markdown, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with checksums and `part_of` edges; decode content exactly.
@@ -150,14 +149,11 @@ Publish only `adr`, `feature`, `document`, `document_revision`, and `document_se
 REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
 
 ### Prerequisites
-1. Node.js 20+ with the selected CLI (`codex` or `claude`) in `PATH`.
-2. User or service-account token with `memory:publish` in `HARNESS_MEMORY_API_KEY`, or supply a token through `--token-env` or the programmatic `token` option.
+Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a tenant-bound `memory:publish` token.
 
 ### Steps
-1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
-2. Run publication via CLI or programmatic use case.
-
-Programmatic callers pass `ProjectMemoryWorkflow` and `LocalDocsDirectory` to `PublishSnapshotUseCase`; see `CliApp`.
+1. Set `--agent` and publication options.
+2. Run the CLI or `PublishSnapshotUseCase` with `ProjectMemoryWorkflow` and `LocalDocsDirectory`.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -181,6 +177,7 @@ Programmatic callers pass `ProjectMemoryWorkflow` and `LocalDocsDirectory` to `P
 | Code | Name | Cause |
 |------|------|-------|
 | `0` | `SUCCESS` | Published or validated |
+| `0` | `NO_CHANGES` | Documentation matches the active baseline; no snapshot was created |
 | `2` | `USAGE_OR_CONFIG` | Invalid options |
 | `3` | `CONTEXT_COLLECTION` | Git, path, or budget failure |
 | `4` | `LLM_EXECUTION` | Runner failure |

@@ -19,8 +19,8 @@ from core.domain.knowledge_publication.value_objects.publication_id import Publi
 from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
     ProjectKnowledgeSnapshot,
 )
-from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
+from core.domain.snapshot_publication.value_objects.revision import Revision
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.knowledge_publication import (
     KnowledgePublication as ModelKnowledgePublication,
@@ -33,19 +33,24 @@ from core.infrastructure.postgres.repositories.snapshot_persistence_mapper impor
 
 
 class PostgresKnowledgePublicationRepository:
-    def load_latest_graph(self, project_key: str, environment: str,
-                          tenant_id: str | None = None) -> dict:
+    def load_latest_graph(
+        self, project_key: str, environment: str, tenant_id: str | None = None
+    ) -> dict:
         with self._session_factory() as session:
             statement = (
                 select(ModelSnapshot)
-                .join(ModelEnvironment,
+                .join(
+                    ModelEnvironment,
                     (ModelEnvironment.current_snapshot_id == ModelSnapshot.id)
                     & (ModelEnvironment.id == ModelSnapshot.environment_id)
                     & (ModelEnvironment.project_id == ModelSnapshot.project_id)
-                    & (ModelEnvironment.tenant_id == ModelSnapshot.tenant_id))
-                .join(ModelProject,
+                    & (ModelEnvironment.tenant_id == ModelSnapshot.tenant_id),
+                )
+                .join(
+                    ModelProject,
                     (ModelProject.id == ModelSnapshot.project_id)
-                    & (ModelProject.tenant_id == ModelSnapshot.tenant_id))
+                    & (ModelProject.tenant_id == ModelSnapshot.tenant_id),
+                )
                 .where(ModelProject.key == project_key, ModelEnvironment.name == environment)
             )
             if tenant_id is not None:
@@ -56,13 +61,15 @@ class PostgresKnowledgePublicationRepository:
             if len(rows) > 1:
                 raise ValueError("publication baseline matches multiple tenants; provide tenant_id")
             row = rows[0]
+            graph = {
+                key: row.payload[key]
+                for key in ("schema_version", "entities", "relations", "evidence")
+            }
+            graph["metadata"] = row.metadata_json
             return {
                 "snapshot_id": str(row.id),
                 "payload_hash": row.payload_hash,
-                "graph": {
-                    key: row.payload[key]
-                    for key in ("schema_version", "entities", "relations", "evidence")
-                },
+                "graph": graph,
             }
 
     def __init__(
@@ -108,8 +115,7 @@ class PostgresKnowledgePublicationRepository:
             result = session.execute(
                 stmt.with_only_columns(
                     ModelKnowledgePublication, ModelSnapshot.payload_hash, ModelSnapshot.revision
-                )
-                .outerjoin(
+                ).outerjoin(
                     ModelSnapshot,
                     (ModelSnapshot.id == ModelKnowledgePublication.snapshot_id)
                     & (ModelSnapshot.tenant_id == ModelKnowledgePublication.tenant_id),
@@ -191,10 +197,12 @@ class PostgresKnowledgePublicationRepository:
                     session.flush()
 
                 env = session.scalars(
-                    select(ModelEnvironment).where(
+                    select(ModelEnvironment)
+                    .where(
                         ModelEnvironment.tenant_id == tenant_id,
                         ModelEnvironment.id == environment_id,
-                    ).with_for_update()
+                    )
+                    .with_for_update()
                 ).first()
                 if env is None:
                     raise ValueError(f"environment {environment_id} not found")

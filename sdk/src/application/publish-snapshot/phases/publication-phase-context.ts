@@ -9,6 +9,7 @@ export interface PublicationPhaseContext {
   repositoryContext?: RepositoryContext;
   rawDocument?: unknown;
   validatedGraph?: ValidatedGraph;
+  noChanges?: boolean;
 }
 
 export interface PublicationProgressEvent {

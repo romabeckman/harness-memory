@@ -5,13 +5,13 @@ import type { DocsStorePort } from "../ports/docs-store.port.js";
 import type { CollectedFile, RepositoryContext } from "../ports/git-context-collector.port.js";
 import type { GraphValidatorPort } from "../ports/graph-validator.port.js";
 import type { LlmInvocationOptions, LlmRunnerPort } from "../ports/llm-runner.port.js";
-import type { MemoryWorkflowPort } from "../ports/memory-workflow.port.js";
+import type { MemoryWorkflowOutcome, MemoryWorkflowPort } from "../ports/memory-workflow.port.js";
 import type { PublicationBaselinePort } from "../ports/publication-baseline.port.js";
 import { GraphValidationError } from "../../domain/graph-validation-error.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
 import { DocumentContentCodec } from "./document-content-codec.js";
 import { MemoryDocumentValidator } from "./memory-document-validator.js";
-import { isMemoryPath, MemoryGraph } from "./memory-graph.js";
+import { DOCUMENT_TYPES, isMemoryPath, MemoryGraph } from "./memory-graph.js";
 import { PROJECT_MEMORY_PROMPT } from "./project-memory-prompt.js";
 import { ProjectMemoryCompleteness } from "./project-memory-completeness.js";
 import { digest } from "./memory-graph.js";
@@ -33,7 +33,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     private readonly debug?: (message: string) => void,
   ) {}
 
-  public async run(options: PublishSnapshotOptions, context: RepositoryContext): Promise<GraphDocument> {
+  public async run(options: PublishSnapshotOptions, context: RepositoryContext): Promise<MemoryWorkflowOutcome> {
     this.validatePublicationOptions(options);
     const files = this.docs.read(options.repository);
     if (!this.completeness.isComplete(files)) {
@@ -49,7 +49,15 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     this.validator.validateAndCanonicalize(this.codec.encode(seed));
     if (previous && !this.hasAdrOrFeatureDocumentChanges(seed, previous)) {
       this.debug?.("Memory: ADR and feature text unchanged; skipping model execution");
-      return { ...previous, metadata: seed.metadata };
+      if (!this.hasPublishableDocumentChanges(seed, previous) &&
+          this.canonicalJson(seed.metadata ?? {}) === this.canonicalJson(previous.metadata ?? {})) {
+        this.debug?.("Memory: no documentation changes; skipping publication");
+        return { status: "NO_CHANGES", graph: previous };
+      }
+      const graph = this.memory.reconcile(previous, seed, previous);
+      this.documentValidator.validateAndEnrich(graph, context.commitSha);
+      const validated = this.validator.validateAndCanonicalize(this.codec.encode(graph)).document;
+      return { status: "READY", graph: validated };
     }
 
     let invocation = this.createInvocation(options, context, previous, seed);
@@ -79,7 +87,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     const validated = this.validator.validateAndCanonicalize(this.codec.encode(graph)).document;
     this.debug?.(`Memory: validated graph entities=${validated.entities.length}, ` +
       `relations=${validated.relations.length}, evidence=${validated.evidence.length}`);
-    return validated;
+    return { status: "READY", graph: validated };
   }
 
   private validatePublicationOptions(options: PublishSnapshotOptions): void {
@@ -104,7 +112,13 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
       keys.has(relation.source_entity_key) && keys.has(relation.target_entity_key));
     const refs = new Set(relations.map(relation => relation.ref));
     const evidence = decoded.evidence.filter(item => !item.relation_ref || refs.has(item.relation_ref));
-    const compatible = { schema_version: decoded.schema_version, entities, relations, evidence };
+    const compatible = {
+      schema_version: decoded.schema_version,
+      ...(decoded.metadata ? { metadata: decoded.metadata } : {}),
+      entities,
+      relations,
+      evidence,
+    };
     this.validator.validateAndCanonicalize(this.codec.encode(compatible));
     return compatible;
   }
@@ -127,6 +141,39 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
         this.normalizeDocumentText(previousContent)) return true;
     }
     return false;
+  }
+
+  private hasPublishableDocumentChanges(current: GraphDocument, previous: GraphDocument): boolean {
+    const currentDocuments = this.getPublishableDocuments(current);
+    const previousDocuments = this.getPublishableDocuments(previous);
+    if (currentDocuments.size !== previousDocuments.size) return true;
+    for (const [path, content] of currentDocuments) {
+      if (previousDocuments.get(path) !== content) return true;
+    }
+    return false;
+  }
+
+  private getPublishableDocuments(graph: GraphDocument): Map<string, string> {
+    const documents = new Map<string, string>();
+    for (const entity of graph.entities) {
+      const path = entity.metadata?.path;
+      const content = entity.metadata?.content;
+      if (!DOCUMENT_TYPES.has(entity.type) || typeof path !== "string" ||
+          !isMemoryPath(path) || path === "docs/.graph.json" || typeof content !== "string") continue;
+      documents.set(path, entity.type === "adr" || entity.type === "feature"
+        ? this.normalizeDocumentText(content)
+        : content);
+    }
+    return documents;
+  }
+
+  private canonicalJson(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(item => this.canonicalJson(item)).join(",")}]`;
+    if (value && typeof value === "object") {
+      const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+      return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${this.canonicalJson(item)}`).join(",")}}`;
+    }
+    return JSON.stringify(value) ?? "null";
   }
 
   private getAdrAndFeatureDocuments(graph: GraphDocument): Map<string, string> {

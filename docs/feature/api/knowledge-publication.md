@@ -103,7 +103,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 
 ### Baseline read
 
-Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with `memory:read` or `memory:publish` to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `entities`, `relations`, `evidence`). Resolve the environment's current snapshot.
+Use `GET /v1/knowledge-publications/latest?project_key=...&environment=...` with `memory:read` or `memory:publish` to start incremental documentation mapping. The response contains `snapshot_id`, `payload_hash`, and `graph` (`schema_version`, `metadata`, `entities`, `relations`, `evidence`). The `metadata` field is the snapshot metadata, including the SDK's generated documentation graph index. Resolve the environment's current snapshot.
 
 REQUIRED: Derive tenant from the authenticated token; scope all project/environment joins to that tenant. Return 404 for no baseline, 401/403 for denied authentication/authorization, and 422 for invalid parameters. Never treat access denial or server failure as permission to bootstrap.
 

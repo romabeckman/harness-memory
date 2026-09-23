@@ -51,9 +51,11 @@ describe("PublishSnapshotUseCase", () => {
       counts: { entities: 0, relations: 0, evidence: 0 },
     }),
   };
-  const memoryWorkflow = { run: vi.fn((options: PublishSnapshotOptions, context: RepositoryContext) =>
-    mockLlm.run({ agent: options.agent, model: options.model, effort: options.effort,
-      timeoutSeconds: 600, projectKey: options.projectKey, environment: options.environment, context })) };
+  const memoryWorkflow = { run: vi.fn(async (options: PublishSnapshotOptions, context: RepositoryContext) => ({
+    status: "READY" as const,
+    graph: await mockLlm.run({ agent: options.agent, model: options.model, effort: options.effort,
+      timeoutSeconds: 600, projectKey: options.projectKey, environment: options.environment, context }),
+  })) };
   const documentationDirectory = { exists: vi.fn().mockReturnValue(true) };
 
   it("throws ConfigurationError when required fields are missing", async () => {
@@ -237,7 +239,7 @@ describe("PublishSnapshotUseCase", () => {
 
   it("rejects a repository without docs and directs users to project-memory", async () => {
     const graph = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
-    const existing = { run: vi.fn().mockResolvedValue(graph) };
+    const existing = { run: vi.fn().mockResolvedValue({ status: "READY", graph }) };
     const directory = { exists: vi.fn().mockReturnValue(false) };
     const useCase = new PublishSnapshotUseCase(mockCollector, mockValidator, mockClient,
       existing, directory);
@@ -256,7 +258,7 @@ describe("PublishSnapshotUseCase", () => {
 
   it("routes a repository with docs through the existing documentation phase", async () => {
     const graph = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
-    const existing = { run: vi.fn().mockResolvedValue(graph) };
+    const existing = { run: vi.fn().mockResolvedValue({ status: "READY", graph }) };
     const directory = { exists: vi.fn().mockReturnValue(true) };
     const useCase = new PublishSnapshotUseCase(mockCollector, mockValidator, mockClient,
       existing, directory);

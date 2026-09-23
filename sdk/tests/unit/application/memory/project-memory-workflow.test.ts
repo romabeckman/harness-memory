@@ -40,13 +40,13 @@ describe("ProjectMemoryWorkflow", () => {
     const docs = { read: vi.fn().mockReturnValue(localFiles) };
     const llm = { run: vi.fn().mockResolvedValue(generated()) };
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) }, docs, new GraphValidator());
-    const graph = await workflow.run(options, { ...context, files: [{ path: "src/orders.ts", content: "secret source", sha256: "sha" }], });
+    const outcome = await workflow.run(options, { ...context, files: [{ path: "src/orders.ts", content: "secret source", sha256: "sha" }], });
     const invocation = llm.run.mock.calls[0][0];
     expect(invocation.baselineGraph).toEqual(previous);
     expect(invocation.documentationGraph.entities).toHaveLength(4);
     expect(invocation.context.files).toEqual([]);
     expect(invocation.instruction).toContain("compare current documents with the latest published graph");
-    expect(graph.entities.find(entity => entity.key === "feature:orders")?.metadata?.content)
+    expect(outcome.graph.entities.find(entity => entity.key === "feature:orders")?.metadata?.content)
       .toBe(localFiles.find(file => file.path === "docs/feature/orders.md")?.content);
   });
   it("fetches baseline before prompting", async () => {
@@ -55,12 +55,13 @@ describe("ProjectMemoryWorkflow", () => {
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const llm = { run: vi.fn().mockResolvedValue(generated()) };
     const workflow = new ProjectMemoryWorkflow(llm, baseline, docs, new GraphValidator());
-    const graph = await workflow.run(options, context);
+    const outcome = await workflow.run(options, context);
     expect(baseline.load).toHaveBeenCalledWith(options.apiUrl, options.token, "demo", "production");
     expect(llm.run.mock.calls[0][0].baselineGraph.entities).toHaveLength(4);
     expect(llm.run.mock.calls[0][0].instruction).toContain("Preserve stable entity keys");
     expect(JSON.stringify(llm.run.mock.calls[0][0])).not.toContain('"token"');
-    expect(graph).not.toHaveProperty("project_memory");
+    expect(outcome.status).toBe("READY");
+    expect(outcome.graph).not.toHaveProperty("project_memory");
   });
   it("skips model execution when ADR and feature text differs only by whitespace or line breaks", async () => {
     const files = completeFiles();
@@ -71,10 +72,10 @@ describe("ProjectMemoryWorkflow", () => {
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
       { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
 
-    const graph = await workflow.run(options, context);
+    const outcome = await workflow.run(options, context);
 
     expect(llm.run).not.toHaveBeenCalled();
-    expect(graph).toEqual(previous);
+    expect(outcome).toEqual({ status: "NO_CHANGES", graph: previous });
   });
   it("runs model execution when an ADR or feature text character changes", async () => {
     const files = completeFiles();
@@ -98,8 +99,27 @@ describe("ProjectMemoryWorkflow", () => {
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
       { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
 
-    await workflow.run(options, context);
+    const outcome = await workflow.run(options, context);
 
+    expect(llm.run).not.toHaveBeenCalled();
+    expect(outcome.status).toBe("READY");
+    expect(outcome.graph.entities.find(entity => entity.metadata?.path === "docs/.digest.md")?.metadata?.content)
+      .toContain("Additional digest text.");
+  });
+  it("treats a changed documentation graph index as a publication change", async () => {
+    const files = completeFiles();
+    const previous = new MemoryGraph().seed(files, context.commitSha);
+    const index = JSON.parse(files[0].content);
+    index.nodes[0].tags = ["updated"];
+    files[0].content = JSON.stringify(index);
+    const llm = { run: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn().mockResolvedValue(previous) },
+      { read: vi.fn().mockReturnValue(files) }, new GraphValidator());
+
+    const outcome = await workflow.run(options, context);
+
+    expect(outcome.status).toBe("READY");
+    expect(outcome.graph.metadata).toEqual(index);
     expect(llm.run).not.toHaveBeenCalled();
   });
   it("accepts legacy baselines containing rule and README entities", async () => {
@@ -111,10 +131,10 @@ describe("ProjectMemoryWorkflow", () => {
     const workflow = new ProjectMemoryWorkflow({ run: vi.fn().mockResolvedValue(generated()) },
       { load: vi.fn().mockResolvedValue(previous) }, { read: vi.fn().mockReturnValue(completeFiles()) }, new GraphValidator());
 
-    const graph = await workflow.run(options, context);
+    const outcome = await workflow.run(options, context);
 
-    expect(graph.entities.some(entity => ["rule:old", "document:index"].includes(entity.key))).toBe(false);
-    expect(graph.relations.some(relation => relation.ref === "old-rule")).toBe(false);
+    expect(outcome.graph.entities.some(entity => ["rule:old", "document:index"].includes(entity.key))).toBe(false);
+    expect(outcome.graph.relations.some(relation => relation.ref === "old-rule")).toBe(false);
   });
   it("publishes the exact local graph index as snapshot metadata", async () => {
     const files = completeFiles();
@@ -122,10 +142,10 @@ describe("ProjectMemoryWorkflow", () => {
     const workflow = new ProjectMemoryWorkflow({ run: vi.fn().mockResolvedValue(generated()) },
       { load: vi.fn().mockResolvedValue(undefined) }, docs, new GraphValidator());
 
-    const graph = await workflow.run(options, context);
+    const outcome = await workflow.run(options, context);
 
-    expect((graph as any).metadata).toEqual(JSON.parse(files[0].content));
-    expect(graph.entities.some(entity => entity.metadata?.path === "docs/.graph.json")).toBe(false);
+    expect(outcome.graph.metadata).toEqual(JSON.parse(files[0].content));
+    expect(outcome.graph.entities.some(entity => entity.metadata?.path === "docs/.graph.json")).toBe(false);
   });
   it("rejects missing docs before loading a baseline or calling the model", async () => {
     const docs = { read: vi.fn().mockReturnValue([]) };
@@ -144,9 +164,9 @@ describe("ProjectMemoryWorkflow", () => {
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
 
-    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+    const outcome = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    expect(graph.entities.some(entity => entity.key === "src-orders.ts")).toBe(false);
+    expect(outcome.graph.entities.some(entity => entity.key === "src-orders.ts")).toBe(false);
     expect(llm.run).toHaveBeenCalledTimes(1);
   });
   it("adds a stable hash suffix when a path-derived entity key collides", async () => {
@@ -158,10 +178,10 @@ describe("ProjectMemoryWorkflow", () => {
     const docs = { read: vi.fn().mockReturnValue(completeFiles()) };
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
 
-    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+    const outcome = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    expect(graph.entities.some(entity => entity.metadata?.path === "src/orders.ts")).toBe(false);
-    expect(new Set(graph.entities.map(entity => entity.key)).size).toBe(graph.entities.length);
+    expect(outcome.graph.entities.some(entity => entity.metadata?.path === "src/orders.ts")).toBe(false);
+    expect(new Set(outcome.graph.entities.map(entity => entity.key)).size).toBe(outcome.graph.entities.length);
     expect(llm.run).toHaveBeenCalledTimes(1);
   });
   it("retries once when the generated graph has an entity without a key", async () => {
@@ -171,9 +191,9 @@ describe("ProjectMemoryWorkflow", () => {
     const debug = vi.fn();
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(), debug);
 
-    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+    const outcome = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    expect(graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
+    expect(outcome.graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
     expect(llm.run).toHaveBeenCalledTimes(2);
     expect(llm.run.mock.calls[1][0].instruction).toContain("entity at index 0");
     expect(llm.run.mock.calls[1][0].instruction).toContain("non-empty unique string key");
@@ -199,9 +219,9 @@ describe("ProjectMemoryWorkflow", () => {
     const debug = vi.fn();
     const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(), debug);
 
-    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+    const outcome = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
 
-    expect(graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
+    expect(outcome.graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
     expect(llm.run).toHaveBeenCalledTimes(2);
     expect(llm.run.mock.calls[0][0].instruction).toContain("Do not call tools, read or write workspace files");
     expect(llm.run.mock.calls[0][0].instruction).toContain("SDK publishes graph data without writing documentation files");

@@ -6,6 +6,8 @@ import { execFileSync } from "node:child_process";
 import { describe, expect, it, afterEach, beforeEach, vi } from "vitest";
 import { CliApp } from "../../src/cli/cli-app.js";
 import { ExitCode } from "../../src/domain/exit-code.js";
+import { MemoryGraph } from "../../src/application/memory/memory-graph.js";
+import { LocalDocsStore } from "../../src/infrastructure/memory/local-docs-store.js";
 
 describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   let server: Server;
@@ -16,19 +18,26 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
   let temporary: string;
   let repository: string;
   let lastRequestBody: any;
+  let baselineGraph: unknown;
 
   beforeEach(async () => {
     apiCalls = 0;
     baselineCalls = 0;
     targetValidationCalls = 0;
+    baselineGraph = undefined;
     temporary = mkdtempSync(join(tmpdir(), "memory-cli-e2e-"));
     repository = join(temporary, "repository");
     execFileSync("git", ["clone", "--local", "--quiet", resolve("../"), repository]);
     server = createServer((req, res) => {
       if (req.method === "GET" && req.url?.startsWith("/v1/knowledge-publications/latest?")) {
         baselineCalls++;
-        res.writeHead(404);
-        res.end();
+        if (baselineGraph) {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ graph: baselineGraph }));
+        } else {
+          res.writeHead(404);
+          res.end();
+        }
         return;
       }
       if (req.method === "GET" && req.url) {
@@ -286,6 +295,31 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     expect(code).toBe(ExitCode.SUCCESS);
     const parsedStdout = JSON.parse(stdoutLines.join("\n"));
     expect(parsedStdout.status).toBe("ALREADY_PUBLISHED");
+  });
+
+  it("reports unchanged documentation and skips snapshot publication", async () => {
+    baselineGraph = new MemoryGraph().seed(new LocalDocsStore().read(repository), "baseline");
+    const stdoutLines: string[] = [];
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: message => stdoutLines.push(message),
+      stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments",
+      "--deployment-id", "unchanged-docs-new-deployment", "--version", "v1.0.0",
+      "--api-url", serverUrl, "--repository", repository, "--output", "json",
+    ]);
+
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(baselineCalls).toBe(1);
+    expect(apiCalls).toBe(0);
+    expect(targetValidationCalls).toBe(3);
+    const result = JSON.parse(stdoutLines.join("\n"));
+    expect(result.status).toBe("NO_CHANGES");
+    expect(result.message).toBe("No documentation changes detected; no snapshot was created.");
+    expect(stderrLines.join("\n")).not.toContain("Publishing snapshot");
   });
 
   it("AC 6: exits 7 on deployment conflict (409)", async () => {

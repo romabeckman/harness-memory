@@ -32,7 +32,7 @@ describe("snapshot publication phases", () => {
       counts: { entities: 0, relations: 0, evidence: 0 },
     };
     const collector = { collect: vi.fn(async () => { calls.push("collect"); return repositoryContext; }) };
-    const runner = { run: vi.fn(async () => { calls.push("generate"); return document; }) };
+    const runner = { run: vi.fn(async () => { calls.push("generate"); return { status: "READY" as const, graph: document }; }) };
     const validator = { validateAndCanonicalize: vi.fn(() => {
       calls.push("validate graph"); return validatedGraph;
     }) };
@@ -57,7 +57,7 @@ describe("snapshot publication phases", () => {
   it("stops before publication for dry runs", async () => {
     const document = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
     const collector = { collect: vi.fn(async () => ({ commitSha: "abc", headRef: "HEAD", files: [], diffs: [] })) };
-    const runner = { run: vi.fn(async () => document) };
+    const runner = { run: vi.fn(async () => ({ status: "READY" as const, graph: document })) };
     const validator = { validateAndCanonicalize: vi.fn(() => ({ document,
       canonicalJson: "{}", sha256: "hash", counts: { entities: 0, relations: 0, evidence: 0 } })) };
     const client = { validateTarget: vi.fn(), publish: vi.fn() };

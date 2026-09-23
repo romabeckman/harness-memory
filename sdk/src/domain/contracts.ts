@@ -93,7 +93,7 @@ export interface PublishSnapshotOptions {
 }
 
 export interface PublicationResult {
-  status: "ACTIVATED" | "ALREADY_PUBLISHED" | "DRY_RUN";
+  status: "ACTIVATED" | "ALREADY_PUBLISHED" | "NO_CHANGES" | "DRY_RUN";
   publicationId?: string;
   snapshotId?: string;
   projectKey: string;
@@ -101,6 +101,7 @@ export interface PublicationResult {
   deploymentId: string;
   version: string;
   payloadSha256: string;
+  message?: string;
   counts?: {
     entities: number;
     relations: number;

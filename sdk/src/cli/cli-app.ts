@@ -90,6 +90,7 @@ export class CliApp {
             deployment_id: result.deploymentId,
             version: result.version,
             payload_sha256: result.payloadSha256,
+            ...(result.message ? { message: result.message } : {}),
             counts: result.counts ?? { entities: 0, relations: 0, evidence: 0 },
           },
           null,
@@ -105,6 +106,7 @@ export class CliApp {
             `  Deployment ID:  ${result.deploymentId}\n` +
             `  Version:        ${result.version}\n` +
             `  Payload SHA256: ${result.payloadSha256}\n` +
+            (result.message ? `  Message:        ${result.message}\n` : "") +
             `  Counts:         entities=${result.counts?.entities ?? 0}, relations=${result.counts?.relations ?? 0}, evidence=${result.counts?.evidence ?? 0}`
         );
       }

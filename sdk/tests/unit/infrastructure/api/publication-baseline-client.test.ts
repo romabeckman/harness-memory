@@ -17,7 +17,7 @@ describe("PublicationBaselineClient", () => {
   });
 
   it("scopes the request and returns the stored graph", async () => {
-    const graph = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
+    const graph = { schema_version: "1.0", metadata: { nodes: [], edges: [] }, entities: [], relations: [], evidence: [] };
     const fetchFn = vi.fn().mockResolvedValue(Response.json({ graph }));
     await expect(new PublicationBaselineClient(fetchFn).load("https://memory.test", "secret", "a/b", "staging")).resolves.toEqual(graph);
     const [url, options] = fetchFn.mock.calls[0];
