@@ -4,6 +4,12 @@ import { CodexCliRunner } from "../../../../src/infrastructure/llm/codex-cli-run
 describe("CodexCliRunner", () => {
   const runner = new CodexCliRunner();
 
+  it("uses the Windows command processor for Codex command shims", () => {
+    expect(runner.command).toBe(
+      process.platform === "win32" ? "cmd.exe /d /s /c codex" : "codex"
+    );
+  });
+
   it("builds Codex CLI arguments using selected model and effort", () => {
     expect(runner.buildArgs({ model: "gpt-5", effort: "high" })).toEqual([
       "exec",

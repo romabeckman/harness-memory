@@ -114,8 +114,8 @@ sdk/
 - **Memory workflow**: Separate baseline loading, context budgeting, generation, and publication preparation. Validate documents and rule evidence in `MemoryDocumentValidator`.
 - **Dry run**: The publication handler returns validation metadata without calling the REST client. A failed phase stops the chain and preserves its existing error.
 - **Git collector**: Collects files and diffs with path and memory-budget checks.
-- **Agent runners**: Select `codex-cli` or `claude-cli` explicitly through CLI, environment, JSON config, or SDK options. `--model` stays independent. Shared execution sanitizes environments and handles stream backpressure.
-- **Validator**: Checks Schema 1.0 and computes canonical SHA-256.
+- **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, launch Codex through `cmd.exe` for npm's `.cmd` shim.
+- **Validator**: Check Schema 1.0; accept string, null, or omitted `canonical_key` per API; compute canonical SHA-256.
 - **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
 - **Exit codes**: Map domain failures to stable CLI statuses.
 

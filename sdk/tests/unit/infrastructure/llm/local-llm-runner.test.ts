@@ -3,6 +3,7 @@ import { LocalLlmRunner } from "../../../../src/infrastructure/llm/local-llm-run
 import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js";
 import { RepositoryContext } from "../../../../src/application/ports/git-context-collector.port.js";
 import { Writable } from "node:stream";
+import { AgentRunnerFactory } from "../../../../src/infrastructure/llm/agent-runner-factory.js";
 
 describe("LocalLlmRunner", () => {
   it("removes backpressure listeners after every drained write", async () => {
@@ -36,6 +37,26 @@ describe("LocalLlmRunner", () => {
         context: dummyContext,
       })
     ).rejects.toThrow(LlmExecutionError);
+  });
+
+  it("reports the resolved default executable when it is not found", async () => {
+    const executable = "non-existent-default-executable-987654321";
+    const missingRunner = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "codex-cli",
+      command: executable,
+      buildArgs: () => [],
+      parseOutput: (stdout) => stdout,
+    }]));
+
+    await expect(missingRunner.run({
+      agent: "codex-cli",
+      model: "test-model",
+      effort: "high",
+      timeoutSeconds: 5,
+      projectKey: "catalog",
+      environment: "staging",
+      context: dummyContext,
+    })).rejects.toThrow(`LLM executable not found: '${executable}'`);
   });
 
   it("runs node script as fake llm and parses json stdout", async () => {

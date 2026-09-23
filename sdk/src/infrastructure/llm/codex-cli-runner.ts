@@ -4,7 +4,8 @@ import { LlmAgentRunner } from "./llm-agent-runner.js";
 
 export class CodexCliRunner implements LlmAgentRunner {
   public readonly type = "codex-cli" as const;
-  public readonly command = "codex";
+  public readonly command =
+    process.platform === "win32" ? "cmd.exe /d /s /c codex" : "codex";
 
   public buildArgs(options: Pick<LlmInvocationOptions, "model" | "effort">): string[] {
     return [

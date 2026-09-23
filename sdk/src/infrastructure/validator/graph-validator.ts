@@ -150,8 +150,8 @@ export class GraphValidator implements GraphValidatorPort {
     if (item.name !== undefined && typeof item.name !== "string") {
       throw new GraphValidationError("entity name must be a string if provided");
     }
-    if (item.canonical_key !== undefined && typeof item.canonical_key !== "string") {
-      throw new GraphValidationError("entity canonical_key must be a string if provided");
+    if (item.canonical_key !== undefined && item.canonical_key !== null && typeof item.canonical_key !== "string") {
+      throw new GraphValidationError("entity canonical_key must be a string or null if provided");
     }
 
     const metadata = this.validateMetadata(item.metadata);
@@ -160,7 +160,7 @@ export class GraphValidator implements GraphValidatorPort {
       key: item.key.trim(),
       type: item.type as any,
       name: item.name as string | undefined,
-      canonical_key: item.canonical_key as string | undefined,
+      canonical_key: item.canonical_key as string | null | undefined,
       metadata,
     };
   }

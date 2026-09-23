@@ -90,7 +90,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
         if (err.code === "ENOENT") {
           reject(
             new LlmExecutionError(
-              `LLM executable not found: '${options.llmCommand}'`
+              `LLM executable not found: '${execPath}'`
             )
           );
         } else {

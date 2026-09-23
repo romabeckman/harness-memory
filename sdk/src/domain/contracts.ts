@@ -51,7 +51,7 @@ export interface EntityFact {
   key: string;
   type: EntityType;
   name?: string;
-  canonical_key?: string;
+  canonical_key?: string | null;
   metadata?: Record<string, unknown>;
 }
 

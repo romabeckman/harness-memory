@@ -44,6 +44,30 @@ describe("GraphValidator", () => {
     expect(validated.sha256).toHaveLength(64);
   });
 
+  it("accepts null canonical keys allowed by the publication API", () => {
+    const doc = {
+      schema_version: "1.0",
+      entities: [{ key: "service:a", type: "service", canonical_key: null }],
+      relations: [],
+      evidence: [],
+    } as unknown as GraphDocument;
+
+    const validated = validator.validateAndCanonicalize(doc);
+
+    expect(validated.document.entities[0].canonical_key).toBeNull();
+  });
+
+  it("rejects canonical keys that are neither strings nor null", () => {
+    const doc = {
+      schema_version: "1.0",
+      entities: [{ key: "service:a", type: "service", canonical_key: 42 }],
+      relations: [],
+      evidence: [],
+    };
+
+    expect(() => validator.validateAndCanonicalize(doc)).toThrow(GraphValidationError);
+  });
+
   it("rejects invalid schema version", () => {
     const doc = {
       schema_version: "2.0",
