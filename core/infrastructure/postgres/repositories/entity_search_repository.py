@@ -82,16 +82,16 @@ class PostgresEntitySearchRepository:
             predicates.append(Entity.entity_key == criteria.key)
         if criteria.project is not None:
             predicates.append(
-                func.lower(Project.key).like(f"{criteria.project_like}%", escape="\\")
+                func.lower(Project.key).like(f"{criteria.project_like}%", escape="!")
             )
         if criteria.type is not None:
             predicates.append(Entity.entity_type == criteria.type.value)
         if criteria.name_like is not None:
             predicates.append(
                 or_(
-                    func.lower(Entity.name).like(f"{criteria.name_like}%", escape="\\"),
+                    func.lower(Entity.name).like(f"{criteria.name_like}%", escape="!"),
                     func.lower(Entity.entity_key).like(
-                        f"{criteria.name_like}%", escape="\\"
+                        f"{criteria.name_like}%", escape="!"
                     ),
                 )
             )

@@ -68,7 +68,14 @@ def test_criteria_normalizes_exact_filters_and_literal_name_prefix():
     assert criteria.name == "payments_%"
     assert criteria.type is EntityType.API
     assert criteria.project == "Company/Payments"
-    assert criteria.name_like == "payments\\_\\%"
+    assert criteria.name_like == "payments!_!%"
+
+
+def test_criteria_escapes_like_markers_without_using_backslash():
+    criteria = EntitySearchCriteria(name=r"Rate_%!\X", project=r"Project_%!\X")
+
+    assert criteria.name_like == r"rate!_!%!!\x"
+    assert criteria.project_like == r"project!_!%!!\x"
 
 
 def test_search_item_is_bounded_and_page_is_immutable():

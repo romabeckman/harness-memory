@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-20
+updated: 2026-09-22
 ---
 # Entity Discovery
 Find bounded Entity identities from each tenant's active Project snapshots through `search_entities`.
@@ -58,6 +58,7 @@ Find bounded Entity identities from each tenant's active Project snapshots throu
     "tests/unit/core/application/entity_discovery/contracts/test_contracts.py",
     "tests/unit/core/application/entity_discovery/services/test_cursor_and_criteria.py",
     "tests/unit/core/application/entity_discovery/use_cases/test_search_entities.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_entity_search_sql.py",
     "tests/unit/core/infrastructure/postgres/models/test_entity_search_indexes.py",
     "tests/unit/core/infrastructure/postgres/migrations/test_entity_search_indexes.py",
     "tests/unit/mcp/tools/test_search_entities.py",
@@ -93,8 +94,8 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 1. Supply at least one filter: `key`, `name`, `type`, or `project`.
 2. Use exact, case-sensitive matching for `key`; use exact type matching.
-3. Use a case-insensitive literal prefix for `name` across Entity name and key; wildcard characters remain literal data.
-4. Use a case-insensitive literal prefix for `project`; keep results tenant-scoped and active-snapshot bound.
+3. Use a case-insensitive literal prefix for `name` across Entity name and key. Escape `%`, `_`, and `!` with `!`; treat backslash as ordinary text.
+4. Use a case-insensitive literal prefix for `project` with the same escaping rules; keep results tenant-scoped and active-snapshot bound.
 5. Follow `next_cursor` with unchanged filters to continue deterministic keyset pagination.
 6. Return the applied `limit`; return `INVALID_ARGUMENT` for missing filters and `INVALID_SEARCH_CURSOR` for malformed cursors.
 

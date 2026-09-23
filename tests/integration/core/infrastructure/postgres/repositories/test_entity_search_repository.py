@@ -118,7 +118,7 @@ def test_repository_returns_active_tenant_rows_with_exact_and_prefix_filters():
     assert result.items[0].entity_id == UUID(int=100)
 
     project_prefix = repository.search(
-        TenantScope("tenant-a"), EntitySearchCriteria(project="pay"), None, 25
+        TenantScope("tenant-a"), EntitySearchCriteria(project="PaY"), None, 25
     )
     assert [item.key for item in project_prefix.items] == ["payments-api"]
 
@@ -146,7 +146,11 @@ def test_repository_escapes_name_wildcards_and_paginates_without_duplicates():
         session.add(snapshot)
         session.flush()
         project.active_snapshot_id = snapshot.id
-        for key, name in [("a", "Rate_100%"), ("b", "RateX1000"), ("c", "Rate-100")]:
+        for key, name in [
+            ("a", r"Rate_100%!\b"),
+            ("b", r"RateX1000!\b"),
+            ("c", r"Rate-100%!\b"),
+        ]:
             session.add(Entity(
                 tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
                 entity_key=key, entity_type="service", name=name, metadata_json={}
@@ -154,13 +158,13 @@ def test_repository_escapes_name_wildcards_and_paginates_without_duplicates():
         session.commit()
 
     repository = PostgresEntitySearchRepository(session_factory)
-    criteria = EntitySearchCriteria(name="Rate_100%")
+    criteria = EntitySearchCriteria(name=r"Rate_100%!\b")
     first = repository.search(TenantScope("tenant-a"), criteria, None, 1)
     second = repository.search(
         TenantScope("tenant-a"), criteria, first.next_cursor, 1
     ) if first.next_cursor else None
 
-    assert [item.name for item in first.items] == ["Rate_100%"]
+    assert [item.name for item in first.items] == [r"Rate_100%!\b"]
     assert second is None or second.items == ()
 
 
