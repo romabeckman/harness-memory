@@ -57,6 +57,80 @@ describe("ProjectMemoryWorkflow", () => {
     await expect(workflow.run(options, context)).rejects.toThrow(/ARCHITECTURE/);
     expect(docs.write).not.toHaveBeenCalled();
   });
+  it("derives a missing entity key from its path without retrying the model", async () => {
+    const graphWithoutKey = generated();
+    delete graphWithoutKey.entities.find(entity => entity.type === "feature")!.key;
+    const llm = { run: vi.fn().mockResolvedValue(graphWithoutKey) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
+
+    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+
+    expect(graph.entities.find(entity => entity.type === "feature")?.key).toBe("docs-feature-orders.md");
+    expect(llm.run).toHaveBeenCalledTimes(1);
+  });
+  it("adds a stable hash suffix when a path-derived entity key collides", async () => {
+    const graphWithCollision = generated();
+    delete graphWithCollision.entities.find(entity => entity.type === "feature")!.key;
+    graphWithCollision.entities.push({ key: "docs-feature-orders.md", type: "service", name: "Existing service" });
+    const llm = { run: vi.fn().mockResolvedValue(graphWithCollision) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
+
+    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+
+    const feature = graph.entities.find(entity => entity.type === "feature")!;
+    expect(feature.key).toMatch(/^docs-feature-orders\.md-[a-f0-9]{12}$/);
+    expect(graph.entities.some(entity => entity.type === "service" && entity.key === "docs-feature-orders.md")).toBe(true);
+    expect(new Set(graph.entities.map(entity => entity.key)).size).toBe(graph.entities.length);
+    expect(llm.run).toHaveBeenCalledTimes(1);
+  });
+  it("retries once when the generated graph has an entity without a key", async () => {
+    const invalid = { schema_version: "1.0", entities: [{ type: "service", name: "Payments" }], relations: [], evidence: [] };
+    const llm = { run: vi.fn().mockResolvedValueOnce(invalid).mockResolvedValueOnce(generated()) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const debug = vi.fn();
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(), debug);
+
+    const graph = await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context);
+
+    expect(graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
+    expect(llm.run).toHaveBeenCalledTimes(2);
+    expect(llm.run.mock.calls[1][0].instruction).toContain("entity at index 0");
+    expect(llm.run.mock.calls[1][0].instruction).toContain("non-empty unique string key");
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("entities[0]"));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("path=<none>"));
+    expect(docs.write).not.toHaveBeenCalled();
+  });
+  it("fails without writing if the graph still has a missing key after one retry", async () => {
+    const invalid = { schema_version: "1.0", entities: [{ type: "service", name: "Payments" }], relations: [], evidence: [] };
+    const llm = { run: vi.fn().mockResolvedValue(invalid) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator());
+
+    await expect(workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context))
+      .rejects.toThrow("entity key is required");
+
+    expect(llm.run).toHaveBeenCalledTimes(2);
+    expect(docs.write).not.toHaveBeenCalled();
+  });
+  it("identifies a local seed entity without a key in debug output", async () => {
+    const files = [
+      { path: "docs/.graph.json", content: JSON.stringify({ nodes: [{ path: "docs/README.md", id: "" }], edges: [] }), sha256: "sha" },
+      { path: "docs/README.md", content: "# Index\n", sha256: "sha" },
+    ];
+    const docs = { read: vi.fn().mockReturnValue(files), write: vi.fn() };
+    const llm = { run: vi.fn() };
+    const debug = vi.fn();
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(), debug);
+
+    await expect(workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, context))
+      .rejects.toThrow("entity key is required");
+
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("seed missing key at entities[0]"));
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('path="docs/README.md"'));
+    expect(llm.run).not.toHaveBeenCalled();
+  });
   it("dry run generates and validates without writing docs", async () => {
     const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
     const workflow = new ProjectMemoryWorkflow({ run: vi.fn().mockResolvedValue(generated()) }, { load: vi.fn() }, docs, new GraphValidator());

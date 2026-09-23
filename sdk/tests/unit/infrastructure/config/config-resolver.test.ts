@@ -47,6 +47,12 @@ describe("ConfigResolver", () => {
     }).excludePaths).toEqual(["public/resources", "app/Views"]);
   });
 
+  it("enables debug only when requested", () => {
+    expect(resolver.resolve(["--agent", "codex-cli", "--debug"], {}).debug).toBe(true);
+    expect(resolver.resolve(["--agent", "codex-cli"], {}).debug).toBe(false);
+    expect(resolver.resolve(["--agent", "codex-cli"], { HARNESS_MEMORY_DEBUG: "true" }).debug).toBe(true);
+  });
+
   it("selects an agent runner from CLI arguments independently of the model", () => {
     const config = resolver.resolve(
       [

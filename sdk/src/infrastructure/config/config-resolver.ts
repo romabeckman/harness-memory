@@ -26,6 +26,7 @@ const ALLOWED_FLAGS = new Set([
   "--dry-run",
   "--output",
   "--verbose",
+  "--debug",
 ]);
 
 const FORBIDDEN_FLAGS = new Set([
@@ -42,6 +43,7 @@ const FORBIDDEN_FLAGS = new Set([
 export interface ResolvedCliConfig extends PublishSnapshotOptions {
   outputFormat: "json" | "text";
   configPath: string;
+  debug: boolean;
 }
 
 export class ConfigResolver {
@@ -196,6 +198,11 @@ export class ConfigResolver {
       env.HARNESS_MEMORY_VERBOSE === "true" ||
       fileConfig.verbose === true;
 
+    const debug =
+      parsedCli["--debug"] === "true" ||
+      env.HARNESS_MEMORY_DEBUG === "true" ||
+      fileConfig.debug === true;
+
     const outputRaw =
       parsedCli["--output"] ||
       env.HARNESS_MEMORY_OUTPUT ||
@@ -222,6 +229,7 @@ export class ConfigResolver {
       excludePaths,
       dryRun,
       verbose,
+      debug,
       outputFormat,
       configPath,
     };
@@ -257,7 +265,7 @@ export class ConfigResolver {
         throw new ConfigurationError(`Unknown flag: '${flag}'`);
       }
 
-      if (flag === "--dry-run" || flag === "--verbose") {
+      if (flag === "--dry-run" || flag === "--verbose" || flag === "--debug") {
         result[flag] = "true";
         continue;
       }

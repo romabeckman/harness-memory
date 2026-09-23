@@ -104,6 +104,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
     const code = await app.run([
       "publish",
       "--agent", "codex-cli",
+      "--debug",
       "--model",
       "gpt-5",
       "--effort",
@@ -143,6 +144,7 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "→ Publishing snapshot...",
       "✓ Publishing snapshot",
     ]));
+    expect(stderrLines.join("\n")).toContain("[debug] Memory: model graph entities=");
   });
 
   it("AC 5: returns ALREADY_PUBLISHED and exits 0 on duplicate deployment", async () => {

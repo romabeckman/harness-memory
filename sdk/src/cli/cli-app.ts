@@ -31,18 +31,29 @@ export class CliApp {
   }
 
   public async run(rawArgs: string[]): Promise<ExitCode> {
+    let debugEnabled = rawArgs.includes("--debug") || this.env.HARNESS_MEMORY_DEBUG === "true";
+    let token: string | undefined;
     try {
       // Allow optional command name "publish": harness-memory publish [options]
       const args = rawArgs[0] === "publish" ? rawArgs.slice(1) : rawArgs;
 
       const config = this.configResolver.resolve(args, this.env);
+      debugEnabled = config.debug;
+      token = config.token;
+      const debug = config.debug
+        ? (message: string) => this.stderr(`[debug] ${this.redact(message, token)}`)
+        : undefined;
+
+      debug?.(`Configuration: ${JSON.stringify({ agent: config.agent, model: config.model,
+        effort: config.effort, projectKey: config.projectKey, environment: config.environment,
+        dryRun: config.dryRun })}`);
 
       const useCase = new PublishSnapshotUseCase(
         new GitContextCollector(),
         new LocalLlmRunner(),
         new GraphValidator(),
         new RestPublicationClient(),
-        new ProjectMemoryWorkflow(new LocalLlmRunner(), new PublicationBaselineClient(), new LocalDocsStore(), new GraphValidator())
+        new ProjectMemoryWorkflow(new LocalLlmRunner(), new PublicationBaselineClient(), new LocalDocsStore(), new GraphValidator(), debug)
       );
 
       if (config.verbose) {
@@ -50,7 +61,20 @@ export class CliApp {
         this.stderr(`Target: ${config.projectKey} (${config.environment})`);
       }
 
-      const result = await useCase.execute(config, (event) => this.reportProgress(event));
+      const phaseStartedAt = new Map<string, number>();
+      const result = await useCase.execute(config, (event) => {
+        this.reportProgress(event);
+        if (!debug) return;
+        if (event.state === "started") {
+          phaseStartedAt.set(event.phase, Date.now());
+          debug(`Phase ${event.phase} started`);
+        } else {
+          const duration = Date.now() - (phaseStartedAt.get(event.phase) ?? Date.now());
+          debug(`Phase ${event.phase} ${event.state} in ${duration} ms`);
+        }
+      });
+      debug?.(`Result: status=${result.status}, entities=${result.counts?.entities ?? 0}, ` +
+        `relations=${result.counts?.relations ?? 0}, evidence=${result.counts?.evidence ?? 0}`);
 
       if (config.outputFormat === "json") {
         const jsonOutput = JSON.stringify(
@@ -84,12 +108,16 @@ export class CliApp {
 
       return ExitCode.SUCCESS;
     } catch (err: any) {
+      if (debugEnabled) {
+        const stack = err instanceof Error ? err.stack ?? `${err.name}: ${err.message}` : String(err);
+        this.stderr(`[debug] Error stack:\n${this.redact(stack, token)}`);
+      }
       if (err instanceof PublisherError) {
-        this.stderr(`Error [${err.name}]: ${err.message}`);
+        this.stderr(`Error [${err.name}]: ${this.redact(err.message, token)}`);
         return err.exitCode;
       }
 
-      this.stderr(`Unexpected error: ${err?.message ?? String(err)}`);
+      this.stderr(`Unexpected error: ${this.redact(err?.message ?? String(err), token)}`);
       return ExitCode.USAGE_OR_CONFIG;
     }
   }
@@ -106,5 +134,22 @@ export class CliApp {
     }
 
     this.stderr(`✗ ${event.phase}`);
+  }
+
+  private redact(message: string, token?: string): string {
+    let safe = message
+      .replace(/([a-z][a-z0-9+.-]*:\/\/)[^/\s@]+@/gi, "$1[REDACTED]@")
+      .replace(/(bearer\s+)\S+/gi, "$1[REDACTED]")
+      .replace(/((?:token|secret|password|api[_-]?key)\s*[=:]\s*)\S+/gi, "$1[REDACTED]");
+    const secrets = new Set([
+      token,
+      ...Object.entries(this.env)
+        .filter(([name, value]) => /TOKEN|SECRET|PASSWORD|KEY|AUTH/i.test(name) && value)
+        .map(([, value]) => value),
+    ]);
+    for (const secret of secrets) {
+      if (secret) safe = safe.replaceAll(secret, "[REDACTED]");
+    }
+    return safe;
   }
 }

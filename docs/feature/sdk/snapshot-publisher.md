@@ -102,24 +102,20 @@ The SDK collects Git context, validates generated graphs, and publishes through 
 
 ```text
 sdk/
-├── src/
-│   ├── domain/               # Errors, exit codes, contracts
-│   ├── application/          # PublishSnapshotUseCase and ports
-│   ├── infrastructure/       # Git, LLM runner, validator, REST client
-│   └── cli/                  # CLI app entrypoint and config resolver
-└── tests/{unit,integration,e2e}/ # Vitest test tiers
+  src/{domain,application,infrastructure,cli}/
+  tests/{unit,integration,e2e}/
 ```
 
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Compare complete local docs with the latest graph; bootstrap missing docs from bounded source batches. Validate documents and rule evidence.
+- **Memory workflow**: Compare complete local docs with the latest graph; bootstrap missing docs from bounded source batches. Derive missing entity keys from paths (slashes become hyphens), hash collisions, and retry key omissions without paths once.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs with path and budget checks. `--exclude-paths` skips explicit files or directories before budgets; `docs/` cannot be excluded.
 - **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, use `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters.
 - **Validator**: Check Schema 1.0; accept string, null, or omitted `canonical_key` per API; compute canonical SHA-256.
 - **REST client**: Publishes with `memory:publish`, retries 429/5xx with jitter, and supports idempotent activation.
-- **CLI progress**: Reports each publication phase to stderr as it starts, completes, or fails. Keeps JSON results on stdout. `--verbose` also prints the repository and publication target.
+- **CLI progress**: Reports phases to stderr; JSON stays on stdout. `--debug` adds phase times, memory diagnostics, and redacted error stacks. `--verbose` prints repository and target.
 - **Exit codes**: Map domain failures to stable CLI statuses.
 
 ## HOW TO PUBLISH SNAPSHOTS
@@ -168,7 +164,8 @@ For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docs
 | `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
 | `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Comma-separated repository-relative source paths; JSON config and SDK accept `excludePaths` arrays | — |
 | `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
-| `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and publication target details to stderr. Phase progress is always printed to stderr. | `false` |
+| `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and target to stderr | `false` |
+| `--debug` | `HARNESS_MEMORY_DEBUG` | No | Print phase times, memory diagnostics, and redacted error stacks to stderr | `false` |
 
 ## EXIT CODES
 
