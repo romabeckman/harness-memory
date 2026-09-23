@@ -131,7 +131,7 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Existing docs use baseline. Missing docs map source, stage under `.docs/`, reuse existing service, then promote. Validate graphs; repair missing keys by path, collision hash, or one model retry.
+- **Memory workflow**: Existing docs use baseline. Missing docs map source, stage under `.docs/`, reuse existing service, then promote. Retry malformed JSON once for each source batch and final graph; validate graphs; repair missing keys by path, collision hash, or one model retry.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs with path and budget checks. `--exclude-paths` skips explicit files or directories before budgets; `docs/` cannot be excluded.
 - **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, use `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters.

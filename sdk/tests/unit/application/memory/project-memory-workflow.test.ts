@@ -212,6 +212,24 @@ describe("ProjectMemoryWorkflow", () => {
     expect(llm.run.mock.calls[1][0].context.files.map(file => file.path))
       .toEqual([".harness-memory/source-manifest.json", ".harness-memory/source-summary-1.json"]);
   });
+  it("retries malformed source summary JSON once before document generation", async () => {
+    const summary = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
+    const llm = { run: vi.fn()
+      .mockRejectedValueOnce(new LlmExecutionError("LLM output is not valid JSON: Expected ':' after property name"))
+      .mockResolvedValueOnce(summary)
+      .mockResolvedValueOnce(generated()) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(),
+      undefined, { mapSourceBeforeDocumentation: true });
+    const files = [{ path: "src/send.ts", content: "export const send = true", sha256: "sha" }];
+
+    await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, { ...context, files });
+
+    expect(llm.run).toHaveBeenCalledTimes(3);
+    expect(llm.run.mock.calls[1][0].instruction).toContain("previous source summary was not valid JSON");
+    expect(llm.run.mock.calls[1][0].instruction).toContain("source summary");
+    expect(llm.run.mock.calls[2][0].instruction).not.toContain("previous response was not valid JSON");
+  });
   it("uses a source summary with an unkeyed concept as context for a valid final graph", async () => {
     const summary = { schema_version: "1.0", entities: [{ type: "service", name: "Send API" }], relations: [], evidence: [] };
     const llm = { run: vi.fn().mockImplementation(async invocation =>
