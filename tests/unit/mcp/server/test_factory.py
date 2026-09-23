@@ -12,6 +12,8 @@ def test_create_mcp_server_is_named_and_database_independent():
     )
 
     assert server.name == "harness-memory"
+    assert "search_projects" in server.instructions
+    assert "search_entities" in server.instructions
 
 
 def test_create_mcp_server_uses_api_token_repository_in_database_auth_mode():

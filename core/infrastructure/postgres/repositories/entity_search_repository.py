@@ -1,6 +1,6 @@
 from typing import Callable
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Text, and_, cast, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
@@ -81,9 +81,7 @@ class PostgresEntitySearchRepository:
         if criteria.key is not None:
             predicates.append(Entity.entity_key == criteria.key)
         if criteria.project is not None:
-            predicates.append(
-                func.lower(Project.key).like(f"{criteria.project_like}%", escape="!")
-            )
+            predicates.append(Project.key == criteria.project)
         if criteria.type is not None:
             predicates.append(Entity.entity_type == criteria.type.value)
         if criteria.name_like is not None:
@@ -93,6 +91,15 @@ class PostgresEntitySearchRepository:
                     func.lower(Entity.entity_key).like(
                         f"{criteria.name_like}%", escape="!"
                     ),
+                )
+            )
+        if criteria.query_like is not None:
+            pattern = f"%{criteria.query_like}%"
+            predicates.append(
+                or_(
+                    func.lower(Entity.entity_key).like(pattern, escape="!"),
+                    func.lower(Entity.name).like(pattern, escape="!"),
+                    func.lower(cast(Entity.metadata_json, Text)).like(pattern, escape="!"),
                 )
             )
         if cursor is not None:

@@ -83,7 +83,7 @@ def _seed(session_factory):
                     entity_key="payments-api",
                     entity_type="api",
                     name="GET /payments/{id}",
-                    metadata_json={},
+                    metadata_json={"content": "The service uses PostgreSQL for persistence."},
                 ),
                 Entity(
                     id=uuid4(),
@@ -100,7 +100,7 @@ def _seed(session_factory):
         session.commit()
 
 
-def test_repository_returns_active_tenant_rows_with_exact_and_prefix_filters():
+def test_repository_returns_active_tenant_rows_with_exact_project_filter():
     session_factory, _ = _repository()
     _seed(session_factory)
     repository = PostgresEntitySearchRepository(session_factory)
@@ -117,10 +117,38 @@ def test_repository_returns_active_tenant_rows_with_exact_and_prefix_filters():
     assert result.items[0].project_key == "payments"
     assert result.items[0].entity_id == UUID(int=100)
 
-    project_prefix = repository.search(
-        TenantScope("tenant-a"), EntitySearchCriteria(project="PaY"), None, 25
+    project_exact = repository.search(
+        TenantScope("tenant-a"), EntitySearchCriteria(project="payments"), None, 25
     )
-    assert [item.key for item in project_prefix.items] == ["payments-api"]
+    assert [item.key for item in project_exact.items] == ["payments-api"]
+
+    project_fragment = repository.search(
+        TenantScope("tenant-a"), EntitySearchCriteria(project="pay"), None, 25
+    )
+    assert project_fragment.items == ()
+
+
+def test_repository_searches_document_metadata_content_and_combines_exact_project_filter():
+    session_factory, _ = _repository()
+    _seed(session_factory)
+    repository = PostgresEntitySearchRepository(session_factory)
+
+    result = repository.search(
+        TenantScope("tenant-a"),
+        EntitySearchCriteria(query="postgresql", project="payments"),
+        None,
+        25,
+    )
+
+    assert [item.key for item in result.items] == ["payments-api"]
+
+    no_match = repository.search(
+        TenantScope("tenant-a"),
+        EntitySearchCriteria(query="postgresql", project="pay"),
+        None,
+        25,
+    )
+    assert no_match.items == ()
 
 
 def test_admin_scope_searches_across_tenants():

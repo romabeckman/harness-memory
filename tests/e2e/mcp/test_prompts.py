@@ -21,6 +21,7 @@ async def test_f007_prompts_render_fixed_guidance_without_data_access():
         )
 
     assert "search_entities" in str(context)
+    assert "search_projects" in str(context)
     assert "find_integration_paths" in str(integration)
     assert "analyze_impact" in str(impact)
 

@@ -24,5 +24,7 @@ class FilterFingerprint:
             "type": criteria.type.value if criteria.type is not None else None,
             "project": criteria.project,
         }
+        if criteria.query is not None:
+            payload["query"] = criteria.query
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return cls(hashlib.sha256(encoded).hexdigest())

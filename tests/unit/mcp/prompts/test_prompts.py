@@ -21,8 +21,12 @@ async def test_load_corporate_context_renders_guidance_without_io():
 
     text = str(result)
     assert "search_entities" in text
+    assert "search_projects" in text
+    assert "query" in text
     assert "get_context" in text
     assert "memory://projects" in text
+    assert "exact project key" in text
+    assert "If a search is empty" in text
     observable.assert_not_called()
 
 

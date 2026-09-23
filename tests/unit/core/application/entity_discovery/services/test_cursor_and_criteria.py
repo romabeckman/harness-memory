@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 from uuid import uuid4
 
@@ -41,9 +42,15 @@ def test_normalizer_trims_filters_preserves_exact_case_and_normalizes_name():
 
 
 def test_filter_fingerprint_is_deterministic_and_excludes_scope_and_pagination():
-    criteria = EntitySearchCriteria(key="payments", name="pay", type=EntityType.API, project="p")
-    same = EntitySearchCriteria(key="payments", name="pay", type=EntityType.API, project="p")
-    different = EntitySearchCriteria(key="other", name="pay", type=EntityType.API, project="p")
+    criteria = EntitySearchCriteria(
+        key="payments", name="pay", type=EntityType.API, project="p", query="database"
+    )
+    same = EntitySearchCriteria(
+        key="payments", name="pay", type=EntityType.API, project="p", query="database"
+    )
+    different = EntitySearchCriteria(
+        key="payments", name="pay", type=EntityType.API, project="p", query="postgres"
+    )
 
     assert FilterFingerprint.from_criteria(criteria) == FilterFingerprint.from_criteria(same)
     assert FilterFingerprint.from_criteria(criteria) != FilterFingerprint.from_criteria(different)
@@ -66,6 +73,30 @@ def test_cursor_round_trip_has_only_version_fingerprint_and_sort_tuple():
     )
     assert set(payload) == {"version", "filter_fingerprint", "last_key", "last_id"}
     assert "tenant" not in token.lower()
+
+
+def test_cursor_keeps_legacy_fingerprint_when_query_filter_is_absent():
+    criteria = EntitySearchCriteria(key="payments")
+    legacy_filters = {
+        "key": "payments",
+        "name": None,
+        "type": None,
+        "project": None,
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(legacy_filters, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    payload = {
+        "version": 1,
+        "filter_fingerprint": fingerprint,
+        "last_key": "payments-api",
+        "last_id": str(uuid4()),
+    }
+    token = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+
+    cursor = SearchCursorCodec().decode(token, criteria)
+
+    assert cursor.last_key == "payments-api"
 
 
 @pytest.mark.parametrize(

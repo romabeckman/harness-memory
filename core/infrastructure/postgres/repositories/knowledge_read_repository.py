@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
+from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.infrastructure.postgres.models.entity import Entity
 from core.infrastructure.postgres.models.environment import Environment
 from core.infrastructure.postgres.models.evidence import Evidence
@@ -88,6 +90,32 @@ class KnowledgeReadRepository:
             if len(matches) > 1:
                 raise ValueError("project key matches multiple tenants; provide tenant_id")
             return self._project(matches[0]) if matches else None
+
+    def search_projects(
+        self,
+        scope: TenantScope,
+        *,
+        key: str | None,
+        query: str | None,
+        limit: int,
+        offset: int,
+    ) -> tuple[ProjectSearchItem, ...]:
+        tenant_id = None if scope.is_admin else scope.tenant_id
+        projects = self.projects(
+            tenant_id,
+            key=key,
+            query=query,
+            limit=limit,
+            offset=offset,
+        )
+        return tuple(
+            ProjectSearchItem(
+                key=project["key"],
+                name=project["name"],
+                has_active_snapshot=project["active_snapshot_id"] is not None,
+            )
+            for project in projects
+        )
 
     def snapshots(
         self,

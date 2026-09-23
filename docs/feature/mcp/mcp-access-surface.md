@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:impact-analysis"
     read: must
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # MCP Access Surface
 Expose bounded memory resources and deterministic workflow prompts through the FastMCP catalog.
@@ -96,7 +96,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 - **Entity resource**: Reuse active relationship context at `memory://entities/{entity_id}`.
 - **Project resource**: Read only the project's active snapshot at `memory://projects/{project_key}`; decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
-- **Prompt surface**: Guide search, context, paths, and impact calls; keep business decisions in existing capabilities.
+- **Prompt surface**: Confirm project keys with `search_projects`, guide content queries with `search_entities`, and keep business decisions in existing capabilities.
 - **Environment surface**: Read active environment snapshots and compare added, removed,
   modified, and unchanged entity fingerprints without exposing a write operation.
 
@@ -105,7 +105,8 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 1. Require trusted tenant context and `memory:read` for every resource.
 2. Apply fixed bounds of 25 facts and 5 evidence items; expose truncation flags.
 3. Return identical sanitized not-found results for missing and foreign-tenant identifiers.
-4. Validate prompt arguments as bounded data and render deterministic text without I/O.
+4. Guide agents to confirm project keys with `search_projects` before interpreting empty entity results.
+5. Validate prompt arguments as bounded data and render deterministic text without I/O.
 
 ## PARAMETERS / CONFIGURATIONS
 

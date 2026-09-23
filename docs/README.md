@@ -21,7 +21,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
 | [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
-| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Bounded entity discovery from the active project snapshot. | Optional |
+| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Project lookup and bounded entity discovery from active snapshots. | Optional |
 | [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Environment context, pipeline publication, and snapshot comparison. | Optional |
 | [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis over bounded consumers. | Optional |
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |

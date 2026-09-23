@@ -9,9 +9,15 @@ class EntitySearchCriteria:
     name: str | None = None
     type: EntityType | None = None
     project: str | None = None
+    query: str | None = None
 
     def __post_init__(self) -> None:
-        values = {"key": self.key, "name": self.name, "project": self.project}
+        values = {
+            "key": self.key,
+            "name": self.name,
+            "project": self.project,
+            "query": self.query,
+        }
         normalized: dict[str, str | None] = {}
         for field, value in values.items():
             if value is not None and not isinstance(value, str):
@@ -21,7 +27,9 @@ class EntitySearchCriteria:
                 raise ValueError(f"{field} filter must not be empty")
             if trimmed is not None and len(trimmed) > 255:
                 raise ValueError(f"{field} filter is too long")
-            normalized[field] = trimmed.lower() if field == "name" and trimmed else trimmed
+            normalized[field] = (
+                trimmed.lower() if field in {"name", "query"} and trimmed else trimmed
+            )
 
         entity_type = self.type
         if entity_type is not None:
@@ -36,6 +44,7 @@ class EntitySearchCriteria:
         object.__setattr__(self, "key", normalized["key"])
         object.__setattr__(self, "name", normalized["name"])
         object.__setattr__(self, "project", normalized["project"])
+        object.__setattr__(self, "query", normalized["query"])
         object.__setattr__(self, "type", entity_type)
 
     @property
@@ -45,7 +54,7 @@ class EntitySearchCriteria:
         return self.name.replace("!", "!!").replace("%", "!%").replace("_", "!_")
 
     @property
-    def project_like(self) -> str | None:
-        if self.project is None:
+    def query_like(self) -> str | None:
+        if self.query is None:
             return None
-        return self.project.lower().replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        return self.query.replace("!", "!!").replace("%", "!%").replace("_", "!_")

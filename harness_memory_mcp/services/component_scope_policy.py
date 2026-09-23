@@ -27,6 +27,7 @@ class ComponentScopePolicy:
     _MATRIX = {
         ("tool", "analyze_impact"): MemoryScope.IMPACT.value,
         ("tool", "search_entities"): MemoryScope.READ.value,
+        ("tool", "search_projects"): MemoryScope.READ.value,
         ("tool", "get_context"): MemoryScope.READ.value,
         ("tool", "get_dependencies"): MemoryScope.READ.value,
         ("tool", "find_integration_paths"): MemoryScope.READ.value,

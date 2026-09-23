@@ -20,6 +20,7 @@ class NormalizeEntitySearch:
             name=input_model.name,
             type=input_model.type,
             project=input_model.project,
+            query=input_model.query,
         )
 
 

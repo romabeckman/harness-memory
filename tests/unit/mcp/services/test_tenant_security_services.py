@@ -51,6 +51,7 @@ def test_principal_factory_and_scope_policy_are_deny_by_default():
     assert policy.required_scope("tool", "compare_environments") == "memory:read"
     assert policy.required_scope("tool", "new_component") is None
     assert policy.can_access(result, "tool", "search_entities")
+    assert policy.can_access(result, "tool", "search_projects")
     assert not policy.can_access(result, "tool", "publish_project_snapshot")
     with pytest.raises(PermissionError):
         policy.authorize(result, "tool", "new_component")
