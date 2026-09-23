@@ -23,7 +23,7 @@ The server uses Streamable HTTP. For a remote deployment, use its HTTPS endpoint
 
 ## Connect an MCP client
 
-1. Create a user token or a tenant-bound service-account token through the REST API at `http://localhost:8080`. Follow the [API instructions](../api/README.md#create-an-mcp-credential).
+1. Create a user token or a tenant-bound service-account token through the REST API at `http://localhost:8080`. Use the same `API_TOKEN` bearer value for API and MCP. Follow the [API instructions](../api/README.md#create-an-mcp-credential).
 2. Save the plaintext token from the token creation response. It is returned only once.
 3. Configure your MCP client with the server URL and bearer token:
 

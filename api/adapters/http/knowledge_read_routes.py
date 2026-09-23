@@ -29,6 +29,18 @@ def create_knowledge_read_router(repository, authenticate) -> APIRouter:
             raise HTTPException(status_code=404, detail="tenant not found")
         return tenant
 
+    @router.get("/tenants/{tenant_id}")
+    def tenant_by_id(
+        tenant_id: UUID,
+        principal: AuthenticatedPrincipal = Depends(authenticate),
+    ):
+        if not principal.is_admin and str(tenant_id) != principal.tenant_id:
+            raise HTTPException(status_code=404, detail="tenant not found")
+        tenant = repository.tenant(str(tenant_id))
+        if tenant is None:
+            raise HTTPException(status_code=404, detail="tenant not found")
+        return tenant
+
     @router.get("/projects")
     def projects(principal: AuthenticatedPrincipal = Depends(authenticate)):
         return repository.projects(read_tenant(principal, None))

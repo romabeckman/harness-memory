@@ -10,10 +10,15 @@ from api.adapters.http.knowledge_publication_routes import (
 )
 from api.adapters.http.knowledge_read_routes import create_knowledge_read_router
 from api.adapters.http.service_account_routes import create_service_account_router
+from api.adapters.http.tenant_project_management_routes import (
+    create_tenant_project_management_router,
+)
 from api.adapters.http.token_routes import create_token_router
 from api.adapters.http.user_routes import create_user_router
 from api.application.services.service_account_service import ServiceAccountService
 from api.application.services.token_service import TokenService
+from api.application.services.project_management_service import ProjectManagementService
+from api.application.services.tenant_management_service import TenantManagementService
 from api.application.services.user_service import UserService
 from core.application.knowledge_publication.use_cases.get_publication_baseline import (
     GetPublicationBaseline,
@@ -37,6 +42,9 @@ from core.infrastructure.postgres.repositories.knowledge_publication_repository 
 from core.infrastructure.postgres.repositories.knowledge_read_repository import (
     KnowledgeReadRepository,
 )
+from core.infrastructure.postgres.repositories.tenant_project_management_repository import (
+    PostgresTenantProjectManagementRepository,
+)
 
 
 def create_app(
@@ -58,7 +66,10 @@ def create_app(
     service_account_repository = ApiServiceAccountRepository(session_factory)
     token_repository = ApiTokenRepository(session_factory)
     read_repository = KnowledgeReadRepository(session_factory)
-    security = ApiSecurity(token_repository, admin_token or os.getenv("API_ADMIN_TOKEN"))
+    security = ApiSecurity(
+        token_repository,
+        admin_token or os.getenv("API_ADMIN_TOKEN"),
+    )
     application = FastAPI(
         title="Harness Memory API",
         version="1.0.0",
@@ -78,6 +89,13 @@ def create_app(
                 user_repository,
                 service_account_repository=service_account_repository,
             )
+        )
+    )
+    resource_repository = PostgresTenantProjectManagementRepository(session_factory)
+    management_router.include_router(
+        create_tenant_project_management_router(
+            TenantManagementService(resource_repository),
+            ProjectManagementService(resource_repository),
         )
     )
     v1_router.include_router(management_router)

@@ -29,9 +29,9 @@ operational controls that protect the corporate engineering graph.
 ## OVERVIEW
 
 Harness Memory separates **REST governance and publication** from the **read-only MCP
-surface**. The API uses an administrative secret for credential management and database-
-backed owner-bound access tokens for publication; MCP verifies those same access tokens
-for bounded reads and impact analysis.
+surface**. API and MCP accept the same bearer token. Each compares the token to
+`API_ADMIN_TOKEN` for administrative access or verifies an active token digest, owner, and
+persisted scopes from the shared `tokens` table.
 
 ## TOKEN TYPES
 
@@ -55,7 +55,7 @@ registration and its scope matrix denies unmapped components.
 
 1. `api/server/app.py` applies `ApiSecurity.require_admin` to management routers.
 2. `ApiSecurity` accepts the admin token globally or hashes an ordinary bearer, loads its
-   active owner, checks the operation scope, and derives its tenant.
+   active owner, checks the persisted operation scope, and derives its tenant.
 3. `DatabaseTokenVerifier` performs the same active digest/owner lookup for MCP and copies
    only the token’s persisted scopes into the MCP principal.
 4. `ComponentScopePolicy` maps every public MCP tool, resource, and prompt to

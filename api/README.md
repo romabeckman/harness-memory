@@ -20,11 +20,11 @@ To start the complete application, including the MCP server, run `docker compose
 
 ## HTTP endpoints
 
-All routes use JSON unless the response has no body (`204`). Management routes require
-`Authorization: Bearer <API_ADMIN_TOKEN>`. User and service-account tokens have the same
-eligible permissions: `memory:read` for data reads and `memory:publish` for publication.
-Admin data reads span all tenants. Admin publication requires a `tenant_id` destination
-in the JSON body; it does not restrict other admin requests.
+All routes use JSON unless the response has no body (`204`). API and MCP accept the same
+`Authorization: Bearer <API_TOKEN>` value. If it matches `API_ADMIN_TOKEN`, it grants full
+REST access. Otherwise, it must match an active row in `tokens`; access then uses stored
+scopes and owner tenant. Management routes require `API_ADMIN_TOKEN`. Admin data reads span
+all tenants. Admin publication requires a `tenant_id` destination in the JSON body.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -36,9 +36,12 @@ in the JSON body; it does not restrict other admin requests.
 | `POST`, `GET` | `/v1/tokens` | Issue a token or list token metadata. Filter with `user_id` or `service_account_id`. |
 | `GET`, `PATCH`, `DELETE` | `/v1/tokens/{token_id}` | Read metadata, update the name or expiration, or revoke a token. |
 | `POST` | `/v1/knowledge-publications` | Publish and activate a tenant-scoped environment snapshot. |
-| `GET` | `/v1/tenants`, `/v1/tenants/current` | List accessible tenants or read authenticated tenant metadata. |
-| `GET` | `/v1/projects`, `/v1/projects/{project_key}` | List or read tenant projects. |
-| `GET` | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history or one stored payload. |
+| `POST`, `GET` | `/v1/tenants` | Admin creates tenants; credentials read within their scope. |
+| `GET`, `PATCH`, `DELETE` | `/v1/tenants/{tenant_id}` | Read tenant; admin updates or deletes an empty tenant. |
+| `GET` | `/v1/tenants/current` | Read authenticated tenant metadata. |
+| `POST`, `GET` | `/v1/projects` | Admin creates projects; credentials read within their scope. |
+| `GET`, `PATCH`, `DELETE` | `/v1/projects/{project_key}` | Read project; admin updates or deletes a project without dependent data. |
+| `GET` | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history or one stored payload; snapshots have no write methods. |
 
 Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. API-issued tokens do not authorize management calls. Ordinary data calls derive tenant from the authenticated owner. Admin data reads span all tenants; `?tenant_id=` can disambiguate duplicate project keys or publication baselines. Ordinary tokens cannot use that parameter to change their tenant.
 
@@ -91,10 +94,10 @@ See the [MCP module README](../harness_memory_mcp/README.md) for connection and 
 
 ## Configuration
 
-`DATABASE_URL` selects the shared PostgreSQL database. `API_ADMIN_TOKEN` is the
-independent secret for management routes and is required by Docker Compose. For local
-development, set both variables in the process environment; `.env-example` shows the
-expected format.
+`DATABASE_URL` selects the shared PostgreSQL database. `API_ADMIN_TOKEN` is the admin
+bearer secret and is required by Docker Compose. The API validates other bearer tokens
+against the shared `tokens` table. No separate static read credential exists. See
+`.env-example` for the environment variable format.
 
 The API uses the shared database schema. Run migrations before starting it; the API does not migrate the database at runtime. Docker Compose handles this startup order for you.
 

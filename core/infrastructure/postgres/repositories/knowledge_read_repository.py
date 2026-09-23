@@ -65,7 +65,7 @@ class KnowledgeReadRepository:
     @staticmethod
     def _tenant(tenant: Tenant) -> dict:
         return {"id": str(tenant.id), "key": tenant.key, "name": tenant.name,
-                "status": tenant.status}
+                "status": tenant.status, "metadata": tenant.metadata_json}
 
     @staticmethod
     def _project(project: Project) -> dict:
@@ -77,6 +77,7 @@ class KnowledgeReadRepository:
             "active_snapshot_id": (
                 str(project.active_snapshot_id) if project.active_snapshot_id else None
             ),
+            "metadata": project.metadata_json,
         }
 
     @staticmethod

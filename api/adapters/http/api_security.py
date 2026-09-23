@@ -6,6 +6,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.application.ports.token_repository import TokenRepository
+from api.domain.entities.access_token import AccessToken
+from api.domain.entities.service_account import ServiceAccount
+from api.domain.entities.user import User
 from core.domain.tenant_security.value_objects.authenticated_principal import (
     ADMIN_TENANT_ID,
     AuthenticatedPrincipal,
@@ -15,7 +18,11 @@ _bearer = HTTPBearer(auto_error=False)
 
 
 class ApiSecurity:
-    def __init__(self, token_repository: TokenRepository, admin_token: str | None) -> None:
+    def __init__(
+        self,
+        token_repository: TokenRepository,
+        admin_token: str | None,
+    ) -> None:
         self._token_repository = token_repository
         self._admin_token = admin_token.strip() if admin_token else None
 
@@ -28,12 +35,24 @@ class ApiSecurity:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="API administration is not configured",
             )
-        if credentials is None or not compare_digest(credentials.credentials, self._admin_token):
+        if credentials is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        if compare_digest(credentials.credentials, self._admin_token):
+            return
+        if self._find_active_token(credentials.credentials) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="insufficient scope",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     def require_publisher(
         self,
@@ -71,8 +90,7 @@ class ApiSecurity:
                 scopes=frozenset({"memory:read", "memory:impact", "memory:publish"}),
                 is_admin=True,
             )
-        token_hash = sha256(credentials.credentials.encode()).hexdigest()
-        identity = self._token_repository.find_active_by_hash(token_hash, now=datetime.now(UTC))
+        identity = self._find_active_token(credentials.credentials)
         if identity is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -91,3 +109,9 @@ class ApiSecurity:
             tenant_id=str(owner.tenant_id),
             scopes=token.scopes,
         )
+
+    def _find_active_token(
+        self, plaintext: str
+    ) -> tuple[AccessToken, User | ServiceAccount] | None:
+        token_hash = sha256(plaintext.encode()).hexdigest()
+        return self._token_repository.find_active_by_hash(token_hash, now=datetime.now(UTC))

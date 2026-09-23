@@ -223,6 +223,8 @@ def test_ordinary_reads_are_tenant_scoped_and_admin_reads_are_global() -> None:
         f"/v1/snapshots/{foreign_snapshot_id}", headers=admin_headers
     ).json()
     assert admin_snapshot["tenant_id"] == str(foreign_id)
+    assert client.get(f"/v1/tenants/{foreign_id}", headers=headers).status_code == 404
+    assert client.get(f"/v1/tenants/{foreign_id}", headers=admin_headers).status_code == 200
 
 
 def test_publication_rejects_missing_scope_and_invalid_fact_type() -> None:
