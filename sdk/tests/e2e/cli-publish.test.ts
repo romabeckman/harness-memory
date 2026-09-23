@@ -1,6 +1,6 @@
 import { createServer, Server } from "node:http";
 import { join, resolve } from "node:path";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it, afterEach, beforeEach, vi } from "vitest";
@@ -145,6 +145,29 @@ describe("CLI Publish E2E Scenarios (AC 1 - 9)", () => {
       "✓ Publishing snapshot",
     ]));
     expect(stderrLines.join("\n")).toContain("[debug] Memory: model graph entities=");
+  });
+
+  it("bootstraps a repository without docs before publishing", async () => {
+    rmSync(join(repository, "docs"), { recursive: true, force: true });
+    const stderrLines: string[] = [];
+    const app = new CliApp({ stdout: () => {}, stderr: message => stderrLines.push(message),
+      env: { HARNESS_MEMORY_API_KEY: "valid-publish-token" } });
+
+    const code = await app.run([
+      "publish", "--debug", "--agent", "codex-cli", "--model", "gpt-5", "--effort", "low",
+      "--environment", "staging", "--project-key", "payments", "--deployment-id", "bootstrap-1",
+      "--version", "v1.0.0", "--api-url", serverUrl, "--repository", repository,
+      "--llm-command", `node ${resolve("tests/fixtures/fake-bootstrap-llm.cjs")}`,
+    ]);
+
+    expect(code).toBe(ExitCode.SUCCESS);
+    expect(apiCalls).toBe(1);
+    expect(existsSync(join(repository, "docs/feature/bootstrap.md"))).toBe(true);
+    expect(existsSync(join(repository, "docs/.graph.json"))).toBe(true);
+    expect(existsSync(join(repository, ".docs"))).toBe(false);
+    expect(stderrLines.some(line => line.includes("Bootstrapping project documentation and building knowledge graph")))
+      .toBe(true);
+    expect(stderrLines).toContain("[debug] Memory: promoted validated documents to docs/");
   });
 
   it("AC 5: returns ALREADY_PUBLISHED and exits 0 on duplicate deployment", async () => {

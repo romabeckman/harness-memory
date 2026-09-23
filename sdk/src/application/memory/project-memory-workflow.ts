@@ -15,16 +15,23 @@ import { isMemoryPath, MemoryGraph } from "./memory-graph.js";
 import { PROJECT_MEMORY_PROMPT } from "./project-memory-prompt.js";
 import { SOURCE_SUMMARY_PROMPT } from "./project-memory-prompt.js";
 import { SourceBatchPlanner } from "./source-batch-planner.js";
+import { ProjectMemoryCompleteness } from "./project-memory-completeness.js";
 import { digest } from "./memory-graph.js";
 
 const MAX_ENTITY_KEY_LENGTH = 255;
 const ENTITY_KEY_HASH_LENGTH = 12;
+
+export interface ProjectMemoryWorkflowSettings {
+  prompt?: string;
+  mapSourceBeforeDocumentation?: boolean;
+}
 
 export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
   private readonly codec = new DocumentContentCodec();
   private readonly memory = new MemoryGraph();
   private readonly documentValidator = new MemoryDocumentValidator();
   private readonly batchPlanner = new SourceBatchPlanner();
+  private readonly completeness = new ProjectMemoryCompleteness();
 
   constructor(
     private readonly llm: LlmRunnerPort,
@@ -32,6 +39,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     private readonly docs: DocsStorePort,
     private readonly validator: GraphValidatorPort,
     private readonly debug?: (message: string) => void,
+    private readonly settings: ProjectMemoryWorkflowSettings = {},
   ) {}
 
   public async run(options: PublishSnapshotOptions, context: RepositoryContext): Promise<GraphDocument> {
@@ -40,7 +48,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     const previous = await this.loadPrevious(options);
     this.debug?.(`Memory: previous snapshot ${previous ? `has ${previous.entities.length} entities` : "absent"}`);
     const files = this.docs.read(options.repository);
-    const existingDocs = this.hasCompleteProjectMemory(files);
+    const existingDocs = this.completeness.isComplete(files);
     const code = this.collectCode(context, files, options, existingDocs);
     const seed = this.memory.seed(files, context.commitSha);
     this.debug?.(`Memory: local docs=${files.length}, source files=${code.length}, ` +
@@ -108,18 +116,6 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     return code;
   }
 
-  private hasCompleteProjectMemory(files: CollectedFile[]): boolean {
-    const paths = new Set(files.map(file => file.path));
-    const required = ["docs/.graph.json", "docs/.digest.md", "docs/README.md",
-      "docs/adr/ARCHITECTURE.md", "docs/adr/TESTS.md"];
-    if (!required.every(path => paths.has(path))) return false;
-    const graphDocuments = files.filter(file => /^docs\/(adr|feature)\/.*\.md$/.test(file.path));
-    if (!graphDocuments.some(file => file.path.startsWith("docs/feature/"))) return false;
-    return graphDocuments.every(file => /^---\r?\n/.test(file.content) &&
-      /^node_id:\s*["']?[\w-]+:[\w-]+["']?\s*$/m.test(file.content) &&
-      (!file.path.startsWith("docs/feature/") || /```graph\s*\r?\n\s*\{/.test(file.content)));
-  }
-
   private async createInvocation(
     options: PublishSnapshotOptions,
     context: RepositoryContext,
@@ -130,10 +126,11 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     existingDocs: boolean,
   ): Promise<LlmInvocationOptions> {
     let promptFiles = existingDocs ? [] : [...code, ...files.filter(file => file.path === "docs/.graph.json")];
-    let instruction = PROJECT_MEMORY_PROMPT;
+    let instruction = this.settings.prompt ?? PROJECT_MEMORY_PROMPT;
     if (existingDocs) {
       instruction += "\nCurrent docs are authoritative: compare current documents with the latest published graph. Preserve local Markdown exactly; describe supported changes in graph facts and evidence. Do not invent source-file changes.";
-    } else if (promptFiles.reduce((size, file) => size + JSON.stringify(file).length + 1, 0) > 500_000) {
+    } else if (this.settings.mapSourceBeforeDocumentation ||
+      promptFiles.reduce((size, file) => size + JSON.stringify(file).length + 1, 0) > 500_000) {
       promptFiles = await this.summarizeSource(options, context, code);
       promptFiles.push(...files.filter(file => file.path === "docs/.graph.json"));
       instruction += "\nThe supplied source-manifest and source-summary files are intermediate context generated from all collected source files. Use only original paths from the manifest in evidence and document routing; never cite .harness-memory paths. Emit complete project-memory document content from the summaries and local documentation in the JSON graph.";

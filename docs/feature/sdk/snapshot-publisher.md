@@ -36,25 +36,43 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts",
     "sdk/src/application/publish-snapshot/phases/abstract-publication-phase.ts",
     "sdk/src/infrastructure/api/rest-publication-client.ts",
-    "sdk/src/infrastructure/validator/graph-validator.ts"
+    "sdk/src/infrastructure/validator/graph-validator.ts",
+    "sdk/skills/project-memory/SKILL.md"
   ],
   "code_files": [
     "sdk/src/application/publish-snapshot/phases/publication-phase-context.ts",
     "sdk/src/application/publish-snapshot/phases/validate-options-phase.ts",
     "sdk/src/application/publish-snapshot/phases/collect-context-phase.ts",
     "sdk/src/application/publish-snapshot/phases/generate-document-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/generate-with-docs-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/generate-without-docs-phase.ts",
+    "sdk/src/application/publish-snapshot/phases/route-documentation-phase.ts",
     "sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts",
     "sdk/src/application/publish-snapshot/phases/publish-phase.ts",
     "sdk/src/application/memory/project-memory-workflow.ts",
+    "sdk/src/application/memory/missing-docs-memory-service.ts",
+    "sdk/src/application/memory/existing-docs-memory-service.ts",
+    "sdk/src/application/memory/project-memory-completeness.ts",
     "sdk/src/application/memory/project-memory-prompt.ts",
     "sdk/src/application/memory/source-batch-planner.ts",
     "sdk/src/application/memory/memory-graph.ts",
     "sdk/src/application/memory/memory-document-validator.ts",
     "sdk/src/application/memory/document-content-codec.ts",
     "sdk/src/application/ports/docs-store.port.ts",
+    "sdk/src/application/ports/documentation-directory.port.ts",
+    "sdk/src/application/ports/temporary-docs-workspace.port.ts",
     "sdk/src/application/ports/memory-workflow.port.ts",
     "sdk/src/application/ports/publication-baseline.port.ts",
     "sdk/src/infrastructure/memory/local-docs-store.ts",
+    "sdk/src/infrastructure/memory/local-docs-directory.ts",
+    "sdk/src/infrastructure/memory/local-temporary-docs-workspace.ts",
+    "sdk/src/infrastructure/memory/bundled-project-memory-skill.ts",
+    "sdk/skills/project-memory/references/ARCHITECTURE-RULES.md",
+    "sdk/skills/project-memory/references/TESTS-RULES.md",
+    "sdk/skills/project-memory/references/README-RULES.md",
+    "sdk/skills/project-memory/references/DOCUMENT-TEMPLATE.md",
+    "sdk/skills/project-memory/scripts/generate_docs_graph.py",
+    "sdk/skills/project-memory/scripts/test_generate_docs_graph.py",
     "sdk/src/infrastructure/api/publication-baseline-client.ts",
     "sdk/src/application/ports/llm-runner.port.ts",
     "sdk/src/application/ports/publication-client.port.ts",
@@ -75,9 +93,13 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
     "sdk/tests/unit/application/memory/document-content-codec.test.ts",
     "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
+    "sdk/tests/unit/application/memory/missing-docs-memory-service.test.ts",
+    "sdk/tests/unit/application/memory/existing-docs-memory-service.test.ts",
     "sdk/tests/unit/application/memory/source-batch-planner.test.ts",
     "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
     "sdk/tests/integration/infrastructure/memory/local-docs-store.test.ts",
+    "sdk/tests/integration/infrastructure/memory/missing-docs-memory-service.test.ts",
+    "sdk/tests/integration/infrastructure/memory/bundled-project-memory-skill.test.ts",
     "sdk/tests/unit/application/publish-snapshot.use-case.test.ts",
     "sdk/tests/unit/cli/cli-app.test.ts",
     "sdk/tests/unit/infrastructure/api/rest-publication-client.test.ts",
@@ -109,7 +131,7 @@ sdk/
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Publication phases**: `PublishSnapshotUseCase` chains option, Git, document, graph, and publication handlers.
-- **Memory workflow**: Compare local docs with latest graph; bootstrap from bounded source summaries. Model emits JSON with Markdown; SDK validates and writes docs. Retry prose once with format feedback. Derive missing keys from paths, hash collisions, and retry pathless omissions once.
+- **Memory workflow**: Existing docs use baseline. Missing docs map source, stage under `.docs/`, reuse existing service, then promote. Validate graphs; repair missing keys by path, collision hash, or one model retry.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs with path and budget checks. `--exclude-paths` skips explicit files or directories before budgets; `docs/` cannot be excluded.
 - **Agent runners**: Select `codex-cli` or `claude-cli` via CLI, environment, config, or SDK; model stays independent. Sanitize child environments and handle backpressure. On Windows, use `cmd.exe` for npm's `.cmd` shim. Reject Codex inputs over 1,048,576 serialized characters.
@@ -124,7 +146,7 @@ sdk/
 
 1. Collect Git context; load the authenticated project/environment baseline (HTTP 404 means none).
 2. Read local docs, including untracked files. Complete docs are authoritative; compare them with the baseline without sending source content to Codex.
-3. Bootstrap missing or incomplete docs from the bundled **project-memory prompt**. Summarize source in bounded batches when needed.
+3. Without `docs/`, map source in batches; stage ADRs, features, digest, and graph index under `.docs/` with bundled **project-memory skill**; reuse existing flow.
 4. Reconcile keys, rules, evidence, and document content. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git-style markers in `metadata.conflict_marker`.
 5. Validate and write Markdown/index before publishing. Concurrent edits or symlinks abort writes. `--dry-run` skips local and remote writes.
 
@@ -136,7 +158,7 @@ Rules retain full statements and cited `defines` relations; features retain micr
 
 ### Optional harness-kit integration
 
-**harness-kit project-memory is optional.** The SDK bundles its prompt and records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`.
+**External harness-kit installation is optional.** The SDK bundles the full project-memory skill and records `generated_by: harness-memory-sdk` and `memory_protocol: project-memory/v1`.
 
 Write local docs **before REST POST**; failed POST leaves drafts. `--dry-run` validates without writes or publication; credentials allow baseline reads. Limit baselines to 50 MiB. Exclude `docs/workflow/` and `docs/harness-history/`.
 
@@ -148,7 +170,7 @@ Write local docs **before REST POST**; failed POST leaves drafts. `--dry-run` va
 1. Set `--agent codex-cli` or `--agent claude-cli`, plus model and publication settings.
 2. Run publication via CLI or programmatic use case.
 
-For programmatic use, inject `ProjectMemoryWorkflow(runner, baselineClient, docsStore, validator)` as the fifth `PublishSnapshotUseCase` argument.
+Programmatic callers pass both memory services and `LocalDocsDirectory` to `PublishSnapshotUseCase`; see `CliApp`.
 
 ## PARAMETERS / CONFIGURATIONS
 

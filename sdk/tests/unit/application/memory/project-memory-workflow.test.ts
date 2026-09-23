@@ -195,6 +195,23 @@ describe("ProjectMemoryWorkflow", () => {
       .toEqual(files.map(file => file.path));
     expect(llm.run.mock.calls.at(-1)![0].context.files.every(file => file.content.length < 300_000)).toBe(true);
   });
+  it("maps source before document generation in bootstrap mode", async () => {
+    const summary = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
+    const llm = { run: vi.fn().mockImplementation(async invocation =>
+      invocation.instruction.includes("Summarize this source batch") ? summary : generated()) };
+    const docs = { read: vi.fn().mockReturnValue([]), write: vi.fn() };
+    const workflow = new ProjectMemoryWorkflow(llm, { load: vi.fn() }, docs, new GraphValidator(),
+      undefined, { prompt: "Bundled project-memory skill", mapSourceBeforeDocumentation: true });
+    const files = [{ path: "src/send.ts", content: "export const send = true", sha256: "sha" }];
+
+    await workflow.run({ ...options, apiUrl: undefined, token: undefined, dryRun: true }, { ...context, files });
+
+    expect(llm.run).toHaveBeenCalledTimes(2);
+    expect(llm.run.mock.calls[0][0].context.files).toEqual(files);
+    expect(llm.run.mock.calls[1][0].instruction).toContain("Bundled project-memory skill");
+    expect(llm.run.mock.calls[1][0].context.files.map(file => file.path))
+      .toEqual([".harness-memory/source-manifest.json", ".harness-memory/source-summary-1.json"]);
+  });
   it("uses a source summary with an unkeyed concept as context for a valid final graph", async () => {
     const summary = { schema_version: "1.0", entities: [{ type: "service", name: "Send API" }], relations: [], evidence: [] };
     const llm = { run: vi.fn().mockImplementation(async invocation =>

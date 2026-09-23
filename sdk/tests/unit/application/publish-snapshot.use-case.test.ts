@@ -197,4 +197,53 @@ describe("PublishSnapshotUseCase", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("routes a repository without docs through the bootstrap phase", async () => {
+    const graph = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
+    const existing = { run: vi.fn().mockResolvedValue(graph) };
+    const bootstrap = { run: vi.fn().mockResolvedValue(graph) };
+    const directory = { exists: vi.fn().mockReturnValue(false) };
+    const useCase = new PublishSnapshotUseCase(mockCollector, mockLlm, mockValidator, mockClient,
+      existing, bootstrap, directory);
+    const progress: Array<{ phase: string; state: string }> = [];
+
+    await useCase.execute({ agent: "codex-cli", repository: "/repo", projectKey: "catalog",
+      environment: "staging", deploymentId: "dep-1", version: "1", model: "gpt-5",
+      effort: "high", headRef: "HEAD", dryRun: true }, event => progress.push(event));
+
+    expect(directory.exists).toHaveBeenCalledWith("/repo");
+    expect(bootstrap.run).toHaveBeenCalledOnce();
+    expect(existing.run).not.toHaveBeenCalled();
+    expect(progress).toContainEqual({ phase: "Bootstrapping project documentation and building knowledge graph",
+      state: "completed" });
+  });
+
+  it("routes a repository with docs through the existing documentation phase", async () => {
+    const graph = { schema_version: "1.0", entities: [], relations: [], evidence: [] };
+    const existing = { run: vi.fn().mockResolvedValue(graph) };
+    const bootstrap = { run: vi.fn().mockResolvedValue(graph) };
+    const directory = { exists: vi.fn().mockReturnValue(true) };
+    const useCase = new PublishSnapshotUseCase(mockCollector, mockLlm, mockValidator, mockClient,
+      existing, bootstrap, directory);
+
+    await useCase.execute({ agent: "codex-cli", repository: "/repo", projectKey: "catalog",
+      environment: "staging", deploymentId: "dep-1", version: "1", model: "gpt-5",
+      effort: "high", headRef: "HEAD", dryRun: true });
+
+    expect(existing.run).toHaveBeenCalledOnce();
+    expect(bootstrap.run).not.toHaveBeenCalled();
+  });
+
+  it("validates options before inspecting the documentation directory", async () => {
+    const directory = { exists: vi.fn() };
+    const workflow = { run: vi.fn() };
+    const useCase = new PublishSnapshotUseCase(mockCollector, mockLlm, mockValidator, mockClient,
+      workflow, workflow, directory);
+
+    await expect(useCase.execute({ agent: "codex-cli", repository: "", projectKey: "",
+      environment: "staging", deploymentId: "dep-1", version: "1", model: "gpt-5",
+      effort: "high", headRef: "HEAD", dryRun: true })).rejects.toThrow(ConfigurationError);
+
+    expect(directory.exists).not.toHaveBeenCalled();
+  });
 });
