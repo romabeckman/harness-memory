@@ -11,6 +11,7 @@ depends_on = None
 def upgrade() -> None:
     if op.get_bind().dialect.name != "postgresql":
         return
+    op.execute("SET CONSTRAINTS ALL IMMEDIATE")
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
     op.execute(
         "CREATE INDEX IF NOT EXISTS ix_entities_metadata_trgm "
