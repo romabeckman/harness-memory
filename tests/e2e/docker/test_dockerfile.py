@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import yaml
+
 
 def test_docker_container_runs_as_non_root_appuser():
     dockerfile_path = Path(__file__).resolve().parents[3] / "Dockerfile"
@@ -34,11 +36,20 @@ def test_builder_copies_package_sources_before_installing_project():
     assert "RUN pip install --no-cache-dir --prefix=/install ." in content
 
 
-def test_compose_starts_mcp_from_the_application_package():
+def test_compose_reloads_mcp_and_shared_code_from_local_sources():
     compose_path = Path(__file__).resolve().parents[3] / "docker-compose.yml"
-    content = compose_path.read_text(encoding="utf-8")
+    mcp = yaml.safe_load(compose_path.read_text(encoding="utf-8"))["services"]["mcp"]
+    command = mcp["command"]
 
-    assert 'command: ["python", "-m", "harness_memory_mcp.server.app"]' in content
+    assert command[:4] == ["fastmcp", "run", "harness_memory_mcp.server.app", "--module"]
+    assert "--reload" in command
+    reload_dirs = [command[index + 1] for index, value in enumerate(command[:-1])
+                   if value == "--reload-dir"]
+    assert set(reload_dirs) == {"/app/harness_memory_mcp", "/app/core"}
+    assert set(mcp["volumes"]) == {
+        "./harness_memory_mcp:/app/harness_memory_mcp",
+        "./core:/app/core",
+    }
 
 
 def test_compose_mcp_service_declares_production_runtime_settings():

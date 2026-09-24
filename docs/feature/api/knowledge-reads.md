@@ -100,7 +100,7 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 
 ## SEARCH RULES
 
-Collection routes support `limit` from 1 to 500 and `offset` from 0. Scoped reads span
+Collection routes default `limit` to 100, support 1 to 500 items per page, and accept `offset` from 0. Scoped reads span
 tenants; `tenant_id` narrows results when supplied. `API_ADMIN_TOKEN` can read
 and manage REST resources. `HARNESS_MEMORY_API_KEY` and database tokens with `memory:read`
 can read knowledge tables. Database
@@ -111,7 +111,7 @@ collections remain restricted to `memory:read` and admin respectively.
 Snapshot facts stay immutable; publish complete snapshots through
 `POST /v1/knowledge-publications`.
 
-Entity search shares the MCP repository predicate for current snapshots and literal-safe key, name, and metadata matching. An explicit snapshot selects that immutable revision; an environment selects its current snapshot. Use `include_history=true` only when historical document facts are needed. Other knowledge-table collections retain their own filter contracts.
+Entity search shares the MCP repository predicate for current snapshots and literal-safe key, name, and metadata matching. An explicit snapshot selects that immutable revision; an environment selects its current snapshot. Without an environment selector, search each environment's current snapshot; use the project active pointer only when no environment records exist. `include_history=true` includes document revisions and retired documents within selected snapshots, not older snapshots. Other knowledge-table collections retain their own filter contracts.
 
 ## SNAPSHOT CONTRACT
 

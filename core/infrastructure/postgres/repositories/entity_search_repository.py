@@ -2,7 +2,7 @@ import hashlib
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import Text, and_, case, cast, func, or_, select
+from sqlalchemy import Text, and_, case, cast, exists, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
@@ -20,6 +20,7 @@ from ..models.environment import Environment
 from ..models.knowledge_publication import KnowledgePublication
 from ..models.project import Project
 from ..models.snapshot import Snapshot
+from .current_snapshot_predicate import current_snapshot_predicate
 from .tenant_scope_predicate import tenant_scope_predicate
 
 
@@ -104,6 +105,13 @@ class PostgresEntitySearchRepository:
     ) -> tuple[UUID, ...]:
         if criteria.snapshot_id is not None:
             return (criteria.snapshot_id,)
+        project_predicates = [tenant_scope_predicate(scope, Project.tenant_id)]
+        if criteria.tenant_id is not None:
+            project_predicates.append(Project.tenant_id == criteria.tenant_id)
+        if criteria.project_id is not None:
+            project_predicates.append(Project.id == criteria.project_id)
+        if criteria.project is not None:
+            project_predicates.append(Project.key == criteria.project)
         if criteria.environment is not None:
             statement = (
                 select(Environment.current_snapshot_id)
@@ -111,20 +119,29 @@ class PostgresEntitySearchRepository:
                                     Project.tenant_id == Environment.tenant_id))
                 .where(Environment.name == criteria.environment,
                        Environment.current_snapshot_id.is_not(None),
-                       tenant_scope_predicate(scope, Environment.tenant_id))
+                       tenant_scope_predicate(scope, Environment.tenant_id),
+                       *project_predicates)
             )
-        else:
-            statement = select(Project.active_snapshot_id).where(
+            return tuple(session.scalars(statement).all())
+
+        environment_snapshots = session.scalars(
+            select(Environment.current_snapshot_id)
+            .join(Project, and_(Project.id == Environment.project_id,
+                                Project.tenant_id == Environment.tenant_id))
+            .where(Environment.current_snapshot_id.is_not(None), *project_predicates)
+        ).all()
+        legacy_snapshots = session.scalars(
+            select(Project.active_snapshot_id)
+            .where(
                 Project.active_snapshot_id.is_not(None),
-                tenant_scope_predicate(scope, Project.tenant_id),
+                *project_predicates,
+                ~exists(select(Environment.id).where(
+                    Environment.project_id == Project.id,
+                    Environment.tenant_id == Project.tenant_id,
+                )),
             )
-        if criteria.tenant_id is not None:
-            statement = statement.where(Project.tenant_id == criteria.tenant_id)
-        if criteria.project_id is not None:
-            statement = statement.where(Project.id == criteria.project_id)
-        if criteria.project is not None:
-            statement = statement.where(Project.key == criteria.project)
-        return tuple(session.scalars(statement).all())
+        ).all()
+        return tuple(sorted(set((*environment_snapshots, *legacy_snapshots)), key=str))
 
     @staticmethod
     def _history_manifest(
@@ -177,10 +194,7 @@ class PostgresEntitySearchRepository:
         elif criteria.environment is not None:
             predicates.append(Entity.snapshot_id == Environment.current_snapshot_id)
         else:
-            predicates.extend([
-                Entity.snapshot_id == Project.active_snapshot_id,
-                Project.active_snapshot_id.is_not(None),
-            ])
+            predicates.append(current_snapshot_predicate())
         if criteria.tenant_id is not None:
             predicates.append(Entity.tenant_id == criteria.tenant_id)
         if criteria.project_id is not None:

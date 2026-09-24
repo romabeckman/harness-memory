@@ -21,7 +21,8 @@ def test_input_accepts_each_discovery_filter_and_defaults_limit():
     assert SearchEntitiesInput(type="api").type is EntityType.API
     assert SearchEntitiesInput(project=" payments ").project == "payments"
     assert SearchEntitiesInput(query=" database ").query == "database"
-    assert SearchEntitiesInput(key="x").limit == 25
+    assert SearchEntitiesInput(key="x").limit == 100
+    assert SearchEntitiesInput(key="x", limit=500).limit == 500
 
 
 @pytest.mark.parametrize(
@@ -37,7 +38,7 @@ def test_input_accepts_missing_filters_for_tool_boundary_validation():
     assert SearchEntitiesInput().key is None
     assert SearchEntitiesInput(limit=25).project is None
 
-    with pytest.raises(ValueError, match="at least one discovery filter is required"):
+    with pytest.raises(ValueError, match="at least one discovery filter is required: key, name"):
         EntitySearchCriteria()
 
 
@@ -47,7 +48,7 @@ def test_input_rejects_text_outside_bounds(field):
         SearchEntitiesInput(**{field: "x" * 256})
 
 
-@pytest.mark.parametrize("limit", [0, 101, True, "25", 1.5])
+@pytest.mark.parametrize("limit", [0, 501, True, "25", 1.5])
 def test_input_rejects_invalid_limit_without_coercion(limit):
     with pytest.raises(ValidationError):
         SearchEntitiesInput(key="x", limit=limit)
@@ -133,3 +134,14 @@ def test_empty_page_and_tenant_scope_are_valid_immutable_values():
     assert scope.tenant_id == "tenant-a"
     with pytest.raises(ValueError):
         TenantScope(" ")
+
+
+def test_entity_search_page_accepts_500_items():
+    item = EntitySearchItem(
+        entity_id=uuid4(), key="payments-api", type=EntityType.API,
+        project_key="payments", snapshot_id=uuid4(), revision=1,
+    )
+
+    page = EntitySearchPage(items=(item,) * 500, limit=500)
+
+    assert page.count == 500

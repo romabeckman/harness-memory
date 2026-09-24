@@ -21,13 +21,13 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
 | [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
-| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Project lookup and bounded entity discovery from active snapshots. | Optional |
+| [**entity-discovery.md**](./feature/core/entity-discovery.md) | Project listing, filtered lookup, and bounded entity discovery from current environment snapshots. | Optional |
 | [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Environment context, pipeline publication, and snapshot comparison. | Optional |
 | [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis over bounded consumers. | Optional |
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |
 | [**platform-foundation.md**](./feature/core/platform-foundation.md) | PostgreSQL foundation, migrations, and platform runtime boundaries. | Optional |
 | [**production-delivery.md**](./feature/core/production-delivery.md) | Containers, startup schema gates, CI, and telemetry. | Optional |
-| [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped relationship and dependency context queries. | Optional |
+| [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped entity context, ordered context listings, and dependency queries. | Optional |
 | [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable normalized snapshots, payload reconstruction, hashing, and activation. | Optional |
 | [**tenant-foundation.md**](./feature/core/tenant-foundation.md) | First-class tenant persistence, strict UUID foreign keys, and isolated provisioning. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |

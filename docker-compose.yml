@@ -33,7 +33,16 @@ services:
   mcp:
     build:
       context: .
-    command: ["python", "-m", "harness_memory_mcp.server.app"]
+    command:
+      - fastmcp
+      - run
+      - harness_memory_mcp.server.app
+      - --module
+      - --reload
+      - --reload-dir
+      - /app/harness_memory_mcp
+      - --reload-dir
+      - /app/core
     environment:
       DATABASE_URL: postgresql+psycopg2://harness_memory:harness_memory@postgres:5432/harness_memory
       MCP_PRODUCTION: "true"
@@ -44,6 +53,9 @@ services:
       HARNESS_MEMORY_API_KEY: ${HARNESS_MEMORY_API_KEY:-}
     ports:
       - "8000:8000"
+    volumes:
+      - ./harness_memory_mcp:/app/harness_memory_mcp
+      - ./core:/app/core
     depends_on:
       migrate:
         condition: service_completed_successfully

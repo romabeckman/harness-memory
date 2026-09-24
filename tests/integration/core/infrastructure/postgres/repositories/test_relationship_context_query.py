@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -14,7 +15,15 @@ from core.application.relationship_context.use_cases.get_dependencies.inbound im
     GetDependenciesInput,
 )
 from core.domain.snapshot_publication.types.relation_type import RelationType
-from core.infrastructure.postgres.models import Base, Entity, Evidence, Project, Relation, Snapshot
+from core.infrastructure.postgres.models import (
+    Base,
+    Entity,
+    Environment,
+    Evidence,
+    Project,
+    Relation,
+    Snapshot,
+)
 from core.infrastructure.postgres.repositories.relationship_query_repository import (
     PostgresRelationshipQueryRepository,
 )
@@ -401,3 +410,211 @@ def test_context_hides_inactive_and_other_tenant_entities(entity_key):
         PostgresRelationshipQueryRepository(session_factory).load_context(
             TenantScope("tenant-a"), GetContextInput(entity_id=ids[entity_key])
         )
+
+
+def test_context_lists_selected_entities_newest_first_with_pagination_and_scope():
+    _, session_factory = _repository()
+    ids = _seed(session_factory)
+    with session_factory() as session:
+        old = session.get(Snapshot, session.get(Entity, ids["old"]).snapshot_id)
+        active = session.get(Snapshot, session.get(Entity, ids["service"]).snapshot_id)
+        active.created_at = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        old.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        project = Project(tenant_id="tenant-a", key="newer", name="Newer")
+        session.add(project)
+        session.flush()
+        newest = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, revision=1,
+            schema_version="1.0", payload_hash="4" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
+        )
+        session.add(newest)
+        session.flush()
+        project.active_snapshot_id = newest.id
+        session.add(Entity(
+            tenant_id="tenant-a", project_id=project.id, snapshot_id=newest.id,
+            entity_key="newest", entity_type="service", metadata_json={},
+        ))
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    first = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(tenant_id="tenant-a", limit=1)
+    )
+    second = repository.list_contexts(
+        TenantScope("tenant-a"),
+        GetContextInput(tenant_id="tenant-a", limit=1, offset=1),
+    )
+    project_page = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id)
+    )
+    pinned = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(snapshot_id=old.id)
+    )
+    forbidden = repository.list_contexts(
+        TenantScope("tenant-b"), GetContextInput(snapshot_id=old.id)
+    )
+
+    assert [item.entity.key for item in first.items] == ["newest"]
+    assert first.has_more is True
+    assert len(second.items) == 1
+    assert second.items[0].project.snapshot_id == active.id
+    assert [item.entity.key for item in project_page.items] == ["newest"]
+    assert [item.entity.key for item in pinned.items] == ["old-service"]
+    assert forbidden.items == ()
+
+
+def test_context_listing_uses_current_snapshot_from_each_environment():
+    _, session_factory = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="catalog", name="Catalog")
+        session.add(project)
+        session.flush()
+        production = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="production", type="production"
+        )
+        staging = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="staging", type="staging"
+        )
+        session.add_all([production, staging])
+        session.flush()
+        production_old = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
+            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+        )
+        production_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
+            revision=2, schema_version="1.0", payload_hash="b" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        )
+        staging_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
+            revision=1, schema_version="1.0", payload_hash="c" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
+        )
+        session.add_all([production_old, production_current, staging_current])
+        session.flush()
+        production.current_snapshot_id = production_current.id
+        staging.current_snapshot_id = staging_current.id
+        project.active_snapshot_id = production_old.id
+        for snapshot, key in (
+            (production_old, "production-old"),
+            (production_current, "production-current"),
+            (staging_current, "staging-current"),
+        ):
+            session.add(Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                entity_key=key, entity_type="service", metadata_json={},
+            ))
+        project_id = project.id
+        session.commit()
+
+    result = PostgresRelationshipQueryRepository(session_factory).list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project_id)
+    )
+
+    assert [item.entity.key for item in result.items] == [
+        "staging-current", "production-current"
+    ]
+    assert [item.project.snapshot_id for item in result.items] == [
+        staging_current.id, production_current.id
+    ]
+
+
+def test_entity_context_without_snapshot_uses_newest_current_environment():
+    _, session_factory = _repository()
+    identity_id = uuid4()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="catalog", name="Catalog")
+        session.add(project)
+        session.flush()
+        production = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="production", type="production"
+        )
+        staging = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="staging", type="staging"
+        )
+        session.add_all([production, staging])
+        session.flush()
+        production_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
+            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        )
+        staging_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
+            revision=1, schema_version="1.0", payload_hash="b" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
+        )
+        session.add_all([production_current, staging_current])
+        session.flush()
+        production.current_snapshot_id = production_current.id
+        staging.current_snapshot_id = staging_current.id
+        project.active_snapshot_id = production_current.id
+        for snapshot in (production_current, staging_current):
+            session.add(Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                identity_id=identity_id, entity_key="catalog-service", entity_type="service",
+                metadata_json={},
+            ))
+        session.commit()
+
+    result = PostgresRelationshipQueryRepository(session_factory).load_context(
+        TenantScope("tenant-a"), GetContextInput(entity_id=identity_id)
+    )
+
+    assert result.project.snapshot_id == staging_current.id
+
+
+def test_context_result_limit_only_bounds_relations_inside_each_item():
+    _, session_factory = _repository()
+    _seed(session_factory)
+    repository = PostgresRelationshipQueryRepository(session_factory)
+
+    page = repository.list_contexts(
+        TenantScope("tenant-a"),
+        GetContextInput(tenant_id="tenant-a", result_limit=1),
+    )
+
+    assert page.count > 1
+    service = next(item for item in page.items if item.entity.key == "payments-service")
+    assert len(service.relations) == 1
+    assert len(service.dependencies) == 1
+    assert service.relations_truncated is True
+    assert service.dependencies_truncated is True
+
+
+def test_context_lists_500_entities_per_page():
+    _, session_factory = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="bulk", name="Bulk")
+        session.add(project)
+        session.flush()
+        snapshot = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, revision=1,
+            schema_version="1.0", payload_hash="5" * 64, metadata_json={},
+        )
+        session.add(snapshot)
+        session.flush()
+        project.active_snapshot_id = snapshot.id
+        session.add_all(
+            Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                entity_key=f"service-{index:03}", entity_type="service", metadata_json={},
+            )
+            for index in range(501)
+        )
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    first = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id, limit=500)
+    )
+    second = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id, limit=500, offset=500)
+    )
+
+    assert first.count == len(first.items) == 500
+    assert first.has_more is True
+    assert second.count == len(second.items) == 1
+    assert second.has_more is False

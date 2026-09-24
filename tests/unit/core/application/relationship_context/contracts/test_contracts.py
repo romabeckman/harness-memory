@@ -52,8 +52,28 @@ def _relation(entity: EntityContextItem) -> RelationView:
 def test_relationship_bounds_accept_valid_limits_and_defaults():
     assert RelationshipQueryBounds(limit=25, evidence_limit=5).limit == 25
     assert RelationshipQueryBounds().evidence_limit == 5
-    assert GetContextInput(entity_id=uuid4()).limit == 25
+    assert GetContextInput(entity_id=uuid4()).limit == 100
+    assert GetContextInput(entity_id=uuid4(), limit=500).limit == 500
+    assert GetContextInput(entity_id=uuid4()).result_limit == 25
+    with pytest.raises(ValidationError):
+        GetContextInput(entity_id=uuid4(), limit=501)
+    with pytest.raises(ValidationError):
+        GetContextInput(entity_id=uuid4(), result_limit=26)
     assert GetDependenciesInput(entity_id=uuid4()).direction is RelationshipDirection.BOTH
+
+
+@pytest.mark.parametrize("selector", ["entity_id", "snapshot_id", "project_id", "tenant_id"])
+def test_get_context_accepts_each_selector_on_its_own(selector):
+    value = "tenant-a" if selector == "tenant_id" else uuid4()
+
+    request = GetContextInput(**{selector: value})
+
+    assert getattr(request, selector) == value
+
+
+def test_get_context_requires_a_selector():
+    with pytest.raises(ValidationError):
+        GetContextInput()
 
 
 @pytest.mark.parametrize("field,value", [("limit", 0), ("limit", 101)])

@@ -24,12 +24,20 @@ async def test_load_corporate_context_renders_guidance_without_io():
     assert "search_projects" in text
     assert "query" in text
     assert "get_context" in text
-    assert "memory://projects" in text
+    assert "memory://snapshots" in text
     assert "exact project key" in text
-    assert "If a search is empty" in text
+    assert "current snapshots" in text
+    assert "Do not search past snapshots unless the user explicitly asks" in text
     assert "include_past_snapshots" in text
     assert "publication_version" in text
     assert "is_current_snapshot" in text
+    assert "Environment.current_snapshot_id" in text
+    assert "get_environment" in text
+    assert "Environment.current_snapshot_id exposed by" in text
+    assert "Pin get_context with entity_id and snapshot_id" in text
+    assert "newest current occurrence" in text
+    assert "Do not use the project pointer in place of environment current pointers" in text
+    assert "comparison" in text
     observable.assert_not_called()
 
 

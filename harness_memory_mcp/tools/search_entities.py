@@ -24,8 +24,10 @@ def register_search_entities(
     @server.tool(
         name="search_entities",
         description=(
-            "Find entities in active project snapshots by default. Set "
-            "include_past_snapshots to search older snapshots as well. Each match "
+            "Find entities in current environment snapshots by default. A search without "
+            "environment or snapshot_id includes each environment's current snapshot; "
+            "projects without environment records use the legacy active snapshot. Set "
+            "include_past_snapshots only for an explicit historical request. Each match "
             "identifies its snapshot, environment, and publication version when known. "
             "Confirm the project "
             "with search_projects when its key is unknown. A request with at least one "
@@ -63,7 +65,10 @@ def register_search_entities(
                 request.environment,
             )
         ):
-            raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")
+            raise ToolError(
+                "INVALID_ARGUMENT: at least one discovery filter is required: key, name, "
+                "type, project, query, tenant_id, project_id, snapshot_id, or environment"
+            )
 
         try:
             context = tenant_context.require_scope("memory:read")

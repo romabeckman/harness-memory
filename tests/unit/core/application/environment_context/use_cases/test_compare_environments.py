@@ -72,7 +72,10 @@ class TestCompareEnvironments:
         assert output.total_added == 3
         assert output.source_snapshot_id == source_id
         assert output.target_snapshot_id == target_id
-        assert seen_limits == [1, 100]
+        assert seen_limits == [1, 500]
+
+    def test_default_and_maximum_page_size(self) -> None:
+        assert CompareEnvironmentsInput("catalog", "staging", "production").limit == 100
 
     def test_compares_two_environments_and_returns_diff(self) -> None:
         snap_staging = uuid4()
@@ -210,3 +213,23 @@ class TestCompareEnvironments:
 
         assert output.total_added == 4
         assert output.added_entities == ("B", "C")
+
+    def test_fallback_returns_500_items_when_requested(self) -> None:
+        source_id, target_id = uuid4(), uuid4()
+        environments = [
+            Environment(uuid4(), ProjectKey("catalog"), EnvironmentName("staging"),
+                        current_snapshot_id=source_id),
+            Environment(uuid4(), ProjectKey("catalog"), EnvironmentName("production"),
+                        current_snapshot_id=target_id),
+        ]
+        repository = FakeMemoryResourceRepository({
+            source_id: {f"service-{index:03}" for index in range(501)},
+            target_id: set(),
+        })
+
+        output = CompareEnvironmentsHandler(
+            FakeEnvironmentRepository(environments), repository,
+        ).execute(CompareEnvironmentsInput("catalog", "staging", "production", limit=500))
+
+        assert len(output.added_entities) == 500
+        assert output.total_added == 501

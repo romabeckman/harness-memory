@@ -120,6 +120,24 @@ def test_admin_management_collections_support_search_filters_and_pagination() ->
     assert client.get("/v1/users", params={"limit": 0}, headers=admin).status_code == 422
 
 
+def test_api_collection_page_size_defaults_to_100_and_caps_at_500() -> None:
+    client, _, _, _ = _client(("memory:read",))
+    paths = client.get("/openapi.json").json()["paths"]
+
+    collection_limits = [
+        parameter
+        for path in paths.values()
+        for operation in [path.get("get")]
+        if operation is not None
+        for parameter in operation.get("parameters", [])
+        if parameter["name"] == "limit"
+    ]
+
+    assert collection_limits
+    assert all(parameter["schema"]["default"] == 100 for parameter in collection_limits)
+    assert all(parameter["schema"]["maximum"] == 500 for parameter in collection_limits)
+
+
 def test_publish_scope_can_validate_target_metadata_without_general_graph_reads() -> None:
     client, publisher, _, _ = _client(("memory:publish",))
     headers = {"Authorization": f"Bearer {publisher}"}

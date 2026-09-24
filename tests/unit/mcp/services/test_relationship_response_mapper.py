@@ -1,5 +1,6 @@
-import pytest
 import json
+
+import pytest
 from pydantic import ValidationError
 
 from core.application.relationship_context.errors.entity_context_not_found import (
@@ -43,6 +44,39 @@ def test_relationship_mapper_bounds_large_repeated_document_context_and_reports_
     assert len(json.dumps(mapped).encode("utf-8")) <= 262144
     assert mapped["response_truncated"] is True
     assert mapped["entity"]["metadata"]["content"] == "x" * 5000
+
+
+def test_relationship_mapper_bounds_context_page_without_losing_newest_item():
+    contexts = [
+        {"entity": {"key": key, "metadata": {"content": "x" * 140000}},
+         "project": {"key": "p"}, "owners": [], "relations": [], "dependencies": []}
+        for key in ("newest", "older")
+    ]
+    page = {"items": contexts, "count": 2, "limit": 25, "offset": 0, "has_more": False}
+
+    mapped = RelationshipResponseMapper().success(page)
+
+    assert len(json.dumps(mapped).encode("utf-8")) <= 262144
+    assert mapped["items"][0]["entity"]["key"] == "newest"
+    assert mapped["count"] == len(mapped["items"])
+    assert mapped["has_more"] is True
+    assert mapped["response_truncated"] is True
+
+
+def test_relationship_mapper_keeps_single_oversized_page_item_readable():
+    page = {
+        "items": [{"entity": {"key": "only", "metadata": {"content": "x" * 300000}},
+                   "project": {"key": "p"}, "owners": [], "relations": [],
+                   "dependencies": []}],
+        "count": 1, "limit": 25, "offset": 0, "has_more": False,
+    }
+
+    mapped = RelationshipResponseMapper().success(page)
+
+    assert mapped["items"][0]["entity"]["key"] == "only"
+    assert mapped["items"][0]["entity"]["metadata"] == {"truncated": True}
+    assert mapped["count"] == 1
+    assert len(json.dumps(mapped).encode("utf-8")) <= 262144
 
 
 def test_relationship_mapper_uses_one_safe_not_found_shape():

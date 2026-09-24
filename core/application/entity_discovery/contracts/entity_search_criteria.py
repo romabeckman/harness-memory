@@ -55,7 +55,10 @@ class EntitySearchCriteria:
             and self.project_id is None
             and self.snapshot_id is None
         ):
-            raise ValueError("at least one discovery filter is required")
+            raise ValueError(
+                "at least one discovery filter is required: key, name, type, project, "
+                "query, tenant_id, project_id, snapshot_id, or environment"
+            )
 
         object.__setattr__(self, "key", normalized["key"])
         object.__setattr__(self, "name", normalized["name"])

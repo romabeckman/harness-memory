@@ -29,6 +29,20 @@ def test_get_context_delegates_once_with_validated_input_and_scope():
     repository.load_context.assert_called_once_with(scope, request)
 
 
+def test_get_context_lists_matching_contexts_when_entity_is_not_selected():
+    repository = Mock()
+    expected = object()
+    repository.list_contexts.return_value = expected
+    request = GetContextInput(project_id=uuid4())
+    scope = TenantScope("tenant-a")
+
+    result = GetContextHandler(repository).execute(request, scope)
+
+    assert result is expected
+    repository.list_contexts.assert_called_once_with(scope, request)
+    repository.load_context.assert_not_called()
+
+
 def test_get_context_maps_invalid_trusted_context_to_missing_context():
     repository = Mock()
 

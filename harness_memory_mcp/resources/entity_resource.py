@@ -20,13 +20,16 @@ def register_entity_resource(
     @server.resource(
         "memory://entities/{entity_id}",
         name="entity_memory",
-        description="Bounded active-snapshot entity context.",
+        description=(
+            "Bounded context from the newest current environment occurrence. "
+            "Use get_context with snapshot_id to pin one environment."
+        ),
         mime_type="application/json",
     )
     def entity_resource(entity_id: UUID):
         try:
             context = tenant_context.require_scope("memory:read")
-            request = GetContextInput(entity_id=entity_id, limit=25, evidence_limit=5)
+            request = GetContextInput(entity_id=entity_id, result_limit=25, evidence_limit=5)
             result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:
