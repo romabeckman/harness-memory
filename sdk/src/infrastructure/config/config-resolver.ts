@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { PublishSnapshotOptions } from "../../domain/contracts.js";
 import { ConfigurationError } from "../../domain/configuration-error.js";
-import { isLlmAgentType } from "../../domain/llm-agent.js";
+import { isLlmAgentType, LLM_AGENT_TYPES } from "../../domain/llm-agent.js";
 
 const ALLOWED_FLAGS = new Set([
   "--agent",
@@ -74,9 +74,10 @@ export class ConfigResolver {
     if (!agent) throw new ConfigurationError("agent is required");
     if (!isLlmAgentType(agent)) {
       throw new ConfigurationError(
-        `agent must be one of: codex-cli, claude-cli; received '${agent}'`
+        `agent must be one of: ${LLM_AGENT_TYPES.join(", ")}; received '${agent}'`
       );
     }
+
 
     const effort =
       (parsedCli["--effort"] ||

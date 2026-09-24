@@ -72,6 +72,24 @@ describe("ConfigResolver", () => {
     expect(config.model).toBe("gpt-5");
   });
 
+  it("selects agy-cli agent runner from CLI arguments", () => {
+    const config = resolver.resolve(
+      [
+        "--agent", "agy-cli",
+        "--model", "Gemini 3.8 Flash (High)",
+        "--environment", "production",
+        "--project-key", "payments",
+        "--version", "v1.0.0",
+        "--dry-run",
+      ],
+      {}
+    );
+
+    expect(config.agent).toBe("agy-cli");
+    expect(config.model).toBe("Gemini 3.8 Flash (High)");
+  });
+
+
   it("resolves the agent runner from environment when CLI flag is absent", () => {
     const config = resolver.resolve(
       [
