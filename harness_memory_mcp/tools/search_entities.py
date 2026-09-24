@@ -24,7 +24,10 @@ def register_search_entities(
     @server.tool(
         name="search_entities",
         description=(
-            "Find entities in active project snapshots by default. Confirm the project "
+            "Find entities in active project snapshots by default. Set "
+            "include_past_snapshots to search older snapshots as well. Each match "
+            "identifies its snapshot, environment, and publication version when known. "
+            "Confirm the project "
             "with search_projects when its key is unknown. A request with at least one "
             "filter or tenant/project/snapshot/environment selector is required. Combine "
             "filters to narrow results; use next_cursor with unchanged filters for later "
@@ -39,7 +42,8 @@ def register_search_entities(
                 description=(
                     "Required request object. Supply at least one filter or "
                     "tenant/project/snapshot/environment selector; include_history, "
-                    "limit, and cursor alone do not qualify. Use unchanged filters "
+                    "include_past_snapshots, limit, and cursor alone do not qualify. "
+                    "Use unchanged filters "
                     "with a continuation cursor."
                 )
             ),

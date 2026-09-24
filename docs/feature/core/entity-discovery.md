@@ -86,7 +86,7 @@ Find projects and bounded Entity identities through tenant-scoped MCP search too
 
 ## OVERVIEW
 
-`search_projects` discovers projects with tenant and environment attribution. `search_entities` searches current facts by default and returns identifiers for pinned context reads.
+`search_projects` discovers projects with tenant and environment attribution. `search_entities` searches current facts by default. An explicit historical search returns matching occurrences across snapshots with their publication attribution.
 
 ## FOLDER STRUCTURE
 
@@ -99,23 +99,24 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Current facts**: Search the selected environment's current snapshot, or the project's active snapshot. Explicit `snapshot_id` selects an immutable historical snapshot; `include_history` opts into document revisions and retired documents.
+- **Snapshot scope**: Search the selected environment's current snapshot, or the project's active snapshot. Explicit `snapshot_id` selects one immutable snapshot. `include_past_snapshots=true` searches past and current snapshots; `include_history` independently includes document revisions and retired documents within selected snapshots.
 - **Project discovery**: Match an exact project key or a case-insensitive substring in project keys and names; report whether an active snapshot exists.
 - **Entity filters**: Combine supplied key, name, type, project, and content query filters.
 - **Content query**: Find a case-insensitive literal phrase in entity keys, names, or serialized metadata, including document-section content.
-- **Stable identity**: Return the canonical identity plus the physical occurrence ID so repeated identities are distinguishable across snapshots.
-- **Keyset cursor**: Bind an opaque versioned cursor to filters, trusted scope, selected snapshot context, and the last physical row ID. A changed active snapshot invalidates continuation; restart discovery.
-- **Bounded result**: Return scalar identity, Project, active Snapshot, and revision fields; omit metadata, relations, evidence, and total count.
+- **Stable identity**: Return the canonical identity plus the physical occurrence ID so repeated identities are distinguishable across snapshots. Report `snapshot_id`, `revision`, `environment_name`, `is_current_snapshot`, `publication_id`, `publication_version`, `publication_status`, and `deployment_id` for each occurrence when available.
+- **Keyset cursor**: Bind an opaque versioned cursor to filters, trusted scope, selected snapshot context, and the last physical row ID. A changed active snapshot or historical snapshot set invalidates continuation; restart discovery.
+- **Bounded result**: Return scalar identity, Project, Snapshot, publication, and revision fields; omit metadata, relations, evidence, and total count.
 
 ## HOW TO SEARCH
 
 1. Use `search_projects` to identify the tenant and project ID, available environments, and active snapshot.
-2. Supply at least one entity filter or tenant/project/snapshot/environment selector. `include_history`, `limit`, and `cursor` alone are insufficient.
+2. Supply at least one entity filter or tenant/project/snapshot/environment selector. `include_history`, `include_past_snapshots`, `limit`, and `cursor` alone are insufficient.
 3. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
 4. Use `name` for a case-insensitive literal prefix. Use `query` for a case-insensitive literal phrase in entity keys, names, and metadata. Enter `%`, `_`, and `!` literally; the service escapes SQL wildcards.
 5. Keep `project` exact when known; this bounds metadata content search to one project.
-6. Follow `next_cursor` with unchanged filters. Restart if a publication changes the selected current snapshot.
-7. Pass the returned `snapshot_id` and entity ID to `get_context` for matching metadata and evidence.
+6. If current search returns no match, retry with `include_past_snapshots=true`. Check `is_current_snapshot` and `publication_version`; describe a historical match as historical. Results are ordered by entity key and occurrence ID, not publication recency.
+7. Follow `next_cursor` with unchanged filters. Restart if the selected current snapshot or historical snapshot set changes.
+8. Pass the returned `snapshot_id` and entity ID to `get_context` for matching metadata and evidence.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -129,6 +130,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 | `tenant_id` / `project_id` | string / UUID | No | Narrow discovery to a known tenant or project without extending access. | unset |
 | `environment` / `snapshot_id` | string / UUID | No | Select environment current state or an immutable snapshot. | project active |
 | `include_history` | boolean | No | Include document revisions and retired documents. | `false` |
+| `include_past_snapshots` | boolean | No | Search past and current snapshots; requires a search filter or scope selector. Independent of `include_history`. | `false` |
 | `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
 | `search_projects.key` | string | One of key/query | Exact, case-sensitive project key; blank text is invalid. | unset |
@@ -140,7 +142,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 REQUIRED: Authorize `memory:read`; apply trusted scope and explicit selectors consistently. Global read credentials can discover across tenants.
 REQUIRED: Use exact project keys to narrow metadata searches when the project is known.
-REQUIRED: Use `search_projects` to verify project existence; entity search uses current snapshots unless `snapshot_id` selects an older one.
+REQUIRED: Use `search_projects` to verify project existence; entity search uses current snapshots unless `snapshot_id` selects one older snapshot or `include_past_snapshots=true` searches all accessible snapshots.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
 REQUIRED: Bind cursor validity to tenant scope, selected context, and current snapshot; never use cursor contents as authorization.
 REQUIRED: Validate result identity strings before emitting MCP responses.
@@ -149,7 +151,7 @@ PROHIBITED: Treat an empty entity result as proof that a project does not exist 
 
 ## TIPS
 
-An empty entity list means no active entity matched. Check project existence separately with `search_projects`.
+An empty default entity list means no current entity matched. Search past snapshots explicitly before concluding that no historical match exists. Check project existence separately with `search_projects`.
 
 ## DOCUMENT MAP
 

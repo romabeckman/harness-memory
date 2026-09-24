@@ -126,6 +126,16 @@ def test_cursor_rejects_invalid_uuid_and_filter_mismatch():
         SearchCursorCodec().decode(valid_token, EntitySearchCriteria(key="other"))
 
 
+def test_cursor_rejects_switching_between_current_and_past_snapshots():
+    current = EntitySearchCriteria(query="payments")
+    token = SearchCursorCodec().encode(current, _item())
+
+    with pytest.raises(ValueError, match="filter"):
+        SearchCursorCodec().decode(
+            token, EntitySearchCriteria(query="payments", include_past_snapshots=True)
+        )
+
+
 @pytest.mark.parametrize("last_key", ["", "   ", " payments-api "])
 def test_cursor_rejects_blank_or_untrimmed_last_key(last_key):
     with pytest.raises(ValueError):

@@ -28,6 +28,8 @@ class FilterFingerprint:
             payload["query"] = criteria.query
         if criteria.include_history:
             payload["include_history"] = True
+        if criteria.include_past_snapshots:
+            payload["include_past_snapshots"] = True
         for field in ("tenant_id", "project_id", "snapshot_id", "environment"):
             value = getattr(criteria, field)
             if value is not None:

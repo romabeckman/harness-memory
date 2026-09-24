@@ -62,6 +62,13 @@ class SearchEntitiesInput(BaseModel):
             "selected snapshot; does not search every prior snapshot. Defaults to false."
         ),
     )
+    include_past_snapshots: bool = Field(
+        default=False,
+        description=(
+            "Search current and older snapshots across accessible projects. "
+            "Each result identifies its snapshot and publication. Defaults to false."
+        ),
+    )
     tenant_id: StrictStr | None = Field(
         default=None,
         max_length=255,
@@ -89,7 +96,8 @@ class SearchEntitiesInput(BaseModel):
         max_length=64,
         description=(
             "Environment name from search_projects; selects its current snapshot "
-            "unless snapshot_id is supplied."
+            "unless snapshot_id or include_past_snapshots is supplied. Historical "
+            "search limits results to snapshots published in this environment."
         ),
     )
     limit: StrictInt = Field(
@@ -104,7 +112,8 @@ class SearchEntitiesInput(BaseModel):
             max_length=1024,
             description=(
                 "Opaque next_cursor from the previous page. Keep filters and "
-                "authenticated scope unchanged; restart when the current snapshot changes."
+                "authenticated scope unchanged; restart when the selected current "
+                "snapshot or historical snapshot set changes."
             ),
         ),
     ] = None
