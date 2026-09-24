@@ -110,6 +110,12 @@ def test_search_item_is_bounded_and_page_is_immutable():
         "project_name",
         "snapshot_id",
         "revision",
+        "environment_name",
+        "is_current_snapshot",
+        "publication_id",
+        "publication_version",
+        "publication_status",
+        "deployment_id",
     }
     assert page.count == 1
     with pytest.raises(ValidationError):

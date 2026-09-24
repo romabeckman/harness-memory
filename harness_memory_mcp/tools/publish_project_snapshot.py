@@ -28,9 +28,11 @@ def register_publish_project_snapshot(
     @server.tool(
         name="publish_project_snapshot",
         description=(
-            "Publish a complete, validated project knowledge snapshot. "
-            "Activates a newer revision for the authenticated tenant and treats identical "
-            "revisions idempotently. Requires memory:publish."
+            "Legacy snapshot publication adapter, not registered in the default MCP "
+            "catalog. Use the REST Publish API or SDK CLI for deployments. If explicitly "
+            "registered, accepts a complete project snapshot, activates a newer revision "
+            "for the authenticated tenant, and treats identical revisions idempotently. "
+            "Requires memory:publish."
         ),
     )
     def publish_project_snapshot(
@@ -38,8 +40,10 @@ def register_publish_project_snapshot(
             PublishProjectSnapshotInput,
             Field(
                 description=(
-                    "Complete project snapshot containing metadata, entities, relations, "
-                    "and evidence."
+                    "Required complete snapshot: schema_version 1.0, project with required "
+                    "key, positive revision, and offset-aware generated_at; optional "
+                    "entities, relations, and evidence arrays. Relation endpoints use "
+                    "entity keys and evidence relation_ref uses a relation ref."
                 )
             ),
         ],

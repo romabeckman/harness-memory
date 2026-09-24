@@ -9,7 +9,14 @@ from core.application.entity_discovery.contracts.entity_search_criteria import (
 )
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.domain.snapshot_publication.types.entity_type import EntityType
-from core.infrastructure.postgres.models import Base, Entity, Environment, Project, Snapshot
+from core.infrastructure.postgres.models import (
+    Base,
+    Entity,
+    Environment,
+    KnowledgePublication,
+    Project,
+    Snapshot,
+)
 from core.infrastructure.postgres.repositories.entity_search_repository import (
     PostgresEntitySearchRepository,
 )
@@ -271,13 +278,18 @@ def test_current_search_hides_removed_documents_and_revision_lines_but_history_c
         ]:
             session.add(Entity(tenant_id="tenant-a", project_id=project.id,
                                snapshot_id=snapshot.id, entity_key=key, entity_type=kind,
-                               name="needle", metadata_json={"content": "needle", "lifecycle": lifecycle}))
+                               name="needle", metadata_json={
+                                   "content": "needle", "lifecycle": lifecycle,
+                               }))
         session.commit()
 
     repository = PostgresEntitySearchRepository(session_factory)
-    current = repository.search(TenantScope("tenant-a"), EntitySearchCriteria(query="needle"), None, 25)
+    current = repository.search(
+        TenantScope("tenant-a"), EntitySearchCriteria(query="needle"), None, 25
+    )
     history = repository.search(TenantScope("tenant-a"),
-                                EntitySearchCriteria(query="needle", include_history=True), None, 25)
+                                EntitySearchCriteria(query="needle", include_history=True),
+                                None, 25)
 
     assert [item.key for item in current.items] == ["current"]
     assert [item.key for item in history.items] == ["current", "deleted", "old-line"]
@@ -343,7 +355,9 @@ def test_environment_selection_and_cursor_keep_original_snapshot_after_promotion
     first = repository.search(TenantScope("tenant-a"), criteria, None, 1)
     with session_factory() as session:
         project = session.get(Project, project_id)
-        environment = session.query(Environment).filter_by(project_id=project_id, name="staging").one()
+        environment = session.query(Environment).filter_by(
+            project_id=project_id, name="staging"
+        ).one()
         next_snapshot = Snapshot(tenant_id="tenant-a", project_id=project_id, revision=3,
                                  schema_version="1.0", payload_hash="n" * 64, metadata_json={})
         session.add(next_snapshot)
@@ -362,3 +376,91 @@ def test_environment_selection_and_cursor_keep_original_snapshot_after_promotion
     assert [item.key for item in second.items] == ["b"]
     assert second.items[0].snapshot_id == original_snapshot_id
     assert [item.key for item in refreshed.items] == ["c"]
+
+
+def test_past_snapshot_search_returns_bounded_occurrences_with_publication_context():
+    session_factory, _ = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="payments")
+        session.add(project)
+        session.flush()
+        environment = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="production", type="production"
+        )
+        session.add(environment)
+        session.flush()
+        snapshots = []
+        for revision, version in ((1, "1.0.0"), (2, "2.0.0")):
+            publication_id = uuid4()
+            snapshot = Snapshot(
+                tenant_id="tenant-a", project_id=project.id, environment_id=environment.id,
+                publication_id=publication_id, revision=revision, schema_version="1.0",
+                payload_hash=str(revision) * 64, metadata_json={},
+            )
+            session.add(snapshot)
+            session.flush()
+            session.add(KnowledgePublication(
+                id=publication_id, tenant_id="tenant-a", project_id=project.id,
+                environment_id=environment.id, deployment_id=f"deploy-{revision}",
+                version=version, status="COMPLETED", snapshot_id=snapshot.id,
+            ))
+            session.add(Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                entity_key="payments-api", entity_type="api", name="Payments API",
+                metadata_json={},
+            ))
+            snapshots.append(snapshot)
+        project.active_snapshot_id = snapshots[-1].id
+        environment.current_snapshot_id = snapshots[-1].id
+        snapshot_ids = {snapshot.id for snapshot in snapshots}
+        session.commit()
+
+    repository = PostgresEntitySearchRepository(session_factory)
+    scope = TenantScope("tenant-a")
+    current = repository.search(
+        scope, EntitySearchCriteria(query="payments", type=EntityType.API), None, 25
+    )
+    history_criteria = EntitySearchCriteria(
+        query="payments", type=EntityType.API, include_past_snapshots=True
+    )
+    first = repository.search(scope, history_criteria, None, 1)
+    second = repository.search(scope, history_criteria, first.next_cursor, 1)
+
+    assert len(current.items) == 1
+    assert current.items[0].is_current_snapshot is True
+    assert {item.snapshot_id for item in (*first.items, *second.items)} == snapshot_ids
+    assert {item.publication_version for item in (*first.items, *second.items)} == {
+        "1.0.0", "2.0.0"
+    }
+    assert {item.environment_name for item in (*first.items, *second.items)} == {"production"}
+    assert {item.is_current_snapshot for item in (*first.items, *second.items)} == {
+        True, False
+    }
+    assert all(item.publication_id is not None for item in (*first.items, *second.items))
+    assert {item.publication_status for item in (*first.items, *second.items)} == {
+        "COMPLETED"
+    }
+    assert second.next_cursor is None
+    in_environment = repository.search(
+        scope,
+        EntitySearchCriteria(query="payments", environment="production",
+                             include_past_snapshots=True),
+        None, 25,
+    )
+    assert {item.snapshot_id for item in in_environment.items} == snapshot_ids
+
+
+def test_past_snapshot_search_respects_tenant_scope():
+    session_factory, _ = _repository()
+    _seed(session_factory)
+    repository = PostgresEntitySearchRepository(session_factory)
+
+    result = repository.search(
+        TenantScope("tenant-a"),
+        EntitySearchCriteria(project="payments", type=EntityType.API,
+                             include_past_snapshots=True),
+        None, 25,
+    )
+
+    assert {item.key for item in result.items} == {"old-api", "payments-api"}
+    assert len({item.tenant_id for item in result.items}) == 1

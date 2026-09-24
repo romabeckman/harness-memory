@@ -27,6 +27,9 @@ async def test_load_corporate_context_renders_guidance_without_io():
     assert "memory://projects" in text
     assert "exact project key" in text
     assert "If a search is empty" in text
+    assert "include_past_snapshots" in text
+    assert "publication_version" in text
+    assert "is_current_snapshot" in text
     observable.assert_not_called()
 
 

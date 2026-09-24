@@ -20,28 +20,73 @@ def register_compare_environments(
     @server.tool(
         name="compare_environments",
         description=(
-            "Compare current snapshots between two project environments "
-            "(e.g. staging vs production) "
-            "to identify added, removed, and unchanged entities. Requires memory:read."
+            "Compare current snapshots of two environments in one project. Find the "
+            "project key and environment names with search_projects; use get_environment "
+            "to inspect either current snapshot first. Returns added, removed, modified, "
+            "and unchanged entity keys with per-list totals and pagination. Project key "
+            "and both environment names are required. Requires memory:read."
         ),
     )
     def compare_environments(
-        project_key: Annotated[str, Field(description="Key of the project to compare.")],
+        project_key: Annotated[
+            str,
+            Field(
+                description=(
+                    "Required exact project key from search_projects.key; both "
+                    "environments must belong to this project."
+                )
+            ),
+        ],
         source_environment: Annotated[
-            str, Field(description="Source environment name (e.g. staging).")
+            str,
+            Field(
+                description=(
+                    "Required source environment name from search_projects.environment_names; "
+                    "inspect its current snapshot with get_environment."
+                )
+            ),
         ],
         target_environment: Annotated[
-            str, Field(description="Target environment name (e.g. production).")
+            str,
+            Field(
+                description=(
+                    "Required target environment name from search_projects.environment_names; "
+                    "inspect its current snapshot with get_environment."
+                )
+            ),
         ],
         limit: Annotated[
             int,
-            Field(ge=1, le=100, description="Maximum entities per list, from 1 to 100."),
+            Field(
+                ge=1,
+                le=100,
+                description=(
+                    "Maximum entities in each result category per page, from 1 to 100; "
+                    "totals remain unpaged."
+                ),
+            ),
         ] = 100,
         offset: Annotated[
-            int, Field(ge=0, le=10000, description="Offset for pagination, up to 10000.")
+            int,
+            Field(
+                ge=0,
+                le=10000,
+                description=(
+                    "Entities to skip in each result category, from 0 to 10000; "
+                    "use with limit for the next page."
+                ),
+            ),
         ] = 0,
-        tenant_id: Annotated[str | None, Field(max_length=255,
-            description="Select one tenant ID when project keys repeat across tenants.")] = None,
+        tenant_id: Annotated[
+            str | None,
+            Field(
+                max_length=255,
+                description=(
+                    "Tenant ID from search_projects; disambiguates repeated project "
+                    "keys but cannot extend authenticated access."
+                ),
+            ),
+        ] = None,
     ):
         try:
             ctx = tenant_context.require_scope("memory:read")

@@ -27,18 +27,31 @@ def register_get_dependencies(
     @server.tool(
         name="get_dependencies",
         description=(
-            "Read an entity's inbound, outbound, or both dependency relationships "
-            "with provenance and bounded evidence. Requires memory:read."
+            "Read direct depends_on, consumes, and subscribes_to relationships for an "
+            "entity in current project snapshots. Get entity_id from search_entities. "
+            "Choose inbound for relationships targeting the entity, outbound for those "
+            "starting at it, or both. Returns provenance and bounded evidence. "
+            "Requires memory:read."
         ),
     )
     def get_dependencies(
         entity_id: Annotated[
             UUID,
-            Field(description="Identifier of the entity whose dependencies to read."),
+            Field(
+                description=(
+                    "Entity UUID from search_entities.entity_id; required to read "
+                    "direct dependencies."
+                )
+            ),
         ],
         direction: Annotated[
             RelationshipDirection,
-            Field(description="Select inbound dependencies, outbound dependencies, or both."),
+            Field(
+                description=(
+                    "inbound: relations targeting the entity; outbound: relations "
+                    "starting at it; both: both directions (default)."
+                )
+            ),
         ] = RelationshipDirection.BOTH,
         limit: Annotated[
             StrictInt,

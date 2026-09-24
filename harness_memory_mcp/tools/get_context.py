@@ -22,12 +22,20 @@ def register_get_context(
     @server.tool(
         name="get_context",
         description=(
-            "Read bounded context for one tenant-visible entity, including its project, "
-            "ownership, relationships, dependencies, and evidence. Requires memory:read."
+            "Read one entity's project, owners, relationships, dependencies, and evidence. "
+            "Get entity_id and snapshot_id from search_entities; pass snapshot_id to pin "
+            "the same occurrence, especially after a newer publication. Without it, "
+            "only current project snapshots are searched. Add project_id or tenant_id "
+            "when an identity occurs more than once. Requires memory:read."
         ),
     )
     def get_context(
-        entity_id: Annotated[UUID, Field(description="Identifier of the entity to inspect.")],
+        entity_id: Annotated[
+            UUID,
+            Field(
+                description="Entity UUID from search_entities.entity_id; required for context."
+            ),
+        ],
         limit: Annotated[
             StrictInt,
             Field(
@@ -44,10 +52,34 @@ def register_get_context(
                 description="Maximum evidence items per relationship, from 0 to 20.",
             ),
         ] = 5,
-        snapshot_id: Annotated[UUID | None, Field(description="Pinned snapshot ID from search results.")] = None,
-        project_id: Annotated[UUID | None, Field(description="Select one project occurrence.")] = None,
-        tenant_id: Annotated[str | None, Field(max_length=255,
-            description="Narrow the trusted read scope to one tenant ID.")] = None,
+        snapshot_id: Annotated[
+            UUID | None,
+            Field(
+                description=(
+                    "Snapshot UUID from search_entities.snapshot_id; pin that "
+                    "occurrence instead of the current snapshot."
+                )
+            ),
+        ] = None,
+        project_id: Annotated[
+            UUID | None,
+            Field(
+                description=(
+                    "Project UUID from search_entities.project_id; disambiguate "
+                    "an identity shared by projects."
+                )
+            ),
+        ] = None,
+        tenant_id: Annotated[
+            str | None,
+            Field(
+                max_length=255,
+                description=(
+                    "Tenant ID from search_entities. Narrows authenticated read "
+                    "scope; does not grant access."
+                ),
+            ),
+        ] = None,
     ):
         try:
             context = tenant_context.require_scope("memory:read")

@@ -109,6 +109,16 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 4. Guide agents to confirm project keys with `search_projects` before interpreting empty entity results.
 5. Validate prompt arguments as bounded data and render deterministic text without I/O.
 
+## TOOL CALL ORDER
+
+1. Call `search_projects` with **key or query**; at least one is required. Reuse returned project and environment identifiers.
+2. Call `search_entities` with at least one filter or scope selector. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads.
+3. Use entity IDs from `search_entities` for `get_dependencies`, `find_integration_paths`, or `analyze_impact` when authorized.
+4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`.
+
+REQUIRED: Supply one target UUID to `analyze_impact`; if multiple target fields are supplied, all must identify the same entity.
+PROHIBITED: Register the legacy `publish_project_snapshot` adapter in the default MCP catalog; publish through REST or the SDK CLI.
+
 ## PARAMETERS / CONFIGURATIONS
 
 | Name | Type | Required | Description | Default |

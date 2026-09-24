@@ -12,6 +12,7 @@ class EntitySearchCriteria:
     project: str | None = None
     query: str | None = None
     include_history: bool = False
+    include_past_snapshots: bool = False
     tenant_id: str | None = None
     project_id: UUID | None = None
     snapshot_id: UUID | None = None
@@ -47,7 +48,13 @@ class EntitySearchCriteria:
             except (TypeError, ValueError) as error:
                 raise ValueError("unsupported EntityType") from error
 
-        if not self.allow_unfiltered and not any(value is not None for value in normalized.values()) and entity_type is None and self.project_id is None and self.snapshot_id is None:
+        if (
+            not self.allow_unfiltered
+            and not any(value is not None for value in normalized.values())
+            and entity_type is None
+            and self.project_id is None
+            and self.snapshot_id is None
+        ):
             raise ValueError("at least one discovery filter is required")
 
         object.__setattr__(self, "key", normalized["key"])
@@ -66,6 +73,8 @@ class EntitySearchCriteria:
                     raise ValueError(f"invalid {field}") from error
         if not isinstance(self.include_history, bool):
             raise ValueError("include_history must be a boolean")
+        if not isinstance(self.include_past_snapshots, bool):
+            raise ValueError("include_past_snapshots must be a boolean")
 
     @property
     def name_like(self) -> str | None:
