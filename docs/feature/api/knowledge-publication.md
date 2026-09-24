@@ -21,7 +21,7 @@ edges:
     target: "feature:snapshot-publication"
     read: optional
     when: "Read when changing snapshot construction, activation, idempotency, or publication persistence."
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # API Knowledge Publication
 Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate it for a project environment.
@@ -95,6 +95,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Header | `Authorization: Bearer <token>` with `memory:publish`, or the admin bearer. |
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
 | Admin destination | `tenant_id` in the JSON body; required only for `API_ADMIN_TOKEN` |
+| Activation precondition | Optional `expected_current_snapshot_id`; rejects a changed environment baseline with HTTP 409. |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
 | Snapshot metadata | `metadata` JSON object; the SDK sends the generated `docs/.graph.json` object here. |
 | New publication | HTTP 201 with status `ACTIVATED` |
@@ -124,6 +125,7 @@ REQUIRED: Accept body `tenant_id` from a token with `memory:publish`; otherwise 
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
+REQUIRED: Under the environment lock, reject older ordered versions and a changed expected snapshot. Stage-only publication advances the project pointer only when it previously pointed to that environment's old snapshot.
 REQUIRED: Allocate a distinct snapshot revision under the environment lock when another deployment already uses the version-derived revision. Hash the stored revision and compare retries against that revision.
 REQUIRED: Use PostgreSQL `READ COMMITTED` for the locked revision allocation so a transaction waiting on the environment lock sees earlier commits.
 REQUIRED: Create and promote the snapshot in one persistence operation.

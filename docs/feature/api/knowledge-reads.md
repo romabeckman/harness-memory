@@ -14,7 +14,7 @@ edges:
   - relation: tested_by
     target: "adr:tests"
     read: must
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # API Knowledge Reads
 Read snapshot data with scoped bearer tokens or the admin token. Manage tenants and projects with the admin token.
@@ -94,7 +94,7 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 | GET | `/v1/environments` | Filter by `tenant_id`, `project_key`, `name`, `type`, or `q` |
 | GET | `/v1/knowledge-publications` | Filter by tenant, project, environment, status, version, deployment, or `q` |
 | GET | `/v1/snapshots` | Filter by tenant, project, environment, revision, schema version, or payload hash |
-| GET | `/v1/entities` | Filter by tenant, project, snapshot, entity type/key, name, or `q` |
+| GET | `/v1/entities` | Current facts by default; filter by tenant, project, environment, snapshot, type/key, name, or `q`; `include_history=true` includes revisions and retired documents |
 | GET | `/v1/relations` | Filter by tenant, project, snapshot, relation type, provenance, endpoints, or `q` |
 | GET | `/v1/evidence` | Filter by tenant, project, snapshot, relation, source, or `q` |
 
@@ -110,6 +110,8 @@ collections remain restricted to `memory:read` and admin respectively.
 
 Snapshot facts stay immutable; publish complete snapshots through
 `POST /v1/knowledge-publications`.
+
+Entity search shares the MCP repository predicate for current snapshots and literal-safe key, name, and metadata matching. An explicit snapshot selects that immutable revision; an environment selects its current snapshot. Use `include_history=true` only when historical document facts are needed. Other knowledge-table collections retain their own filter contracts.
 
 ## SNAPSHOT CONTRACT
 

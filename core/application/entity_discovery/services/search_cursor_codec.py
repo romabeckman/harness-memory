@@ -15,13 +15,17 @@ from core.application.entity_discovery.value_objects.search_cursor import Search
 class SearchCursorCodec:
     MAX_LENGTH = 1024
 
-    def encode(self, criteria: EntitySearchCriteria, item: EntitySearchItem) -> str:
+    def encode(self, criteria: EntitySearchCriteria, item: EntitySearchItem,
+               context: SearchCursor | None = None) -> str:
         fingerprint = FilterFingerprint.from_criteria(criteria)
         cursor = SearchCursor(
-            version=1,
+            version=context.version if context is not None else 1,
             filter_fingerprint=fingerprint,
             last_key=item.key,
-            last_id=item.entity_id,
+            last_id=item.occurrence_id or item.entity_id,
+            scope_hash=context.scope_hash if context is not None else None,
+            context_hash=context.context_hash if context is not None else None,
+            pinned_snapshot_id=context.pinned_snapshot_id if context is not None else None,
         )
         payload = {
             "filter_fingerprint": cursor.filter_fingerprint.value,
@@ -29,6 +33,12 @@ class SearchCursorCodec:
             "last_key": cursor.last_key,
             "version": cursor.version,
         }
+        if cursor.version == 2:
+            payload.update({
+                "scope_hash": cursor.scope_hash,
+                "context_hash": cursor.context_hash,
+                "pinned_snapshot_id": str(cursor.pinned_snapshot_id) if cursor.pinned_snapshot_id else None,
+            })
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
@@ -43,18 +53,23 @@ class SearchCursorCodec:
             payload = json.loads(raw.decode("utf-8"))
         except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             raise SearchCursorValidationError("invalid search cursor") from error
-        if not isinstance(payload, dict) or set(payload) != {
-            "version", "filter_fingerprint", "last_key", "last_id"
-        }:
+        base_fields = {"version", "filter_fingerprint", "last_key", "last_id"}
+        extra_fields = {"scope_hash", "context_hash", "pinned_snapshot_id"}
+        if not isinstance(payload, dict) or set(payload) not in (base_fields, base_fields | extra_fields):
             raise SearchCursorValidationError("invalid search cursor payload")
-        if payload.get("version") != 1 or isinstance(payload.get("version"), bool):
+        if payload.get("version") not in (1, 2) or isinstance(payload.get("version"), bool):
             raise SearchCursorValidationError("unsupported search cursor version")
+        if set(payload) != (base_fields | extra_fields if payload["version"] == 2 else base_fields):
+            raise SearchCursorValidationError("invalid search cursor payload")
         try:
             cursor = SearchCursor(
                 version=payload["version"],
                 filter_fingerprint=payload["filter_fingerprint"],
                 last_key=payload["last_key"],
                 last_id=payload["last_id"],
+                scope_hash=payload.get("scope_hash"),
+                context_hash=payload.get("context_hash"),
+                pinned_snapshot_id=payload.get("pinned_snapshot_id"),
             )
         except (TypeError, ValueError) as error:
             raise SearchCursorValidationError("invalid search cursor payload") from error

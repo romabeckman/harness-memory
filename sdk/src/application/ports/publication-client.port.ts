@@ -9,6 +9,7 @@ export interface PublishRequest {
   environment: string;
   deploymentId: string;
   version: string;
+  expectedCurrentSnapshotId?: string;
   graph: ValidatedGraph;
 }
 
@@ -18,6 +19,9 @@ export type PublicationTargetRequest = Pick<
 >;
 
 export interface PublicationClientPort {
-  validateTarget(request: PublicationTargetRequest): Promise<string>;
+  validateTarget(request: PublicationTargetRequest): Promise<string | {
+    tenantId: string;
+    expectedCurrentSnapshotId: string;
+  }>;
   publish(request: PublishRequest): Promise<PublicationResult>;
 }

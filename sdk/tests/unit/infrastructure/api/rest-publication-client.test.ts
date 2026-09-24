@@ -119,6 +119,17 @@ describe("RestPublicationClient", () => {
       .toBe("b0377492-0f1c-4a7e-ab65-e30c2424fd57");
   });
 
+  it("sends the expected current snapshot in the publish body", async () => {
+    const snapshotId = "c829e56d-d3b7-4a49-9650-46952ea68573";
+    const fetchMock = vi.fn().mockResolvedValue({ status: 201,
+      json: async () => ({ status: "ACTIVATED", publication_id: "pub-1", snapshot_id: "snap-1" }) });
+    const targetClient = new RestPublicationClient({ fetchFn: fetchMock });
+
+    await targetClient.publish({ ...dummyRequest, expectedCurrentSnapshotId: snapshotId });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).expected_current_snapshot_id).toBe(snapshotId);
+  });
+
   it("requires an explicit tenant ID when a project key exists in multiple tenants", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json([
       { id: "project-1", key: "catalog", tenant_id: "b0377492-0f1c-4a7e-ab65-e30c2424fd57" },

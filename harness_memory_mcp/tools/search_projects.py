@@ -28,7 +28,7 @@ def register_search_projects(
         description=(
             "Find project records, including projects without published snapshots. "
             "Use key for exact project lookup or query for a partial key or name. "
-            "Returns only project key, name, and active-snapshot status. Requires memory:read."
+            "Returns tenant and project identifiers, environment names, and snapshot status. Requires memory:read."
         ),
     )
     def search_projects(
@@ -66,7 +66,7 @@ def register_search_projects(
                 request,
                 TenantScope(context.tenant_id, context.is_admin),
             )
-            return result.model_dump(mode="json")
+            return result.model_dump(mode="json", exclude_none=True)
         except ValidationError:
             return {
                 "status": "ERROR",

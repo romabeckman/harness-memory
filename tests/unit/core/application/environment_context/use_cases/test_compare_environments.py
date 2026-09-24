@@ -38,6 +38,42 @@ class FakeEnvironmentRepository:
 
 
 class TestCompareEnvironments:
+    def test_uses_pinned_snapshot_pair_and_bounded_comparison_when_available(self) -> None:
+        source_id, target_id = uuid4(), uuid4()
+        seen_limits = []
+        environments = [
+            Environment(uuid4(), ProjectKey("catalog"), EnvironmentName("staging"),
+                        current_snapshot_id=source_id),
+            Environment(uuid4(), ProjectKey("catalog"), EnvironmentName("production"),
+                        current_snapshot_id=target_id),
+        ]
+
+        class OptimizedMemoryRepository:
+            def compare_snapshot_entities(self, source, target, tenant_id, *, offset, limit):
+                assert (source, target, tenant_id, offset) == (
+                    source_id, target_id, "default", 2)
+                seen_limits.append(limit)
+                return {"added": ("feature:new",), "removed": (), "modified": (),
+                        "unchanged": (), "total_added": 3, "total_removed": 0,
+                        "total_modified": 0, "total_unchanged": 0}
+
+            def get_snapshot_entity_fingerprints(self, *_args, **_kwargs):
+                raise AssertionError("full snapshot maps must not be loaded")
+
+        handler = CompareEnvironmentsHandler(
+            FakeEnvironmentRepository(environments), OptimizedMemoryRepository()
+        )
+        output = handler.execute(CompareEnvironmentsInput("catalog", "staging", "production",
+                                                           "default", limit=1, offset=2))
+        handler.execute(CompareEnvironmentsInput("catalog", "staging", "production",
+                                                 "default", limit=1000, offset=2))
+
+        assert output.added_entities == ("feature:new",)
+        assert output.total_added == 3
+        assert output.source_snapshot_id == source_id
+        assert output.target_snapshot_id == target_id
+        assert seen_limits == [1, 100]
+
     def test_compares_two_environments_and_returns_diff(self) -> None:
         snap_staging = uuid4()
         snap_prod = uuid4()

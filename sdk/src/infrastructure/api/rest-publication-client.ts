@@ -35,7 +35,9 @@ export class RestPublicationClient implements PublicationClientPort {
     this.fetchFn = options?.fetchFn ?? ((...args) => fetch(...args));
   }
 
-  public async validateTarget(request: PublicationTargetRequest): Promise<string> {
+  public async validateTarget(request: PublicationTargetRequest): Promise<string | {
+    tenantId: string; expectedCurrentSnapshotId: string;
+  }> {
     const apiUrl = this.validateAndNormalizeUrl(request.apiUrl);
     this.validateTargetValues(request);
 
@@ -100,7 +102,12 @@ export class RestPublicationClient implements PublicationClientPort {
         `Deployment ID '${request.deploymentId}' already belongs to version '${existingVersion}'. Use a new deployment ID.`
       );
     }
-    return tenantId;
+    const currentSnapshotId = environments[0]?.current_snapshot_id;
+    if (currentSnapshotId == null) return tenantId;
+    if (typeof currentSnapshotId !== "string" || !UUID_PATTERN.test(currentSnapshotId)) {
+      throw new ApiServerError("Environment search response has an invalid current_snapshot_id");
+    }
+    return { tenantId, expectedCurrentSnapshotId: currentSnapshotId };
   }
 
   public async publish(request: PublishRequest): Promise<PublicationResult> {
@@ -113,6 +120,8 @@ export class RestPublicationClient implements PublicationClientPort {
       environment: request.environment,
       deployment_id: request.deploymentId,
       version: request.version,
+      ...(request.expectedCurrentSnapshotId
+        ? { expected_current_snapshot_id: request.expectedCurrentSnapshotId } : {}),
       metadata: request.graph.document.metadata ?? {},
       entities: request.graph.document.entities,
       relations: request.graph.document.relations,

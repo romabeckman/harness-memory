@@ -102,6 +102,49 @@ class TestPostgresKnowledgePublicationRepository:
             snapshots = session.query(ModelSnapshot).all()
             assert len(snapshots) == 2
             assert len({snapshot.revision for snapshot in snapshots}) == 2
+            project = session.query(ModelProject).filter_by(tenant_id="tenant-a", key="catalog").one()
+            assert project.active_snapshot_id == second.snapshot_id
+
+    def test_older_version_cannot_replace_newer_environment_snapshot(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _, env = _seed_project_and_env(engine, "tenant-a", "catalog", "staging")
+        handler = PublishKnowledgeHandler(
+            PostgresKnowledgePublicationRepository(engine=engine),
+            PostgresEnvironmentRepository(engine=engine),
+        )
+        first = handler.execute(PublishKnowledgeInput(
+            "catalog", "staging", "deploy-new", "v2.0.0", tenant_id="tenant-a"
+        ))
+
+        with pytest.raises(RevisionConflict, match="older version"):
+            handler.execute(PublishKnowledgeInput(
+                "catalog", "staging", "deploy-old", "v1.0.0", tenant_id="tenant-a"
+            ))
+
+        with Session(engine) as session:
+            assert session.get(ModelEnvironment, env.id).current_snapshot_id == first.snapshot_id
+
+    def test_expected_snapshot_precondition_rejects_stale_publisher(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _, env = _seed_project_and_env(engine, "tenant-a", "catalog", "staging")
+        handler = PublishKnowledgeHandler(
+            PostgresKnowledgePublicationRepository(engine=engine),
+            PostgresEnvironmentRepository(engine=engine),
+        )
+        first = handler.execute(PublishKnowledgeInput(
+            "catalog", "staging", "deploy-one", "build-A", tenant_id="tenant-a"
+        ))
+
+        with pytest.raises(RevisionConflict, match="current snapshot changed"):
+            handler.execute(PublishKnowledgeInput(
+                "catalog", "staging", "deploy-two", "build-B", tenant_id="tenant-a",
+                expected_current_snapshot_id=uuid4(),
+            ))
+
+        with Session(engine) as session:
+            assert session.get(ModelEnvironment, env.id).current_snapshot_id == first.snapshot_id
 
     def test_saves_and_finds_publication_by_deployment(self) -> None:
         engine = create_engine("sqlite://")
@@ -174,8 +217,12 @@ class TestPostgresKnowledgePublicationRepository:
             snapshot=snapshot,
             environment_id=env.id,
         )
+        duplicate_id = repo.publish_atomically_with_environment(
+            tenant_id="tenant-a", publication=pub, snapshot=snapshot, environment_id=env.id,
+        )
 
         assert snap_id is not None
+        assert duplicate_id == snap_id
         found = repo.find_by_deployment("catalog", "staging", "deploy-777", tenant_id="tenant-a")
         assert found is not None
         assert found.status == PublicationStatus.COMPLETED

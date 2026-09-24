@@ -44,11 +44,16 @@ def register_get_context(
                 description="Maximum evidence items per relationship, from 0 to 20.",
             ),
         ] = 5,
+        snapshot_id: Annotated[UUID | None, Field(description="Pinned snapshot ID from search results.")] = None,
+        project_id: Annotated[UUID | None, Field(description="Select one project occurrence.")] = None,
+        tenant_id: Annotated[str | None, Field(max_length=255,
+            description="Narrow the trusted read scope to one tenant ID.")] = None,
     ):
         try:
             context = tenant_context.require_scope("memory:read")
             request = GetContextInput(
-                entity_id=entity_id, limit=limit, evidence_limit=evidence_limit
+                entity_id=entity_id, limit=limit, evidence_limit=evidence_limit,
+                snapshot_id=snapshot_id, project_id=project_id, tenant_id=tenant_id,
             )
             result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)

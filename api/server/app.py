@@ -110,7 +110,11 @@ def create_app(
     v1_router.include_router(create_knowledge_search_router(
         read_repository, security.require_reader, security.require_baseline_reader
     ))
-    env_repository = PostgresEnvironmentRepository(session_factory=session_factory)
+    env_repository = (
+        PostgresEnvironmentRepository(engine=database_engine)
+        if database_engine is not None
+        else PostgresEnvironmentRepository(session_factory=session_factory)
+    )
     if database_engine is None:
         pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
     else:

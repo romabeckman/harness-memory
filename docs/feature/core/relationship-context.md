@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:entity-discovery"
     read: must
-updated: 2026-09-20
+updated: 2026-09-24
 ---
 # Relationship Context
 Return bounded active-snapshot context and direct dependency views for an entity.
@@ -84,17 +84,17 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Active context**: Resolve a stable identity or legacy row UUID only within the trusted tenant's active snapshot; reject malformed trusted context before repository access.
+- **Pinned context**: Resolve a stable identity or row UUID in the requested immutable snapshot, or current active state when no snapshot is supplied. Apply trusted scope and reject ambiguous canonical identities.
 - **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
 - **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
 - **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
 
 ## HOW TO QUERY
 
-1. Discover a stable active entity identity with `search_entities`.
-2. Call `get_context` for project, owners, direct relations, dependency subset, provenance, and linked evidence.
+1. Discover an entity with `search_entities` and retain its `snapshot_id` and `occurrence_id`.
+2. Call `get_context` with the entity ID and `snapshot_id` for matching project, owners, relations, provenance, and evidence.
 3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
-4. Treat not-found responses for unknown, stale, and other-tenant UUIDs as the same non-disclosing result.
+4. Use `tenant_id` and `project_id` to narrow ambiguous global identities. An ambiguous canonical identity returns `AMBIGUOUS_ENTITY`.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -102,17 +102,20 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 |------|------|----------|-------------|---------|
 | `entity_id` | UUID | Yes | Stable active entity identity from discovery; legacy row UUIDs remain accepted. | — |
 | `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
+| `tenant_id` / `project_id` | UUID | No | Narrow resolution to a known tenant or project. | unset |
+| `snapshot_id` | UUID | No | Pin resolution to the snapshot returned by discovery. | current active |
 | `limit` | strict integer | No | Relation bound from 1 through 100. | `25` |
 | `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
 
 ## BEST PRACTICES
 
-REQUIRED: Apply tenant and active-snapshot predicates to every entity, project, snapshot, relation, and evidence join.
+REQUIRED: Apply trusted scope and selected snapshot predicates to every entity, project, snapshot, relation, and evidence join.
 REQUIRED: Use one read transaction per query so returned facts come from one active snapshot.
 REQUIRED: Preserve relation direction, provenance, peer identity, and linked evidence in output projections.
 REQUIRED: Authorize `memory:read` before repository access and map authorization failures to stable MCP errors.
 PROHIBITED: Recurse through dependency paths; reserve transitive traversal for integration-path or impact features.
-PROHIBITED: Accept tenant identity from tool payloads or disclose whether another tenant owns a UUID.
+REQUIRED: Keep successful MCP responses within 256 KiB; mark truncated responses.
+PROHIBITED: Treat a supplied tenant selector as authorization or disclose whether an unauthorized tenant owns a UUID.
 
 ## TIPS
 
