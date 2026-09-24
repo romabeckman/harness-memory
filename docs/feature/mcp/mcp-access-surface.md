@@ -98,6 +98,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
 - **Normalized content**: Keep document text in `entities.metadata`; entity search and bounded MCP resources read entities, relations, and evidence directly.
 - **Prompt surface**: Confirm project keys with `search_projects`, guide content queries with `search_entities`, and keep business decisions in existing capabilities.
+- **Current-first guidance**: Use `Project.active_snapshot_id` for the latest project execution. Use `Environment.current_snapshot_id` for the latest version of a named environment; never substitute the project snapshot for an environment-specific answer.
 - **Environment surface**: Read active environment snapshots and compare added, removed,
   modified, and unchanged entity fingerprints without exposing a write operation.
 
@@ -112,9 +113,9 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 ## TOOL CALL ORDER
 
 1. Call `search_projects` without filters to list accessible projects, or supply **key** or **query** to narrow results. Reuse returned project and environment identifiers.
-2. Call `search_entities` with at least one filter or scope selector. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads, or call `get_context` with a snapshot, project, or tenant ID to list contexts newest first.
+2. Call `search_entities` with at least one filter or scope selector. For a named environment, call `get_environment` first, then use its environment or current snapshot ID. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads.
 3. Use entity IDs from `search_entities` for `get_dependencies`, `find_integration_paths`, or `analyze_impact` when authorized.
-4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`.
+4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`. Establish current baselines before historical comparisons; use `include_past_snapshots=true` and selected older snapshot IDs when history is requested, even if current facts exist.
 
 REQUIRED: Supply one target UUID to `analyze_impact`; if multiple target fields are supplied, all must identify the same entity.
 PROHIBITED: Register the legacy `publish_project_snapshot` adapter in the default MCP catalog; publish through REST or the SDK CLI.

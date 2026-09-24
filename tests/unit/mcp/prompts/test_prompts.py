@@ -30,6 +30,13 @@ async def test_load_corporate_context_renders_guidance_without_io():
     assert "include_past_snapshots" in text
     assert "publication_version" in text
     assert "is_current_snapshot" in text
+    assert "Project.active_snapshot_id" in text
+    assert "Environment.current_snapshot_id" in text
+    assert "get_environment" in text
+    assert "If the user requests history" in text
+    assert "even when current facts exist" in text
+    assert "do not substitute the project snapshot" in text
+    assert "comparison" in text
     observable.assert_not_called()
 
 
