@@ -39,14 +39,22 @@ def test_project_search_supports_exact_key_and_partial_name_without_snapshot():
     by_name = repository.search_projects(
         scope, key=None, query="platform", limit=25, offset=0
     )
+    unfiltered = repository.search_projects(
+        scope, key=None, query=None, limit=1, offset=1
+    )
 
     assert [project.key for project in exact] == ["send"]
     assert [project.key for project in by_name] == ["send"]
+    assert [project.key for project in unfiltered] == ["sender"]
     assert exact[0].has_active_snapshot is False
 
 
 def test_project_discovery_attributes_duplicate_keys_and_lists_environments():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     session_factory = sessionmaker(bind=engine)
     tenants = (uuid4(), uuid4())

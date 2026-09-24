@@ -70,7 +70,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         tools = {tool.name: tool for tool in await client.list_tools()}
 
     guidance = {
-        "search_projects": ("key or query", "at least one"),
+        "search_projects": ("omit key and query", "list accessible projects"),
         "search_entities": ("at least one filter", "search_projects"),
         "get_context": ("search_entities", "snapshot_id"),
         "get_dependencies": ("search_entities", "depends_on"),
@@ -85,8 +85,8 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
             assert phrase in description, (name, phrase)
 
     field_guidance = {
-        ("search_projects", "key"): "key or query",
-        ("search_projects", "query"): "key or query",
+        ("search_projects", "key"): "omit key and query",
+        ("search_projects", "query"): "omit key and query",
         ("search_entities", "request"): "at least one filter",
         ("get_context", "entity_id"): "search_entities",
         ("get_context", "snapshot_id"): "search_entities",

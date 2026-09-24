@@ -100,7 +100,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Snapshot scope**: Search the selected environment's current snapshot, or the project's active snapshot. Explicit `snapshot_id` selects one immutable snapshot. `include_past_snapshots=true` searches past and current snapshots; `include_history` independently includes document revisions and retired documents within selected snapshots.
-- **Project discovery**: Match an exact project key or a case-insensitive substring in project keys and names; report whether an active snapshot exists.
+- **Project discovery**: List accessible projects without filters, or match an exact project key or a case-insensitive substring in project keys and names; report whether an active snapshot exists.
 - **Entity filters**: Combine supplied key, name, type, project, and content query filters.
 - **Content query**: Find a case-insensitive literal phrase in entity keys, names, or serialized metadata, including document-section content.
 - **Stable identity**: Return the canonical identity plus the physical occurrence ID so repeated identities are distinguishable across snapshots. Report `snapshot_id`, `revision`, `environment_name`, `is_current_snapshot`, `publication_id`, `publication_version`, `publication_status`, and `deployment_id` for each occurrence when available.
@@ -109,7 +109,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 ## HOW TO SEARCH
 
-1. Use `search_projects` to identify the tenant and project ID, available environments, and active snapshot.
+1. Use `search_projects` without filters to list accessible projects, or supply `key`/`query` to narrow results. Reuse the tenant and project ID, available environments, and active snapshot.
 2. Supply at least one entity filter or tenant/project/snapshot/environment selector. `include_history`, `include_past_snapshots`, `limit`, and `cursor` alone are insufficient.
 3. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
 4. Use `name` for a case-insensitive literal prefix. Use `query` for a case-insensitive literal phrase in entity keys, names, and metadata. Enter `%`, `_`, and `!` literally; the service escapes SQL wildcards.
@@ -133,8 +133,8 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 | `include_past_snapshots` | boolean | No | Search past and current snapshots; requires a search filter or scope selector. Independent of `include_history`. | `false` |
 | `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
-| `search_projects.key` | string | One of key/query | Exact, case-sensitive project key; blank text is invalid. | unset |
-| `search_projects.query` | string | One of key/query | Case-insensitive substring in project keys or names; blank text is invalid. | unset |
+| `search_projects.key` | string | No | Exact, case-sensitive project key; blank text is invalid. | unset |
+| `search_projects.query` | string | No | Case-insensitive substring in project keys or names; blank text is invalid. | unset |
 | `search_projects.limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `search_projects.offset` | strict integer | No | Number of project records to skip, up to 10,000. | `0` |
 

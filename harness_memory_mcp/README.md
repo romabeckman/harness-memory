@@ -38,7 +38,7 @@ The server verifies the token against the database and derives its subject and t
 
 | Tool | Purpose |
 | --- | --- |
-| `search_projects` | Find project keys by exact key or partial key/name query, including projects without snapshots. |
+| `search_projects` | List accessible projects without filters, or find project keys by exact key or partial key/name query, including projects without snapshots. |
 | `search_entities` | Search active-snapshot entities by exact key/project, name prefix, type, or metadata phrase. |
 | `get_context` | Read bounded context, relationships, and evidence for an entity. |
 | `get_dependencies` | Query inbound or outbound dependencies. |

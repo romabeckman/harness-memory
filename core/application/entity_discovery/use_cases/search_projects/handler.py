@@ -28,8 +28,6 @@ class SearchProjectsHandler:
             if isinstance(request, SearchProjectsInput)
             else SearchProjectsInput.model_validate(request)
         )
-        if query.key is None and query.query is None:
-            raise ValueError("at least one project discovery filter is required")
         if scope is None:
             raise MissingTenantContext("trusted tenant context is required")
 

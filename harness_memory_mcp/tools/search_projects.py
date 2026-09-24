@@ -27,7 +27,7 @@ def register_search_projects(
         name="search_projects",
         description=(
             "Find project records, including projects without published snapshots. "
-            "At least one of key or query is required; supply both to combine filters. "
+            "Omit key and query to list accessible projects; supply both to combine filters. "
             "Use key for an exact, case-sensitive key or query for a case-insensitive "
             "substring of a key or name. Returns tenant and project IDs, environment "
             "names, and active snapshot status. Use these values in later entity or "
@@ -40,8 +40,8 @@ def register_search_projects(
             Field(
                 max_length=255,
                 description=(
-                    "Exact, case-sensitive project key. Provide key or query; at least "
-                    "one is required. Blank text is invalid."
+                    "Optional exact, case-sensitive project key. Omit key and query "
+                    "to list projects. Blank text is invalid."
                 ),
             ),
         ] = None,
@@ -50,8 +50,8 @@ def register_search_projects(
             Field(
                 max_length=255,
                 description=(
-                    "Case-insensitive substring of project key or name. Provide key or "
-                    "query; at least one is required. Blank text is invalid."
+                    "Optional case-insensitive substring of project key or name. "
+                    "Omit key and query to list projects. Blank text is invalid."
                 ),
             ),
         ] = None,
@@ -78,8 +78,6 @@ def register_search_projects(
                 limit=limit,
                 offset=offset,
             )
-            if request.key is None and request.query is None:
-                raise ValueError("at least one project discovery filter is required")
             context = tenant_context.require_scope("memory:read")
             result = handler.execute(
                 request,
@@ -99,7 +97,7 @@ def register_search_projects(
                 "status": "ERROR",
                 "error": {
                     "code": "INVALID_ARGUMENT",
-                    "message": "provide an exact key or a project query",
+                    "message": "project search filters must not be blank",
                 },
             }
         except AuthorizationFailure:

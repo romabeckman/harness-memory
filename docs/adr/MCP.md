@@ -13,7 +13,7 @@ edges:
     target: "adr:tests"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # MCP Interface
 
@@ -60,7 +60,7 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 
 | Tool | Scope | Purpose | Input | Output |
 |------|-------|---------|-------|--------|
-| `search_projects` | `memory:read` | Find project records and verify whether they have active data. | At least one of exact key or partial key/name query; bounded offset page. | Tenant/project IDs, environment names, and active-snapshot status. |
+| `search_projects` | `memory:read` | Find project records and verify whether they have active data. | Optional exact key or partial key/name query; omit both to list accessible projects; bounded offset page. | Tenant/project IDs, environment names, and active-snapshot status. |
 | `search_entities` | `memory:read` | Find entities in active snapshots, including document content. | Required request with at least one filter or tenant/project/snapshot/environment selector; bounded cursor page. | Bounded entity IDs, project IDs, and snapshot IDs for pinned reads. |
 | `get_context` | `memory:read` | Read bounded context and evidence for one entity. | Entity identifier and result limits. | Entity, project, owner, relations, dependencies, and evidence. |
 | `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |

@@ -62,9 +62,30 @@ async def test_search_projects_supports_name_or_key_query_and_offset_pages():
     )
 
 
-@pytest.mark.parametrize("arguments", [{}, {"key": "  "}, {"query": "  "}])
+@pytest.mark.parametrize("arguments", [{}, {"key": None, "query": None, "limit": 25, "offset": 0}])
 @pytest.mark.asyncio
-async def test_search_projects_rejects_missing_or_blank_filters(arguments):
+async def test_search_projects_lists_projects_without_filters(arguments):
+    repository = Mock()
+    repository.search_projects.return_value = [
+        ProjectSearchItem(key="send", name="Send", has_active_snapshot=False)
+    ]
+    server = create_mcp_server(
+        project_search_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool("search_projects", arguments)
+
+    assert result.data["items"][0]["key"] == "send"
+    repository.search_projects.assert_called_once_with(
+        TenantScope("tenant-a"), key=None, query=None, limit=26, offset=0
+    )
+
+
+@pytest.mark.parametrize("arguments", [{"key": "  "}, {"query": "  "}])
+@pytest.mark.asyncio
+async def test_search_projects_rejects_blank_filters(arguments):
     repository = Mock()
     server = create_mcp_server(
         project_search_repository=repository,

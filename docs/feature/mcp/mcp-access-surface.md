@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:impact-analysis"
     read: must
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # MCP Access Surface
 Expose bounded memory resources and deterministic workflow prompts through the FastMCP catalog.
@@ -111,7 +111,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 
 ## TOOL CALL ORDER
 
-1. Call `search_projects` with **key or query**; at least one is required. Reuse returned project and environment identifiers.
+1. Call `search_projects` without filters to list accessible projects, or supply **key** or **query** to narrow results. Reuse returned project and environment identifiers.
 2. Call `search_entities` with at least one filter or scope selector. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads.
 3. Use entity IDs from `search_entities` for `get_dependencies`, `find_integration_paths`, or `analyze_impact` when authorized.
 4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`.
