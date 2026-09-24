@@ -60,7 +60,7 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 
 | Tool | Scope | Purpose | Input | Output |
 |------|-------|---------|-------|--------|
-| `search_projects` | `memory:read` | Find project records and verify whether they have active data. | Optional exact key or partial key/name query; omit both to list accessible projects; bounded offset page. | Tenant/project IDs, environment names, and active-snapshot status. |
+| `search_projects` | `memory:read` | Find projects and active-data status. | Exact key or partial key/name; omit both to list; offset page. | Tenant/project IDs, `environments` with name and `current_snapshot_id`, and active-snapshot status; no project `active_snapshot_id`. |
 | `search_entities` | `memory:read` | Find entities in active snapshots, including document content. | Required request with at least one filter or tenant/project/snapshot/environment selector; bounded cursor page. | Bounded entity IDs, project IDs, and snapshot IDs for pinned reads. |
 | `get_context` | `memory:read` | Read entity context and evidence. | Entity, snapshot, project, or tenant ID; bounded page. | One entity context or newest-first `items` page with `count`, `offset`, and `has_more`. |
 | `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |

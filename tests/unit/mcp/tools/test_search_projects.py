@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastmcp import Client
@@ -24,7 +25,7 @@ async def test_search_projects_returns_bounded_project_references_and_uses_tenan
         result = await client.call_tool("search_projects", {"key": "send"})
 
     assert result.data == {
-        "items": [{"key": "send", "name": "Send", "has_active_snapshot": True}],
+        "items": [{"key": "send", "environments": [], "name": "Send", "has_active_snapshot": True}],
         "count": 1,
         "limit": 100,
         "offset": 0,
@@ -33,6 +34,35 @@ async def test_search_projects_returns_bounded_project_references_and_uses_tenan
     repository.search_projects.assert_called_once_with(
         TenantScope("tenant-a"), key="send", query=None, limit=101, offset=0
     )
+
+
+@pytest.mark.asyncio
+async def test_search_projects_exposes_environment_snapshot_objects_without_project_snapshot():
+    repository = Mock()
+    snapshot_id = uuid4()
+    repository.search_projects.return_value = [
+        ProjectSearchItem(
+            key="send", name="Send", has_active_snapshot=True,
+            environments=[
+                {"name": "production", "current_snapshot_id": snapshot_id},
+                {"name": "testing", "current_snapshot_id": None},
+            ],
+        )
+    ]
+    server = create_mcp_server(
+        project_search_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool("search_projects", {"key": "send"})
+
+    assert result.data["items"][0]["environments"] == [
+        {"name": "production", "current_snapshot_id": str(snapshot_id)},
+        {"name": "testing", "current_snapshot_id": None},
+    ]
+    assert "active_snapshot_id" not in result.data["items"][0]
+    assert "environment_names" not in result.data["items"][0]
 
 
 @pytest.mark.asyncio
@@ -53,7 +83,7 @@ async def test_search_projects_supports_name_or_key_query_and_offset_pages():
         )
 
     assert result.data["items"] == [
-        {"key": "send", "name": "Send", "has_active_snapshot": False}
+        {"key": "send", "environments": [], "name": "Send", "has_active_snapshot": False}
     ]
     assert result.data["offset"] == 1
     assert result.data["has_more"] is True

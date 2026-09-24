@@ -29,8 +29,9 @@ def register_search_projects(
             "Find project records, including projects without published snapshots. "
             "Omit key and query to list accessible projects; supply both to combine filters. "
             "Use key for an exact, case-sensitive key or query for a case-insensitive "
-            "substring of a key or name. Returns tenant and project IDs, environment "
-            "names, and active snapshot status. Use these values in later entity or "
+            "substring of a key or name. Returns tenant and project IDs, environments "
+            "with each name and current_snapshot_id, and active snapshot status. "
+            "Use these values in later entity or "
             "environment calls. Requires memory:read."
         ),
     )
@@ -83,7 +84,11 @@ def register_search_projects(
                 request,
                 TenantScope(context.tenant_id, context.is_admin),
             )
-            return result.model_dump(mode="json", exclude_none=True)
+            payload = result.model_dump(mode="json", exclude_none=True)
+            for item in payload["items"]:
+                for environment in item["environments"]:
+                    environment.setdefault("current_snapshot_id", None)
+            return payload
         except ValidationError:
             return {
                 "status": "ERROR",

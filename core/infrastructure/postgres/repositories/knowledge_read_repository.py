@@ -4,9 +4,13 @@ from uuid import UUID
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
-from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
+from core.application.entity_discovery.contracts.project_environment_item import (
+    ProjectEnvironmentItem,
+)
+from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
+from core.domain.snapshot_publication.types.entity_type import EntityType
 from core.infrastructure.postgres.models.entity import Entity
 from core.infrastructure.postgres.models.environment import Environment
 from core.infrastructure.postgres.models.evidence import Evidence
@@ -15,9 +19,12 @@ from core.infrastructure.postgres.models.project import Project
 from core.infrastructure.postgres.models.relation import Relation
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.models.tenant import Tenant
-from core.infrastructure.postgres.repositories.snapshot_payload_reader import SnapshotPayloadReader
-from core.infrastructure.postgres.repositories.entity_search_repository import PostgresEntitySearchRepository
-from core.domain.snapshot_publication.types.entity_type import EntityType
+from core.infrastructure.postgres.repositories.entity_search_repository import (
+    PostgresEntitySearchRepository,
+)
+from core.infrastructure.postgres.repositories.snapshot_payload_reader import (
+    SnapshotPayloadReader,
+)
 
 
 class KnowledgeReadRepository:
@@ -116,7 +123,9 @@ class KnowledgeReadRepository:
             offset=offset,
         )
         project_ids = [UUID(project["id"]) for project in projects]
-        environment_names: dict[UUID, list[str]] = {project_id: [] for project_id in project_ids}
+        environments: dict[UUID, list[ProjectEnvironmentItem]] = {
+            project_id: [] for project_id in project_ids
+        }
         tenant_keys: dict[str, str] = {}
         if project_ids:
             with self._session_factory() as session:
@@ -129,20 +138,24 @@ class KnowledgeReadRepository:
                     ).all()
                 }
                 rows = session.execute(
-                    select(Environment.project_id, Environment.name)
+                    select(
+                        Environment.project_id, Environment.name,
+                        Environment.current_snapshot_id,
+                    )
                     .where(Environment.project_id.in_(project_ids))
                     .order_by(Environment.project_id, Environment.name)
                 ).all()
-                for project_id, name in rows:
-                    environment_names[project_id].append(name)
+                for project_id, name, current_snapshot_id in rows:
+                    environments[project_id].append(ProjectEnvironmentItem(
+                        name=name, current_snapshot_id=current_snapshot_id,
+                    ))
         return tuple(
             ProjectSearchItem(
                 key=project["key"],
                 tenant_id=project["tenant_id"],
                 tenant_key=tenant_keys.get(project["tenant_id"]),
                 project_id=UUID(project["id"]),
-                active_snapshot_id=UUID(project["active_snapshot_id"]) if project["active_snapshot_id"] else None,
-                environment_names=tuple(environment_names[UUID(project["id"])]),
+                environments=tuple(environments[UUID(project["id"])]),
                 name=project["name"],
                 has_active_snapshot=project["active_snapshot_id"] is not None,
             )

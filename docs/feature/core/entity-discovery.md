@@ -39,6 +39,7 @@ Find projects and bounded Entity identities through tenant-scoped MCP search too
     "core/application/entity_discovery/contracts/entity_search_criteria.py",
     "core/application/entity_discovery/contracts/entity_search_item.py",
     "core/application/entity_discovery/contracts/entity_search_page.py",
+    "core/application/entity_discovery/contracts/project_environment_item.py",
     "core/application/entity_discovery/contracts/project_search_item.py",
     "core/application/entity_discovery/contracts/project_search_page.py",
     "core/application/entity_discovery/contracts/tenant_scope.py",
@@ -100,7 +101,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Snapshot scope**: Search the selected environment's current snapshot, or the project's active snapshot. Explicit `snapshot_id` selects one immutable snapshot. `include_past_snapshots=true` searches past and current snapshots; `include_history` independently includes document revisions and retired documents within selected snapshots.
-- **Project discovery**: List accessible projects without filters, or match an exact project key or a case-insensitive substring in project keys and names; report whether an active snapshot exists.
+- **Project discovery**: List accessible projects without filters, or match exact/partial keys and names. Return `environments` objects with `name` and `current_snapshot_id` (null when unpublished); do not return the project-level `active_snapshot_id`.
 - **Entity filters**: Combine supplied key, name, type, project, and content query filters.
 - **Content query**: Find a case-insensitive literal phrase in entity keys, names, or serialized metadata, including document-section content.
 - **Stable identity**: Return the canonical identity plus the physical occurrence ID so repeated identities are distinguishable across snapshots. Report `snapshot_id`, `revision`, `environment_name`, `is_current_snapshot`, `publication_id`, `publication_version`, `publication_status`, and `deployment_id` for each occurrence when available.
@@ -109,7 +110,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 ## HOW TO SEARCH
 
-1. Use `search_projects` without filters to list accessible projects, or supply `key`/`query` to narrow results. Reuse the tenant and project ID, available environments, and active snapshot.
+1. Use `search_projects` without filters to list accessible projects, or supply `key`/`query` to narrow results. Reuse tenant and project IDs plus each environment's `current_snapshot_id`; never substitute a project-wide snapshot for an environment-specific question.
 2. Supply at least one entity filter or tenant/project/snapshot/environment selector. `include_history`, `include_past_snapshots`, `limit`, and `cursor` alone are insufficient.
 3. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
 4. Use `name` for a case-insensitive literal prefix. Use `query` for a case-insensitive literal phrase in entity keys, names, and metadata. Enter `%`, `_`, and `!` literally; the service escapes SQL wildcards.

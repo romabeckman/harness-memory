@@ -87,7 +87,8 @@ class SearchEntitiesInput(BaseModel):
     snapshot_id: UUID | None = Field(
         default=None,
         description=(
-            "Immutable snapshot UUID from search_projects or search_entities; "
+            "Immutable snapshot UUID from search_projects.environments[].current_snapshot_id "
+            "or search_entities; "
             "selects that snapshot, including historical ones."
         ),
     )
