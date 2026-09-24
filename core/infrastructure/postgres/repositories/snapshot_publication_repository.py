@@ -1,7 +1,7 @@
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -22,7 +22,10 @@ from core.domain.snapshot_publication.value_objects.current_snapshot_descriptor 
 from core.domain.snapshot_publication.value_objects.payload_hash import PayloadHash
 from core.domain.snapshot_publication.value_objects.revision import Revision
 
+from ..models.entity import Entity
+from ..models.evidence import Evidence
 from ..models.project import Project
+from ..models.relation import Relation
 from ..models.snapshot import Snapshot
 from .snapshot_persistence_mapper import SnapshotPersistenceMapper
 
@@ -109,7 +112,7 @@ class PostgresSnapshotPublicationRepository:
                         if existing.payload_hash != payload_hash.value:
                             raise RevisionConflict("revision already contains different content")
                         return self._record(
-                            "ALREADY_PUBLISHED", existing, project.active_snapshot_id
+                            session, "ALREADY_PUBLISHED", existing, project.active_snapshot_id
                         )
 
                     active = None
@@ -134,7 +137,9 @@ class PostgresSnapshotPublicationRepository:
                     )
                     decision = self._policy.decide(current, candidate)
                     if decision is not RevisionDecision.ACTIVATE:
-                        return self._record("ALREADY_PUBLISHED", active, project.active_snapshot_id)
+                        return self._record(
+                            session, "ALREADY_PUBLISHED", active, project.active_snapshot_id
+                        )
 
                     project.name = snapshot.project.name
                     project.metadata_json = snapshot.project.metadata.to_dict()
@@ -149,7 +154,7 @@ class PostgresSnapshotPublicationRepository:
                     session.flush()
                     project.active_snapshot_id = rows.snapshot.id
                     session.flush()
-                    return self._record("ACTIVATED", rows.snapshot, rows.snapshot.id)
+                    return self._record(session, "ACTIVATED", rows.snapshot, rows.snapshot.id)
         except (RevisionConflict, StaleRevision, PersistenceFailure, IntegrityError):
             raise
         except OperationalError as error:
@@ -186,11 +191,13 @@ class PostgresSnapshotPublicationRepository:
 
     @staticmethod
     def _record(
-        status: str, snapshot: Snapshot | None, active_snapshot_id: UUID | None
+        session: Session,
+        status: str,
+        snapshot: Snapshot | None,
+        active_snapshot_id: UUID | None,
     ) -> PublicationRecord:
         if snapshot is None or active_snapshot_id is None:
             raise PersistenceFailure()
-        payload = snapshot.payload or {}
         return PublicationRecord(
             status=status,
             snapshot_id=snapshot.id,
@@ -198,7 +205,17 @@ class PostgresSnapshotPublicationRepository:
             stored_revision=snapshot.revision,
             active_snapshot_id=active_snapshot_id,
             payload_hash=snapshot.payload_hash,
-            entity_count=len(payload.get("entities", [])),
-            relation_count=len(payload.get("relations", [])),
-            evidence_count=len(payload.get("evidence", [])),
+            entity_count=PostgresSnapshotPublicationRepository._count(session, Entity, snapshot.id),
+            relation_count=PostgresSnapshotPublicationRepository._count(
+                session, Relation, snapshot.id
+            ),
+            evidence_count=PostgresSnapshotPublicationRepository._count(
+                session, Evidence, snapshot.id
+            ),
         )
+
+    @staticmethod
+    def _count(session: Session, model: type, snapshot_id: UUID) -> int:
+        return session.scalar(
+            select(func.count()).select_from(model).where(model.snapshot_id == snapshot_id)
+        ) or 0

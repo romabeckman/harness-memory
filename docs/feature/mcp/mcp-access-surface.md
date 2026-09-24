@@ -96,6 +96,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 - **Entity resource**: Reuse active relationship context at `memory://entities/{entity_id}`.
 - **Project resource**: Read only the project's active snapshot at `memory://projects/{project_key}`; decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
+- **Normalized content**: Keep document text in `entities.metadata`; entity search and bounded MCP resources read entities, relations, and evidence directly.
 - **Prompt surface**: Confirm project keys with `search_projects`, guide content queries with `search_entities`, and keep business decisions in existing capabilities.
 - **Environment surface**: Read active environment snapshots and compare added, removed,
   modified, and unchanged entity fingerprints without exposing a write operation.
@@ -121,6 +122,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 ## BEST PRACTICES
 
 REQUIRED: Keep resource outputs bounded, deterministic, scope-authorized, and free of raw snapshot payloads.
+REQUIRED: Read searchable document content from normalized entity metadata; snapshot reads must not depend on `snapshots.payload`.
 REQUIRED: Keep prompt renderers data-free; mention existing public tools instead of duplicating business logic.
 REQUIRED: Enforce authorization on catalog listing and direct read/get operations.
 PROHIBITED: Register snapshot publication or any other graph mutation as an MCP tool.

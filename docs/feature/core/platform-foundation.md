@@ -13,7 +13,7 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "feature:tenant-foundation"
-updated: 2026-09-22
+updated: 2026-09-23
 ---
 # Platform Foundation
 Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
@@ -53,7 +53,8 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
     "migrations/env.py",
     "migrations/versions/001_foundation.py",
     "migrations/versions/006_default_workspace.py",
-    "migrations/versions/007_service_accounts.py"
+    "migrations/versions/007_service_accounts.py",
+    "migrations/versions/011_snapshot_payload_removal.py"
   ],
   "test_files": [
     "tests/unit/architecture/test_rules.py",
@@ -66,6 +67,7 @@ Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and M
     "tests/unit/mcp/test_config.py",
     "tests/unit/mcp/server/test_factory.py",
     "tests/unit/core/infrastructure/postgres/migrations/test_default_workspace.py",
+    "tests/unit/core/infrastructure/postgres/migrations/test_snapshot_payload_removal.py",
     "tests/integration/migrations/test_initial_foundation.py",
     "tests/integration/migrations/test_default_workspace.py",
     "tests/integration/migrations/test_service_accounts.py",
@@ -94,6 +96,7 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 
 - **Runtime boundary**: Build the FastMCP server without database connections, migrations, or transport startup.
 - **Persistence boundary**: Keep five tenant-scoped foundation tables: projects, snapshots, entities, relations, and evidence.
+- **Snapshot storage**: Keep graph facts normalized and verify a lossless projection before removing redundant snapshot payload storage.
 - **Migration boundary**: Use explicit Alembic revisions through the CLI; keep startup schema creation disabled.
 - **Default workspace seed**: Revision 006 inserts an `Admin` API user and a `Default Project`. Revision 010 establishes first-class tenant records and UUID foreign keys in the `tenants` table (see [tenant foundation](./tenant-foundation.md)).
 - **Service accounts**: Revision 007 adds tenant-bound API service accounts and permits tokens without expiration for those accounts.

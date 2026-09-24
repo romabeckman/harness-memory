@@ -27,6 +27,9 @@ from core.infrastructure.postgres.models.knowledge_publication import (
 )
 from core.infrastructure.postgres.models.project import Project as ModelProject
 from core.infrastructure.postgres.models.snapshot import Snapshot as ModelSnapshot
+from core.infrastructure.postgres.repositories.snapshot_payload_reader import (
+    SnapshotPayloadReader,
+)
 from core.infrastructure.postgres.repositories.snapshot_persistence_mapper import (
     SnapshotPersistenceMapper,
 )
@@ -61,8 +64,9 @@ class PostgresKnowledgePublicationRepository:
             if len(rows) > 1:
                 raise ValueError("publication baseline matches multiple tenants; provide tenant_id")
             row = rows[0]
+            payload = self._payload_reader.read(session, row)
             graph = {
-                key: row.payload[key]
+                key: payload[key]
                 for key in ("schema_version", "entities", "relations", "evidence")
             }
             graph["metadata"] = row.metadata_json
@@ -88,6 +92,7 @@ class PostgresKnowledgePublicationRepository:
         self._session_factory = session_factory
         self._mapper = mapper or SnapshotPersistenceMapper()
         self._hash_calculator = PayloadHashCalculator()
+        self._payload_reader = SnapshotPayloadReader()
 
     def find_by_deployment(
         self, project_key: str, env_name: str, deployment_id: str, tenant_id: str

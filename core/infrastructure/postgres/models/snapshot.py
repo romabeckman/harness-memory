@@ -45,10 +45,6 @@ class Snapshot(Base):
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_snapshots_metadata_object",
         ),
-        CheckConstraint(
-            "substr(CAST(payload AS TEXT), 1, 1) = '{'",
-            name="ck_snapshots_payload_object",
-        ),
         ForeignKeyConstraint(
             ["project_id", "tenant_id"],
             ["projects.id", "projects.tenant_id"],
@@ -71,8 +67,12 @@ class Snapshot(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
     payload_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(
-        JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")
+    project_key: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=text("''")
+    )
+    project_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    generated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")

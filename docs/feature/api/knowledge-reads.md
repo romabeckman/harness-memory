@@ -43,12 +43,14 @@ Read snapshot data with scoped bearer tokens or the admin token. Manage tenants 
     "api/adapters/http/schemas/project_create.py",
     "api/adapters/http/schemas/project_update.py",
     "core/infrastructure/postgres/repositories/tenant_project_management_repository.py",
-    "core/infrastructure/postgres/repositories/knowledge_read_repository.py"
+    "core/infrastructure/postgres/repositories/knowledge_read_repository.py",
+    "core/infrastructure/postgres/repositories/snapshot_payload_reader.py"
   ],
   "test_files": [
     "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/unit/api/adapters/http/test_tenant_project_routes.py",
-    "tests/unit/api/adapters/http/test_knowledge_table_routes.py"
+    "tests/unit/api/adapters/http/test_knowledge_table_routes.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_payload_reader.py"
   ]
 }
 ```
@@ -84,7 +86,7 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 | PATCH | `/v1/projects/{project_key}?tenant_id=...` | Admin updates project name or metadata |
 | DELETE | `/v1/projects/{project_key}?tenant_id=...` | Admin deletes project with no snapshots, environments, or publications |
 | GET | `/v1/projects/{project_key}/snapshots` | Read project snapshot history |
-| GET | `/v1/snapshots/{snapshot_id}` | Read one snapshot, including stored payload; no write methods exist |
+| GET | `/v1/snapshots/{snapshot_id}` | Read one snapshot with its payload reconstructed from normalized facts; no write methods exist |
 ## KNOWLEDGE TABLE SEARCH
 
 | Method | Path | Result |
@@ -114,6 +116,7 @@ Snapshot facts stay immutable; publish complete snapshots through
 REQUIRED: Require `API_ADMIN_TOKEN` for tenant and project create, update, or delete operations.
 REQUIRED: Check the required scope before querying and apply any supplied tenant filter.
 REQUIRED: Keep snapshots read-only for every credential, including admin.
+REQUIRED: Preserve the snapshot detail response by reconstructing its payload from normalized entity, relation, and evidence rows.
 PROHIBITED: Let non-admin tokens create, update, or delete tenant or project records.
 
 ## DOCUMENT MAP

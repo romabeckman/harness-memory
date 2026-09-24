@@ -37,7 +37,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="1" * 64,
-            payload={},
             metadata_json={},
         )
         active = Snapshot(
@@ -46,7 +45,6 @@ def _seed(session_factory):
             revision=2,
             schema_version="1.0",
             payload_hash="2" * 64,
-            payload={},
             metadata_json={},
         )
         other_snapshot = Snapshot(
@@ -55,7 +53,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="3" * 64,
-            payload={},
             metadata_json={},
         )
         session.add_all([old, active, other_snapshot])
@@ -169,7 +166,7 @@ def test_repository_escapes_name_wildcards_and_paginates_without_duplicates():
         session.flush()
         snapshot = Snapshot(
             tenant_id="tenant-a", project_id=project.id, revision=1, schema_version="1.0",
-            payload_hash="a" * 64, payload={}, metadata_json={}
+            payload_hash="a" * 64, metadata_json={}
         )
         session.add(snapshot)
         session.flush()
@@ -204,7 +201,7 @@ def test_repository_keyset_cursor_traverses_all_rows_once():
         session.flush()
         snapshot = Snapshot(
             tenant_id="tenant-a", project_id=project.id, revision=1, schema_version="1.0",
-            payload_hash="b" * 64, payload={}, metadata_json={}
+            payload_hash="b" * 64, metadata_json={}
         )
         session.add(snapshot)
         session.flush()

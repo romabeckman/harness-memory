@@ -38,7 +38,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="1" * 64,
-            payload={},
             metadata_json={},
         )
         active = Snapshot(
@@ -47,7 +46,6 @@ def _seed(session_factory):
             revision=2,
             schema_version="1.0",
             payload_hash="2" * 64,
-            payload={},
             metadata_json={},
         )
         other_project = Project(tenant_id="tenant-b", key="payments", name="Other")
@@ -60,7 +58,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="3" * 64,
-            payload={},
             metadata_json={},
         )
         session.add(other_snapshot)

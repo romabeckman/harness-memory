@@ -14,11 +14,13 @@ from core.infrastructure.postgres.models.project import Project
 from core.infrastructure.postgres.models.relation import Relation
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.models.tenant import Tenant
+from core.infrastructure.postgres.repositories.snapshot_payload_reader import SnapshotPayloadReader
 
 
 class KnowledgeReadRepository:
     def __init__(self, session_factory: Callable[[], Session]) -> None:
         self._session_factory = session_factory
+        self._payload_reader = SnapshotPayloadReader()
 
     def tenants(
         self,
@@ -40,12 +42,14 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Tenant.key.ilike(pattern), Tenant.name.ilike(pattern), Tenant.status.ilike(pattern))
+                or_(
+                    Tenant.key.ilike(pattern),
+                    Tenant.name.ilike(pattern),
+                    Tenant.status.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
-            rows = session.scalars(
-                statement.order_by(Tenant.key).limit(limit).offset(offset)
-            ).all()
+            rows = session.scalars(statement.order_by(Tenant.key).limit(limit).offset(offset)).all()
             return [self._tenant(tenant) for tenant in rows]
 
     def tenant(self, tenant_id: str) -> dict | None:
@@ -143,7 +147,8 @@ class KnowledgeReadRepository:
                 statement = statement.where(Snapshot.payload_hash == payload_hash)
             rows = session.scalars(
                 statement.order_by(Snapshot.created_at.desc(), Snapshot.id.desc())
-                .limit(limit).offset(offset)
+                .limit(limit)
+                .offset(offset)
             ).all()
             return [self._snapshot(snapshot, include_payload=False) for snapshot in rows]
 
@@ -153,7 +158,13 @@ class KnowledgeReadRepository:
             statement = statement.where(Snapshot.tenant_id == UUID(tenant_id))
         with self._session_factory() as session:
             snapshot = session.scalar(statement)
-            return self._snapshot(snapshot, include_payload=True) if snapshot else None
+            if snapshot is None:
+                return None
+            return self._snapshot(
+                snapshot,
+                include_payload=True,
+                payload=self._payload_reader.read(session, snapshot),
+            )
 
     def environments(
         self,
@@ -181,13 +192,17 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Environment.name.ilike(pattern), Environment.type.ilike(pattern),
-                    Project.key.ilike(pattern))
+                or_(
+                    Environment.name.ilike(pattern),
+                    Environment.type.ilike(pattern),
+                    Project.key.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
             rows = session.execute(
                 statement.order_by(Environment.tenant_id, Project.key, Environment.name)
-                .limit(limit).offset(offset)
+                .limit(limit)
+                .offset(offset)
             ).all()
             return [self._environment(environment, key) for environment, key in rows]
 
@@ -205,18 +220,22 @@ class KnowledgeReadRepository:
         limit: int,
         offset: int,
     ) -> list[dict]:
-        statement = select(KnowledgePublication, Project.key, Environment.name).join(
-            Project,
-            and_(
-                Project.id == KnowledgePublication.project_id,
-                Project.tenant_id == KnowledgePublication.tenant_id,
-            ),
-        ).join(
-            Environment,
-            and_(
-                Environment.id == KnowledgePublication.environment_id,
-                Environment.tenant_id == KnowledgePublication.tenant_id,
-            ),
+        statement = (
+            select(KnowledgePublication, Project.key, Environment.name)
+            .join(
+                Project,
+                and_(
+                    Project.id == KnowledgePublication.project_id,
+                    Project.tenant_id == KnowledgePublication.tenant_id,
+                ),
+            )
+            .join(
+                Environment,
+                and_(
+                    Environment.id == KnowledgePublication.environment_id,
+                    Environment.tenant_id == KnowledgePublication.tenant_id,
+                ),
+            )
         )
         if tenant_id is not None:
             statement = statement.where(KnowledgePublication.tenant_id == UUID(tenant_id))
@@ -235,18 +254,26 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Project.key.ilike(pattern), Environment.name.ilike(pattern),
+                or_(
+                    Project.key.ilike(pattern),
+                    Environment.name.ilike(pattern),
                     KnowledgePublication.deployment_id.ilike(pattern),
                     KnowledgePublication.version.ilike(pattern),
-                    KnowledgePublication.status.ilike(pattern))
+                    KnowledgePublication.status.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
             rows = session.execute(
-                statement.order_by(KnowledgePublication.created_at.desc(),
-                                   KnowledgePublication.id.desc()).limit(limit).offset(offset)
+                statement.order_by(
+                    KnowledgePublication.created_at.desc(), KnowledgePublication.id.desc()
+                )
+                .limit(limit)
+                .offset(offset)
             ).all()
-            return [self._publication(publication, key, environment_name)
-                    for publication, key, environment_name in rows]
+            return [
+                self._publication(publication, key, environment_name)
+                for publication, key, environment_name in rows
+            ]
 
     def snapshot_search(
         self,
@@ -261,7 +288,8 @@ class KnowledgeReadRepository:
         offset: int,
     ) -> list[dict]:
         statement = select(Snapshot, Project.key).join(
-            Project, and_(Project.id == Snapshot.project_id, Project.tenant_id == Snapshot.tenant_id)
+            Project,
+            and_(Project.id == Snapshot.project_id, Project.tenant_id == Snapshot.tenant_id),
         )
         if tenant_id is not None:
             statement = statement.where(Snapshot.tenant_id == UUID(tenant_id))
@@ -278,7 +306,8 @@ class KnowledgeReadRepository:
         with self._session_factory() as session:
             rows = session.execute(
                 statement.order_by(Snapshot.created_at.desc(), Snapshot.id.desc())
-                .limit(limit).offset(offset)
+                .limit(limit)
+                .offset(offset)
             ).all()
             return [self._snapshot_with_project(snapshot, key) for snapshot, key in rows]
 
@@ -313,8 +342,12 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Entity.entity_key.ilike(pattern), Entity.entity_type.ilike(pattern),
-                    Entity.name.ilike(pattern), Project.key.ilike(pattern))
+                or_(
+                    Entity.entity_key.ilike(pattern),
+                    Entity.entity_type.ilike(pattern),
+                    Entity.name.ilike(pattern),
+                    Project.key.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
             rows = session.execute(
@@ -338,24 +371,32 @@ class KnowledgeReadRepository:
     ) -> list[dict]:
         source = Entity.__table__.alias("source_entity")
         target = Entity.__table__.alias("target_entity")
-        statement = select(
-            Relation, Project.key, source.c.entity_key, target.c.entity_key
-        ).join(
-            Snapshot,
-            and_(Snapshot.id == Relation.snapshot_id, Snapshot.tenant_id == Relation.tenant_id),
-        ).join(
-            Project,
-            and_(Project.id == Snapshot.project_id, Project.tenant_id == Relation.tenant_id),
-        ).join(
-            source,
-            and_(source.c.id == Relation.source_entity_id,
-                 source.c.snapshot_id == Relation.snapshot_id,
-                 source.c.tenant_id == Relation.tenant_id),
-        ).join(
-            target,
-            and_(target.c.id == Relation.target_entity_id,
-                 target.c.snapshot_id == Relation.snapshot_id,
-                 target.c.tenant_id == Relation.tenant_id),
+        statement = (
+            select(Relation, Project.key, source.c.entity_key, target.c.entity_key)
+            .join(
+                Snapshot,
+                and_(Snapshot.id == Relation.snapshot_id, Snapshot.tenant_id == Relation.tenant_id),
+            )
+            .join(
+                Project,
+                and_(Project.id == Snapshot.project_id, Project.tenant_id == Relation.tenant_id),
+            )
+            .join(
+                source,
+                and_(
+                    source.c.id == Relation.source_entity_id,
+                    source.c.snapshot_id == Relation.snapshot_id,
+                    source.c.tenant_id == Relation.tenant_id,
+                ),
+            )
+            .join(
+                target,
+                and_(
+                    target.c.id == Relation.target_entity_id,
+                    target.c.snapshot_id == Relation.snapshot_id,
+                    target.c.tenant_id == Relation.tenant_id,
+                ),
+            )
         )
         if tenant_id is not None:
             statement = statement.where(Relation.tenant_id == UUID(tenant_id))
@@ -374,16 +415,23 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Relation.relation_type.ilike(pattern), Project.key.ilike(pattern),
-                    source.c.entity_key.ilike(pattern), target.c.entity_key.ilike(pattern))
+                or_(
+                    Relation.relation_type.ilike(pattern),
+                    Project.key.ilike(pattern),
+                    source.c.entity_key.ilike(pattern),
+                    target.c.entity_key.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
             rows = session.execute(
                 statement.order_by(Relation.created_at.desc(), Relation.id)
-                .limit(limit).offset(offset)
+                .limit(limit)
+                .offset(offset)
             ).all()
-            return [self._relation(relation, key, source_key, target_key)
-                    for relation, key, source_key, target_key in rows]
+            return [
+                self._relation(relation, key, source_key, target_key)
+                for relation, key, source_key, target_key in rows
+            ]
 
     def evidence(
         self,
@@ -397,12 +445,16 @@ class KnowledgeReadRepository:
         limit: int,
         offset: int,
     ) -> list[dict]:
-        statement = select(Evidence, Project.key).join(
-            Snapshot,
-            and_(Snapshot.id == Evidence.snapshot_id, Snapshot.tenant_id == Evidence.tenant_id),
-        ).join(
-            Project,
-            and_(Project.id == Snapshot.project_id, Project.tenant_id == Evidence.tenant_id),
+        statement = (
+            select(Evidence, Project.key)
+            .join(
+                Snapshot,
+                and_(Snapshot.id == Evidence.snapshot_id, Snapshot.tenant_id == Evidence.tenant_id),
+            )
+            .join(
+                Project,
+                and_(Project.id == Snapshot.project_id, Project.tenant_id == Evidence.tenant_id),
+            )
         )
         if tenant_id is not None:
             statement = statement.where(Evidence.tenant_id == UUID(tenant_id))
@@ -417,12 +469,17 @@ class KnowledgeReadRepository:
         if query:
             pattern = self._pattern(query)
             statement = statement.where(
-                or_(Evidence.source.ilike(pattern), Evidence.excerpt.ilike(pattern),
-                    Project.key.ilike(pattern))
+                or_(
+                    Evidence.source.ilike(pattern),
+                    Evidence.excerpt.ilike(pattern),
+                    Project.key.ilike(pattern),
+                )
             )
         with self._session_factory() as session:
             rows = session.execute(
-                statement.order_by(Evidence.created_at.desc(), Evidence.id).limit(limit).offset(offset)
+                statement.order_by(Evidence.created_at.desc(), Evidence.id)
+                .limit(limit)
+                .offset(offset)
             ).all()
             return [self._evidence(item, key) for item, key in rows]
 
@@ -448,9 +505,7 @@ class KnowledgeReadRepository:
         }
 
     @staticmethod
-    def _publication(
-        publication: KnowledgePublication, project_key: str, environment: str
-    ) -> dict:
+    def _publication(publication: KnowledgePublication, project_key: str, environment: str) -> dict:
         return {
             "id": str(publication.id),
             "tenant_id": str(publication.tenant_id),
@@ -489,9 +544,7 @@ class KnowledgeReadRepository:
         }
 
     @staticmethod
-    def _relation(
-        relation: Relation, project_key: str, source_key: str, target_key: str
-    ) -> dict:
+    def _relation(relation: Relation, project_key: str, source_key: str, target_key: str) -> dict:
         return {
             "id": str(relation.id),
             "tenant_id": str(relation.tenant_id),
@@ -529,8 +582,13 @@ class KnowledgeReadRepository:
 
     @staticmethod
     def _tenant(tenant: Tenant) -> dict:
-        return {"id": str(tenant.id), "key": tenant.key, "name": tenant.name,
-                "status": tenant.status, "metadata": tenant.metadata_json}
+        return {
+            "id": str(tenant.id),
+            "key": tenant.key,
+            "name": tenant.name,
+            "status": tenant.status,
+            "metadata": tenant.metadata_json,
+        }
 
     @staticmethod
     def _project(project: Project) -> dict:
@@ -546,19 +604,19 @@ class KnowledgeReadRepository:
         }
 
     @staticmethod
-    def _snapshot(snapshot: Snapshot, *, include_payload: bool) -> dict:
+    def _snapshot(
+        snapshot: Snapshot, *, include_payload: bool, payload: dict | None = None
+    ) -> dict:
         result = {
             "id": str(snapshot.id),
             "project_id": str(snapshot.project_id),
             "tenant_id": str(snapshot.tenant_id),
-            "environment_id": (
-                str(snapshot.environment_id) if snapshot.environment_id else None
-            ),
+            "environment_id": (str(snapshot.environment_id) if snapshot.environment_id else None),
             "revision": snapshot.revision,
             "schema_version": snapshot.schema_version,
             "payload_hash": snapshot.payload_hash,
             "created_at": snapshot.created_at.isoformat(),
         }
-        if include_payload:
-            result["payload"] = snapshot.payload
+        if include_payload and payload is not None:
+            result["payload"] = payload
         return result

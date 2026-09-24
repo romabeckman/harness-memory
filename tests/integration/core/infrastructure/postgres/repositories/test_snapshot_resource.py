@@ -32,7 +32,6 @@ def _seed_snapshot(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="a" * 64,
-            payload={"secret": "do-not-return"},
             metadata_json={"origin": "test"},
         )
         newer = Snapshot(
@@ -41,7 +40,6 @@ def _seed_snapshot(session_factory):
             revision=2,
             schema_version="1.0",
             payload_hash="b" * 64,
-            payload={},
             metadata_json={},
         )
         session.add_all([snapshot, newer])
@@ -56,7 +54,7 @@ def _seed_snapshot(session_factory):
                 entity_key=f"entity-{index:02d}",
                 entity_type="service",
                 name=None,
-                metadata_json={},
+                metadata_json={"content": f"document-{index:02d}"},
             )
             for index in range(30)
         ]
@@ -95,7 +93,7 @@ def _seed_snapshot(session_factory):
         return snapshot.id, newer.id, project.id
 
 
-def test_snapshot_resource_is_bounded_and_does_not_return_raw_payload_or_activate_snapshot():
+def test_snapshot_resource_is_bounded_and_returns_normalized_content_without_activation():
     engine, session_factory = _repository()
     snapshot_id, active_id, project_id = _seed_snapshot(session_factory)
     repository = PostgresMemoryResourceRepository(session_factory)
@@ -113,7 +111,8 @@ def test_snapshot_resource_is_bounded_and_does_not_return_raw_payload_or_activat
     assert result.facts.entities_truncated is True
     assert result.facts.relations_truncated is True
     assert result.facts.evidence_truncated is True
-    assert "secret" not in str(result.model_dump())
+    assert result.facts.entities[0].metadata["content"] == "document-00"
+    assert "payload" not in result.model_dump()
     with session_factory() as session:
         assert (
             session.scalar(select(Project.active_snapshot_id).where(Project.id == project_id))

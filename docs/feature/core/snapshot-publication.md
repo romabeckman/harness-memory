@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:platform-foundation"
     read: must
-updated: 2026-09-21
+updated: 2026-09-23
 ---
 # Snapshot Publication
 Publish a complete immutable project snapshot and switch its active pointer atomically.
@@ -29,7 +29,8 @@ Publish a complete immutable project snapshot and switch its active pointer atom
   "registration_files": ["api/server/app.py"],
   "reference_files": [
     "core/domain/snapshot_publication/aggregates/project_knowledge_snapshot.py",
-    "core/infrastructure/postgres/repositories/snapshot_publication_repository.py"
+    "core/infrastructure/postgres/repositories/snapshot_publication_repository.py",
+    "core/infrastructure/postgres/repositories/snapshot_payload_reader.py"
   ],
   "code_files": [
     "harness_memory_mcp/services/tenant_context.py",
@@ -75,7 +76,8 @@ Publish a complete immutable project snapshot and switch its active pointer atom
     "core/domain/snapshot_publication/value_objects/revision.py",
     "core/domain/snapshot_publication/value_objects/schema_version.py",
     "core/infrastructure/postgres/repositories/snapshot_graph_rows.py",
-    "core/infrastructure/postgres/repositories/snapshot_persistence_mapper.py"
+    "core/infrastructure/postgres/repositories/snapshot_persistence_mapper.py",
+    "migrations/versions/011_snapshot_payload_removal.py"
   ],
   "test_files": [
     "tests/unit/core/application/snapshot_publication/contracts/test_inbound.py",
@@ -85,9 +87,12 @@ Publish a complete immutable project snapshot and switch its active pointer atom
     "tests/unit/core/domain/snapshot_publication/services/test_revision_policy.py",
     "tests/unit/core/domain/snapshot_publication/test_snapshot_domain.py",
     "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_persistence_mapper.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_payload_reader.py",
+    "tests/unit/core/infrastructure/postgres/migrations/test_snapshot_payload_removal.py",
     "tests/unit/core/infrastructure/postgres/test_snapshot_write_policy.py",
     "tests/unit/mcp/services/test_publication_response_mapper.py",
     "tests/integration/core/infrastructure/postgres/repositories/test_snapshot_publication_repository.py",
+    "tests/integration/core/infrastructure/postgres/repositories/test_publication_baseline.py",
     "tests/unit/api/adapters/http/test_api_authentication.py"
   ]
 }
@@ -113,6 +118,7 @@ tests/{unit,integration,e2e}/            # Domain, persistence, API, and read-on
 - **Revision policy**: Activate higher revisions; return `ALREADY_PUBLISHED` for identical revision/hash; reject conflicts and stale revisions.
 - **Active pointer**: Replace active facts by switching `projects.active_snapshot_id`; retain historical snapshots and facts.
 - **Trusted tenant**: Obtain tenant identity from `PublicationContext`, never from payload fields.
+- **Normalized persistence**: Store graph facts once in entity, relation, and evidence rows. Keep snapshot metadata and payload hashes; reconstruct the complete payload for REST details and SDK baselines.
 
 ## HOW TO PUBLISH
 
@@ -121,6 +127,10 @@ tests/{unit,integration,e2e}/            # Domain, persistence, API, and read-on
 3. Resolve relation endpoints and evidence references within the same snapshot.
 4. Treat `ACTIVATED` as a new active snapshot and `ALREADY_PUBLISHED` as an idempotent retry.
 5. Treat retryable uniqueness, serialization, and deadlock races as bounded retries; map other persistence failures safely.
+
+## PERSISTENCE AND MCP CONTINUITY
+
+Snapshot document content remains in `entities.metadata`; entity search and MCP resources continue reading normalized rows. Snapshot payload reconstruction also preserves canonical entity keys, relation references, evidence links, and input order for REST detail responses and the SDK baseline. Migration `011` verifies each normalized graph against its stored payload before removing that column; a mismatch aborts the migration so operators can repair the affected snapshot without silent data loss.
 
 ## PARAMETERS / CONFIGURATIONS
 
