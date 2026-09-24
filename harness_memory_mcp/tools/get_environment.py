@@ -20,18 +20,36 @@ def register_get_environment(
     @server.tool(
         name="get_environment",
         description=(
-            "Retrieve metadata, type, and current snapshot ID for a named environment "
-            "in a project. Requires memory:read."
+            "Read a named environment's metadata, type, and current snapshot ID. "
+            "Find the project key and available environment names with search_projects. "
+            "Project key and environment are required; use tenant_id when a key repeats "
+            "across tenants and your credential permits that tenant. Requires memory:read."
         ),
     )
     def get_environment(
-        project_key: Annotated[str, Field(description="Key of the project to inspect.")],
+        project_key: Annotated[
+            str,
+            Field(description="Required exact project key from search_projects.key."),
+        ],
         environment: Annotated[
             str,
-            Field(description="Environment name, such as development, staging, or production."),
+            Field(
+                description=(
+                    "Required exact environment name from "
+                    "search_projects.environment_names, such as staging or production."
+                )
+            ),
         ],
-        tenant_id: Annotated[str | None, Field(max_length=255,
-            description="Select one tenant ID when project keys repeat across tenants.")] = None,
+        tenant_id: Annotated[
+            str | None,
+            Field(
+                max_length=255,
+                description=(
+                    "Tenant ID from search_projects; disambiguates repeated project "
+                    "keys but cannot extend authenticated access."
+                ),
+            ),
+        ] = None,
     ):
         try:
             ctx = tenant_context.require_scope("memory:read")

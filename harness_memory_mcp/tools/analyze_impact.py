@@ -28,33 +28,49 @@ def register_analyze_impact(
     @server.tool(
         name="analyze_impact",
         description=(
-            "Analyze downstream consumers and affected projects for a proposed entity change. "
-            "Exactly one target entity is required across supported target fields. "
-            "Returns bounded paths, evidence, and unknowns; it does not guess missing impacts. "
-            "Requires memory:impact."
+            "Analyze downstream consumers of a proposed change to an entity in active "
+            "project snapshots. Get the target UUID from search_entities. Provide at "
+            "least one target: entity_id, changed_entity_id, target_entity_id, or "
+            "change.entity_id. Multiple target fields must identify the same entity. "
+            "A change object overrides separate change_type, description, and "
+            "changed_fields. Returns bounded paths, evidence, and unknowns. Requires memory:impact."
         ),
     )
     def analyze_impact(
         entity_id: Annotated[
             UUID | None,
             Field(
-                description="Legacy identifier of the changed entity; retained for compatibility."
+                description=(
+                    "Legacy target UUID from search_entities.entity_id. Supply at least "
+                    "one target field; all supplied targets must identify the same entity."
+                )
             ),
         ] = None,
         changed_entity_id: Annotated[
             UUID | None,
-            Field(description="Identifier of the entity being changed."),
+            Field(
+                description=(
+                    "Target UUID from search_entities.entity_id. Supply this or another "
+                    "target field; all supplied targets must identify the same entity."
+                )
+            ),
         ] = None,
         target_entity_id: Annotated[
             UUID | None,
-            Field(description="Alternative identifier for the entity being changed."),
+            Field(
+                description=(
+                    "Alternative target UUID from search_entities.entity_id. "
+                    "All supplied target fields must identify the same entity."
+                )
+            ),
         ] = None,
         change: Annotated[
             ChangeDescription | None,
             Field(
                 description=(
-                    "Structured change details: target entity, change type, summary, "
-                    "and affected fields."
+                    "Structured change object with required entity_id and optional change_type, "
+                    "description, and changed_fields. Its values override separate change fields; "
+                    "any other target UUID must identify the same entity."
                 )
             ),
         ] = None,
@@ -63,16 +79,30 @@ def register_analyze_impact(
             Field(
                 min_length=1,
                 max_length=64,
-                description="Change category, such as contract or implementation.",
+                description=(
+                    "Change category, such as contract or implementation. Defaults to "
+                    "contract; overridden by change.change_type when change is supplied."
+                ),
             ),
         ] = "contract",
         description: Annotated[
             StrictStr,
-            Field(max_length=4096, description="Human-readable summary of the proposed change."),
+            Field(
+                max_length=4096,
+                description=(
+                    "Human-readable summary of the proposed change; overridden by "
+                    "change.description when change is supplied."
+                ),
+            ),
         ] = "",
         changed_fields: Annotated[
             tuple[StrictStr, ...],
-            Field(description="Names of the entity fields affected by the change."),
+            Field(
+                description=(
+                    "Names of affected entity fields; overridden by "
+                    "change.changed_fields when change is supplied."
+                )
+            ),
         ] = (),
         max_depth: Annotated[
             StrictInt,

@@ -110,9 +110,9 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 ## HOW TO SEARCH
 
 1. Use `search_projects` to identify the tenant and project ID, available environments, and active snapshot.
-2. Supply an entity filter or an explicit tenant/project/snapshot selector. Set `environment` for deployment-specific search.
+2. Supply at least one entity filter or tenant/project/snapshot/environment selector. `include_history`, `limit`, and `cursor` alone are insufficient.
 3. Use exact, case-sensitive matching for `key` and `project`; use exact type matching.
-4. Use `name` for a case-insensitive literal prefix. Use `query` for a case-insensitive literal phrase in entity keys, names, and metadata. Escape `%`, `_`, and `!` with `!`.
+4. Use `name` for a case-insensitive literal prefix. Use `query` for a case-insensitive literal phrase in entity keys, names, and metadata. Enter `%`, `_`, and `!` literally; the service escapes SQL wildcards.
 5. Keep `project` exact when known; this bounds metadata content search to one project.
 6. Follow `next_cursor` with unchanged filters. Restart if a publication changes the selected current snapshot.
 7. Pass the returned `snapshot_id` and entity ID to `get_context` for matching metadata and evidence.
@@ -126,13 +126,13 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 | `type` | EntityType | No | Exact supported Entity type. | unset |
 | `project` | string | No | Exact Project key, trimmed. | unset |
 | `query` | string | No | Case-insensitive literal phrase in Entity key, name, or metadata content. | unset |
-| `tenant_id` / `project_id` | UUID | No | Narrow discovery to a known tenant or project. | unset |
+| `tenant_id` / `project_id` | string / UUID | No | Narrow discovery to a known tenant or project without extending access. | unset |
 | `environment` / `snapshot_id` | string / UUID | No | Select environment current state or an immutable snapshot. | project active |
 | `include_history` | boolean | No | Include document revisions and retired documents. | `false` |
 | `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
-| `search_projects.key` | string | No | Exact project key. | unset |
-| `search_projects.query` | string | No | Case-insensitive substring in project keys or names. | unset |
+| `search_projects.key` | string | One of key/query | Exact, case-sensitive project key; blank text is invalid. | unset |
+| `search_projects.query` | string | One of key/query | Case-insensitive substring in project keys or names; blank text is invalid. | unset |
 | `search_projects.limit` | strict integer | No | Result bound from 1 through 100. | `25` |
 | `search_projects.offset` | strict integer | No | Number of project records to skip, up to 10,000. | `0` |
 
@@ -140,7 +140,7 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 
 REQUIRED: Authorize `memory:read`; apply trusted scope and explicit selectors consistently. Global read credentials can discover across tenants.
 REQUIRED: Use exact project keys to narrow metadata searches when the project is known.
-REQUIRED: Use `search_projects` to verify project existence; entity search covers only active snapshots.
+REQUIRED: Use `search_projects` to verify project existence; entity search uses current snapshots unless `snapshot_id` selects an older one.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`.
 REQUIRED: Bind cursor validity to tenant scope, selected context, and current snapshot; never use cursor contents as authorization.
 REQUIRED: Validate result identity strings before emitting MCP responses.
