@@ -73,16 +73,12 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
     }
   }
 
-  const renderStatus = (token: TokenMetadataDto) => {
-    if (token.revoked_at || !token.is_active) {
-      return (
-        <span className="inline-flex items-center text-xs text-red-400">
-          <Ban className="mr-1 h-3.5 w-3.5" /> Revogado
-        </span>
-      )
-    }
+  const isExpired = (token: TokenMetadataDto) => {
+    return token.expires_at ? new Date(token.expires_at).getTime() < Date.now() : false
+  }
 
-    if (token.expires_at && new Date(token.expires_at).getTime() < Date.now()) {
+  const renderStatus = (token: TokenMetadataDto) => {
+    if (isExpired(token)) {
       return (
         <span className="inline-flex items-center text-xs text-amber-400">
           <Clock className="mr-1 h-3.5 w-3.5" /> Expirado
@@ -147,7 +143,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-gray-400">
-                    {new Date(token.created_at).toLocaleDateString('pt-BR')}
+                    {token.created_at ? new Date(token.created_at).toLocaleDateString('pt-BR') : '-'}
                   </td>
                   <td className="px-4 py-3.5 text-gray-400">
                     {token.expires_at ? (
@@ -158,34 +154,30 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
                   </td>
                   <td className="px-4 py-3.5">{renderStatus(token)}</td>
                   <td className="px-4 py-3.5 text-right">
-                    {token.is_active && !token.revoked_at ? (
-                      confirmRevokeId === token.id ? (
-                        <div className="flex items-center justify-end space-x-2">
-                          <button
-                            onClick={() => handleRevoke(token.id)}
-                            disabled={revokingId === token.id}
-                            className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-500"
-                          >
-                            {revokingId === token.id ? 'Revogando...' : 'Confirmar'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmRevokeId(null)}
-                            className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-white"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
+                    {confirmRevokeId === token.id ? (
+                      <div className="flex items-center justify-end space-x-2">
                         <button
-                          onClick={() => setConfirmRevokeId(token.id)}
-                          className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition"
-                          title="Revogar token"
+                          onClick={() => handleRevoke(token.id)}
+                          disabled={revokingId === token.id}
+                          className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-500"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {revokingId === token.id ? 'Revogando...' : 'Confirmar'}
                         </button>
-                      )
+                        <button
+                          onClick={() => setConfirmRevokeId(null)}
+                          className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-white"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
                     ) : (
-                      <span className="text-gray-600 text-xs italic">Inativo</span>
+                      <button
+                        onClick={() => setConfirmRevokeId(token.id)}
+                        className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition"
+                        title="Revogar token"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     )}
                   </td>
                 </tr>
