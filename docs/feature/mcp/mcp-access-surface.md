@@ -112,7 +112,7 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 ## TOOL CALL ORDER
 
 1. Call `search_projects` without filters to list accessible projects, or supply **key** or **query** to narrow results. Reuse returned project and environment identifiers.
-2. Call `search_entities` with at least one filter or scope selector. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads.
+2. Call `search_entities` with at least one filter or scope selector. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads, or call `get_context` with a snapshot, project, or tenant ID to list contexts newest first.
 3. Use entity IDs from `search_entities` for `get_dependencies`, `find_integration_paths`, or `analyze_impact` when authorized.
 4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`.
 

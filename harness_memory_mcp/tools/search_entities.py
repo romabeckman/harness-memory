@@ -63,7 +63,10 @@ def register_search_entities(
                 request.environment,
             )
         ):
-            raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")
+            raise ToolError(
+                "INVALID_ARGUMENT: at least one discovery filter is required: key, name, "
+                "type, project, query, tenant_id, project_id, snapshot_id, or environment"
+            )
 
         try:
             context = tenant_context.require_scope("memory:read")

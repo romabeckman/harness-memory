@@ -10,10 +10,12 @@ from core.application.relationship_context.contracts.entity_context_item import 
 from core.application.relationship_context.contracts.evidence_view import EvidenceView
 from core.application.relationship_context.contracts.project_context_item import ProjectContextItem
 from core.application.relationship_context.contracts.relation_view import RelationView
+from core.application.relationship_context.errors.entity_context_ambiguous import (
+    EntityContextAmbiguous,
+)
 from core.application.relationship_context.errors.entity_context_not_found import (
     EntityContextNotFound,
 )
-from core.application.relationship_context.errors.entity_context_ambiguous import EntityContextAmbiguous
 from core.application.relationship_context.errors.relationship_query_failure import (
     RelationshipQueryFailure,
 )
@@ -23,6 +25,7 @@ from core.application.relationship_context.types.dependency_relation_type import
 from core.application.relationship_context.types.relationship_direction import RelationshipDirection
 from core.application.relationship_context.use_cases.get_context.inbound import GetContextInput
 from core.application.relationship_context.use_cases.get_context.outbound import GetContextOutput
+from core.application.relationship_context.use_cases.get_context.page import GetContextPage
 from core.application.relationship_context.use_cases.get_dependencies.inbound import (
     GetDependenciesInput,
 )
@@ -76,64 +79,109 @@ class PostgresRelationshipQueryRepository:
                         session, scope, request.entity_id, request.snapshot_id,
                         request.project_id, request.tenant_id,
                     )
-                    relation_rows = self._load_relations(
-                        session, scope, snapshot.id, entity.id, request.limit
-                    )
-                    dependency_rows = self._load_relations(
-                        session,
-                        scope,
-                        snapshot.id,
-                        entity.id,
-                        request.limit,
-                        dependency_only=True,
-                    )
-                    relation_views = self._map_relations(
-                        relation_rows[: request.limit],
-                        entity.id,
-                        self._load_evidence(
-                            session,
-                            scope,
-                            snapshot.id,
-                            relation_rows[: request.limit],
-                            request.evidence_limit,
-                        ),
-                    )
-                    dependency_views = self._map_dependencies(
-                        dependency_rows[: request.limit],
-                        entity.id,
-                        self._load_evidence(
-                            session,
-                            scope,
-                            snapshot.id,
-                            dependency_rows[: request.limit],
-                            request.evidence_limit,
-                        ),
-                    )
-                    owners = tuple(
-                        relation.target
-                        for relation in relation_views
-                        if relation.type is RelationType.OWNED_BY
-                        and relation.direction is RelationshipDirection.OUTBOUND
-                        and relation.target.type is EntityType.TEAM
-                    )
-                    return GetContextOutput(
-                        entity=self._map_entity(entity),
-                        project=ProjectContextItem(
-                            key=project.key,
-                            name=project.name,
-                            snapshot_id=snapshot.id,
-                            revision=snapshot.revision,
-                        ),
-                        owners=owners,
-                        relations=tuple(relation_views),
-                        dependencies=tuple(dependency_views),
-                        relations_truncated=len(relation_rows) > request.limit,
-                        dependencies_truncated=len(dependency_rows) > request.limit,
-                    )
+                    return self._build_context(session, scope, request, entity, project, snapshot)
         except (EntityContextNotFound, EntityContextAmbiguous, RelationshipQueryFailure):
             raise
         except Exception as error:
             raise RelationshipQueryFailure(str(error)) from None
+
+    def list_contexts(self, scope: TenantScope, query: GetContextInput) -> GetContextPage:
+        request = (
+            query if isinstance(query, GetContextInput) else GetContextInput.model_validate(query)
+        )
+        try:
+            with self._session_factory() as session:
+                with session.begin():
+                    predicates = [
+                        tenant_scope_predicate(scope, Entity.tenant_id),
+                    ]
+                    if request.entity_id is not None:
+                        predicates.append(or_(
+                            Entity.id == request.entity_id,
+                            Entity.identity_id == request.entity_id,
+                        ))
+                    if request.snapshot_id is not None:
+                        predicates.append(Entity.snapshot_id == request.snapshot_id)
+                    else:
+                        predicates.append(Project.active_snapshot_id == Entity.snapshot_id)
+                    if request.project_id is not None:
+                        predicates.append(Project.id == request.project_id)
+                    if request.tenant_id is not None:
+                        predicates.append(Entity.tenant_id == request.tenant_id)
+                    rows = session.execute(
+                        select(Entity, Project, Snapshot)
+                        .join(Project, and_(
+                            Project.id == Entity.project_id,
+                            tenant_scope_predicate(scope, Project.tenant_id),
+                        ))
+                        .join(Snapshot, and_(
+                            Snapshot.id == Entity.snapshot_id,
+                            Snapshot.project_id == Entity.project_id,
+                            tenant_scope_predicate(scope, Snapshot.tenant_id),
+                        ))
+                        .where(*predicates)
+                        .order_by(
+                            Snapshot.created_at.desc(), Snapshot.revision.desc(),
+                            Snapshot.id.desc(), Entity.created_at.desc(), Entity.id.desc(),
+                        )
+                        .limit(request.result_limit + 1)
+                        .offset(request.offset)
+                    ).all()
+                    items = tuple(
+                        self._build_context(session, scope, request, entity, project, snapshot)
+                        for entity, project, snapshot in rows[: request.result_limit]
+                    )
+                    return GetContextPage(
+                        items=items,
+                        count=len(items),
+                        limit=request.result_limit,
+                        offset=request.offset,
+                        has_more=len(rows) > request.result_limit,
+                    )
+        except RelationshipQueryFailure:
+            raise
+        except Exception as error:
+            raise RelationshipQueryFailure(str(error)) from None
+
+    def _build_context(self, session, scope, request, entity, project, snapshot):
+        relation_rows = self._load_relations(session, scope, snapshot.id, entity.id, request.limit)
+        dependency_rows = self._load_relations(
+            session, scope, snapshot.id, entity.id, request.limit, dependency_only=True,
+        )
+        relation_views = self._map_relations(
+            relation_rows[: request.limit], entity.id,
+            self._load_evidence(
+                session, scope, snapshot.id, relation_rows[: request.limit], request.evidence_limit,
+            ),
+        )
+        dependency_views = self._map_dependencies(
+            dependency_rows[: request.limit], entity.id,
+            self._load_evidence(
+                session, scope, snapshot.id, dependency_rows[: request.limit],
+                request.evidence_limit,
+            ),
+        )
+        owners = tuple(
+            relation.target
+            for relation in relation_views
+            if relation.type is RelationType.OWNED_BY
+            and relation.direction is RelationshipDirection.OUTBOUND
+            and relation.target.type is EntityType.TEAM
+        )
+        return GetContextOutput(
+            entity=self._map_entity(entity),
+            project=ProjectContextItem(
+                key=project.key,
+                name=project.name,
+                snapshot_id=snapshot.id,
+                revision=snapshot.revision,
+            ),
+            owners=owners,
+            relations=tuple(relation_views),
+            dependencies=tuple(dependency_views),
+            relations_truncated=len(relation_rows) > request.limit,
+            dependencies_truncated=len(dependency_rows) > request.limit,
+        )
 
     def load_dependencies(
         self, scope: TenantScope, query: GetDependenciesInput

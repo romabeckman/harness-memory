@@ -36,3 +36,17 @@ def test_get_context_maps_missing_tenant_context_before_handler_access():
 
     assert result["error"]["code"] == "MISSING_TENANT_CONTEXT"
     handler.execute.assert_not_called()
+
+
+def test_get_context_accepts_snapshot_selector_without_entity_id():
+    server = FastMCP(name="test")
+    handler = Mock()
+    handler.execute.return_value = {"items": [], "count": 0, "has_more": False}
+    tool = register_get_context(server, handler, TenantContextProvider("tenant-a"))
+    snapshot_id = uuid4()
+
+    result = tool(snapshot_id=snapshot_id)
+
+    assert result["items"] == []
+    assert handler.execute.call_args.args[0].entity_id is None
+    assert handler.execute.call_args.args[0].snapshot_id == snapshot_id

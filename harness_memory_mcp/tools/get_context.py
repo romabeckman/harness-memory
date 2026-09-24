@@ -22,20 +22,24 @@ def register_get_context(
     @server.tool(
         name="get_context",
         description=(
-            "Read one entity's project, owners, relationships, dependencies, and evidence. "
-            "Get entity_id and snapshot_id from search_entities; pass snapshot_id to pin "
-            "the same occurrence, especially after a newer publication. Without it, "
-            "only current project snapshots are searched. Add project_id or tenant_id "
-            "when an identity occurs more than once. Requires memory:read."
+            "Read project, owner, relationship, dependency, and evidence context. "
+            "Provide at least one of entity_id, snapshot_id, project_id, or tenant_id. "
+            "With entity_id, return one matching entity context. Without entity_id, "
+            "return a bounded page ordered newest to oldest. Snapshot_id pins an "
+            "immutable snapshot; otherwise only current project snapshots are searched. "
+            "Get identifiers from search_entities. Requires memory:read."
         ),
     )
     def get_context(
         entity_id: Annotated[
-            UUID,
+            UUID | None,
             Field(
-                description="Entity UUID from search_entities.entity_id; required for context."
+                description=(
+                    "Optional entity UUID from search_entities.entity_id. Provide at least "
+                    "one of entity_id, snapshot_id, project_id, or tenant_id."
+                )
             ),
-        ],
+        ] = None,
         limit: Annotated[
             StrictInt,
             Field(
@@ -80,12 +84,29 @@ def register_get_context(
                 ),
             ),
         ] = None,
+        result_limit: Annotated[
+            StrictInt,
+            Field(
+                ge=1,
+                le=25,
+                description="Maximum entity contexts per page, from 1 to 25.",
+            ),
+        ] = 25,
+        offset: Annotated[
+            StrictInt,
+            Field(
+                ge=0,
+                le=10000,
+                description="Matching entity contexts to skip, from 0 to 10000.",
+            ),
+        ] = 0,
     ):
         try:
             context = tenant_context.require_scope("memory:read")
             request = GetContextInput(
                 entity_id=entity_id, limit=limit, evidence_limit=evidence_limit,
                 snapshot_id=snapshot_id, project_id=project_id, tenant_id=tenant_id,
+                result_limit=result_limit, offset=offset,
             )
             result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)

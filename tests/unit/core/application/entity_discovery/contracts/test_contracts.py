@@ -37,7 +37,7 @@ def test_input_accepts_missing_filters_for_tool_boundary_validation():
     assert SearchEntitiesInput().key is None
     assert SearchEntitiesInput(limit=25).project is None
 
-    with pytest.raises(ValueError, match="at least one discovery filter is required"):
+    with pytest.raises(ValueError, match="at least one discovery filter is required: key, name"):
         EntitySearchCriteria()
 
 

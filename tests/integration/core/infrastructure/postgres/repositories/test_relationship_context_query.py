@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -401,3 +402,55 @@ def test_context_hides_inactive_and_other_tenant_entities(entity_key):
         PostgresRelationshipQueryRepository(session_factory).load_context(
             TenantScope("tenant-a"), GetContextInput(entity_id=ids[entity_key])
         )
+
+
+def test_context_lists_selected_entities_newest_first_with_pagination_and_scope():
+    _, session_factory = _repository()
+    ids = _seed(session_factory)
+    with session_factory() as session:
+        old = session.get(Snapshot, session.get(Entity, ids["old"]).snapshot_id)
+        active = session.get(Snapshot, session.get(Entity, ids["service"]).snapshot_id)
+        active.created_at = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        old.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        project = Project(tenant_id="tenant-a", key="newer", name="Newer")
+        session.add(project)
+        session.flush()
+        newest = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, revision=1,
+            schema_version="1.0", payload_hash="4" * 64, metadata_json={},
+            created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
+        )
+        session.add(newest)
+        session.flush()
+        project.active_snapshot_id = newest.id
+        session.add(Entity(
+            tenant_id="tenant-a", project_id=project.id, snapshot_id=newest.id,
+            entity_key="newest", entity_type="service", metadata_json={},
+        ))
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    first = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(tenant_id="tenant-a", result_limit=1)
+    )
+    second = repository.list_contexts(
+        TenantScope("tenant-a"),
+        GetContextInput(tenant_id="tenant-a", result_limit=1, offset=1),
+    )
+    project_page = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id)
+    )
+    pinned = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(snapshot_id=old.id)
+    )
+    forbidden = repository.list_contexts(
+        TenantScope("tenant-b"), GetContextInput(snapshot_id=old.id)
+    )
+
+    assert [item.entity.key for item in first.items] == ["newest"]
+    assert first.has_more is True
+    assert len(second.items) == 1
+    assert second.items[0].project.snapshot_id == active.id
+    assert [item.entity.key for item in project_page.items] == ["newest"]
+    assert [item.entity.key for item in pinned.items] == ["old-service"]
+    assert forbidden.items == ()

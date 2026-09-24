@@ -27,7 +27,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |
 | [**platform-foundation.md**](./feature/core/platform-foundation.md) | PostgreSQL foundation, migrations, and platform runtime boundaries. | Optional |
 | [**production-delivery.md**](./feature/core/production-delivery.md) | Containers, startup schema gates, CI, and telemetry. | Optional |
-| [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped relationship and dependency context queries. | Optional |
+| [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped entity context, ordered context listings, and dependency queries. | Optional |
 | [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable normalized snapshots, payload reconstruction, hashing, and activation. | Optional |
 | [**tenant-foundation.md**](./feature/core/tenant-foundation.md) | First-class tenant persistence, strict UUID foreign keys, and isolated provisioning. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |

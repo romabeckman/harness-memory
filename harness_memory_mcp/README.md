@@ -40,7 +40,7 @@ The server verifies the token against the database and derives its subject and t
 | --- | --- |
 | `search_projects` | List accessible projects without filters, or find project keys by exact key or partial key/name query, including projects without snapshots. |
 | `search_entities` | Search active-snapshot entities by exact key/project, name prefix, type, or metadata phrase. |
-| `get_context` | Read bounded context, relationships, and evidence for an entity. |
+| `get_context` | Read one entity's context, or list contexts by snapshot, project, or tenant, newest first. |
 | `get_dependencies` | Query inbound or outbound dependencies. |
 | `find_integration_paths` | Find known paths between engineering entities. |
 | `analyze_impact` | Identify known direct and indirect effects of a structured change. |

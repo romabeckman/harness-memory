@@ -17,7 +17,7 @@ edges:
 updated: 2026-09-24
 ---
 # Relationship Context
-Return bounded active-snapshot context and direct dependency views for an entity.
+Return bounded context for selected entities and direct dependency views for one entity.
 
 ```graph
 {
@@ -47,6 +47,7 @@ Return bounded active-snapshot context and direct dependency views for an entity
     "core/application/relationship_context/use_cases/get_context/inbound.py",
     "core/application/relationship_context/use_cases/get_context/handler.py",
     "core/application/relationship_context/use_cases/get_context/outbound.py",
+    "core/application/relationship_context/use_cases/get_context/page.py",
     "core/application/relationship_context/use_cases/get_dependencies/inbound.py",
     "core/application/relationship_context/use_cases/get_dependencies/handler.py",
     "core/application/relationship_context/use_cases/get_dependencies/outbound.py",
@@ -70,7 +71,7 @@ Return bounded active-snapshot context and direct dependency views for an entity
 
 ## OVERVIEW
 
-`get_context` and `get_dependencies` are read-only queries over one trusted tenant's active snapshot. They expose direct relations, owners, dependency peers, provenance, and linked evidence within request bounds.
+`get_context` and `get_dependencies` are read-only queries over trusted scope. They expose direct relations, owners, dependency peers, provenance, and linked evidence within request bounds. A scope-only `get_context` call returns a page of current entity contexts; `snapshot_id` can select a historical snapshot.
 
 ## FOLDER STRUCTURE
 
@@ -85,6 +86,7 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Pinned context**: Resolve a stable identity or row UUID in the requested immutable snapshot, or current active state when no snapshot is supplied. Apply trusted scope and reject ambiguous canonical identities.
+- **Scope listing**: Supply `snapshot_id`, `project_id`, or `tenant_id` without `entity_id` to receive a bounded page. Sort by snapshot creation time, revision, then entity creation time, newest first; use IDs to break ties. Keep current snapshots as the default.
 - **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
 - **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
 - **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
@@ -92,7 +94,7 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 ## HOW TO QUERY
 
 1. Discover an entity with `search_entities` and retain its `snapshot_id` and `occurrence_id`.
-2. Call `get_context` with the entity ID and `snapshot_id` for matching project, owners, relations, provenance, and evidence.
+2. Call `get_context` with the entity ID for one context, optionally pinned by `snapshot_id`. Supply only `snapshot_id`, `project_id`, or `tenant_id` to list matching contexts, newest first.
 3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
 4. Use `tenant_id` and `project_id` to narrow ambiguous global identities. An ambiguous canonical identity returns `AMBIGUOUS_ENTITY`.
 
@@ -100,12 +102,14 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `entity_id` | UUID | Yes | Stable active entity identity from discovery; legacy row UUIDs remain accepted. | — |
+| `entity_id` | UUID | One of four selectors for `get_context`; required for `get_dependencies` | Stable entity identity from discovery; legacy row UUIDs remain accepted. | unset |
 | `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
-| `tenant_id` / `project_id` | UUID | No | Narrow resolution to a known tenant or project. | unset |
-| `snapshot_id` | UUID | No | Pin resolution to the snapshot returned by discovery. | current active |
+| `tenant_id` / `project_id` | string / UUID | One of four selectors for `get_context` | Narrow resolution or list contexts within a known tenant or project. | unset |
+| `snapshot_id` | UUID | One of four selectors for `get_context` | Pin one entity or list contexts in an immutable snapshot, including historical snapshots. | current active |
 | `limit` | strict integer | No | Relation bound from 1 through 100. | `25` |
 | `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
+| `result_limit` | strict integer | No | Contexts per page from 1 through 25 when `entity_id` is absent. | `25` |
+| `offset` | strict integer | No | Matching contexts to skip, from 0 through 10,000. | `0` |
 
 ## BEST PRACTICES
 
@@ -115,6 +119,7 @@ REQUIRED: Preserve relation direction, provenance, peer identity, and linked evi
 REQUIRED: Authorize `memory:read` before repository access and map authorization failures to stable MCP errors.
 PROHIBITED: Recurse through dependency paths; reserve transitive traversal for integration-path or impact features.
 REQUIRED: Keep successful MCP responses within 256 KiB; mark truncated responses.
+REQUIRED: Return `items`, `count`, `limit`, `offset`, and `has_more` for scope listings; use `offset + count` for the next page when `has_more` is true.
 PROHIBITED: Treat a supplied tenant selector as authorization or disclose whether an unauthorized tenant owns a UUID.
 
 ## TIPS
