@@ -55,9 +55,20 @@ export class MemoryGraph {
     return graph;
   }
 
-  public reconcile(_proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument): GraphDocument {
+  public reconcile(
+    _proposed: GraphDocument, local: GraphDocument, previous?: GraphDocument,
+    options: { completeSourceInventory?: boolean } = {},
+  ): GraphDocument {
     const entities = new Map<string, EntityFact>();
-    for (const entity of previous?.entities.filter(memoryEntity) ?? []) entities.set(entity.key, structuredClone(entity));
+    const localDocumentKeys = new Set(local.entities.filter(entity => DOCUMENT_TYPES.has(entity.type)).map(entity => entity.key));
+    for (const entity of previous?.entities.filter(memoryEntity) ?? []) {
+      const retained = structuredClone(entity);
+      if (options.completeSourceInventory && DOCUMENT_TYPES.has(retained.type) && !localDocumentKeys.has(retained.key)) {
+        retained.metadata ??= {};
+        retained.metadata.lifecycle = "removed";
+      }
+      entities.set(retained.key, retained);
+    }
     for (const entity of local.entities) entities.set(entity.key, structuredClone(entity));
     const prior = new Map(previous?.entities.map(e => [e.key, e]) ?? []);
     const revisions: RelationFact[] = [];

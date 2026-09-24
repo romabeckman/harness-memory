@@ -38,7 +38,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="a" * 64,
-            payload={},
             metadata_json={},
         )
         session.add(active)
@@ -250,7 +249,6 @@ def test_repository_traverses_across_active_snapshots_by_canonical_identity():
                 revision=1,
                 schema_version="1.0",
                 payload_hash=key[0] * 64,
-                payload={},
                 metadata_json={},
             )
             session.add(snapshot)

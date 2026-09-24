@@ -11,7 +11,7 @@ from core.infrastructure.postgres.repositories.snapshot_persistence_mapper impor
 from tests.unit.core.application.snapshot_publication.helpers import valid_payload
 
 
-def test_mapper_preserves_payload_and_resolves_local_fact_references():
+def test_mapper_persists_snapshot_fields_and_resolves_local_fact_references():
     request = PublishProjectSnapshotInput.model_validate(
         valid_payload(
             entities=[
@@ -35,11 +35,19 @@ def test_mapper_preserves_payload_and_resolves_local_fact_references():
         snapshot, "tenant-a", PayloadHashCalculator().calculate(request), __import__("uuid").uuid4()
     )
 
-    assert rows.snapshot.payload["project"]["key"] == "payments"
+    assert rows.snapshot.project_key == "payments"
+    assert rows.snapshot.project_name == "Payments"
+    assert rows.snapshot.generated_at.isoformat().startswith("2026-09-17T12:00:00")
     assert rows.entities[0].metadata_json == {"owner": "team-a"}
+    assert rows.entities[0].canonical_key is None
+    assert rows.entities[0].graph_position == 0
+    assert rows.entities[1].graph_position == 1
     assert rows.relations[0].source_entity_id == rows.entity_ids["service"]
     assert rows.relations[0].target_entity_id == rows.entity_ids["api"]
+    assert rows.relations[0].relation_ref == "service-api"
+    assert rows.relations[0].graph_position == 0
     assert rows.evidence[0].relation_id == rows.relation_ids["service-api"]
+    assert rows.evidence[0].graph_position == 0
 
 
 def test_mapper_assigns_tenant_scoped_canonical_identity_across_project_snapshots():

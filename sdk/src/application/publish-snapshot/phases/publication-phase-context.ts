@@ -7,6 +7,7 @@ export interface PublicationPhaseContext {
   onProgress?: PublicationProgressReporter;
   token?: string;
   resolvedTenantId?: string;
+  expectedCurrentSnapshotId?: string;
   repositoryContext?: RepositoryContext;
   rawDocument?: unknown;
   validatedGraph?: ValidatedGraph;

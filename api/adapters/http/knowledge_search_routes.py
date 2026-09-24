@@ -88,7 +88,10 @@ def create_knowledge_search_router(repository, authenticate, authenticate_public
     def entities(
         tenant_id: UUID | None = None,
         project_key: str | None = None,
+        project_id: UUID | None = None,
+        environment: str | None = None,
         snapshot_id: UUID | None = None,
+        include_history: bool = False,
         entity_type: str | None = None,
         entity_key: str | None = None,
         name: str | None = None,
@@ -100,7 +103,10 @@ def create_knowledge_search_router(repository, authenticate, authenticate_public
         return repository.entities(
             tenant_id=tenant_scope(principal, tenant_id),
             project_key=project_key,
+            project_id=project_id,
+            environment=environment,
             snapshot_id=snapshot_id,
+            include_history=include_history,
             entity_type=entity_type,
             entity_key=entity_key,
             name=name,

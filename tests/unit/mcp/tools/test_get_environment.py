@@ -33,6 +33,17 @@ def test_get_environment_returns_environment_details() -> None:
     assert handler.execute.call_args[0][0].tenant_id == "tenant-a"
 
 
+def test_get_environment_selector_cannot_widen_trusted_tenant() -> None:
+    server = FastMCP(name="test")
+    handler = Mock()
+    tool = register_get_environment(server, handler, TenantContextProvider("tenant-a"))
+
+    result = tool(project_key="catalog", environment="staging", tenant_id="tenant-b")
+
+    assert result["error"]["code"] == "INVALID_ARGUMENT"
+    handler.execute.assert_not_called()
+
+
 def test_get_environment_maps_missing_tenant_context() -> None:
     server = FastMCP(name="test")
     handler = Mock()

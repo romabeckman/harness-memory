@@ -27,20 +27,32 @@ def register_search_projects(
         name="search_projects",
         description=(
             "Find project records, including projects without published snapshots. "
-            "Use key for exact project lookup or query for a partial key or name. "
-            "Returns only project key, name, and active-snapshot status. Requires memory:read."
+            "At least one of key or query is required; supply both to combine filters. "
+            "Use key for an exact, case-sensitive key or query for a case-insensitive "
+            "substring of a key or name. Returns tenant and project IDs, environment "
+            "names, and active snapshot status. Use these values in later entity or "
+            "environment calls. Requires memory:read."
         ),
     )
     def search_projects(
         key: Annotated[
             StrictStr | None,
-            Field(max_length=255, description="Match one project key exactly."),
+            Field(
+                max_length=255,
+                description=(
+                    "Exact, case-sensitive project key. Provide key or query; at least "
+                    "one is required. Blank text is invalid."
+                ),
+            ),
         ] = None,
         query: Annotated[
             StrictStr | None,
             Field(
                 max_length=255,
-                description="Find a case-insensitive substring in project keys or names.",
+                description=(
+                    "Case-insensitive substring of project key or name. Provide key or "
+                    "query; at least one is required. Blank text is invalid."
+                ),
             ),
         ] = None,
         limit: Annotated[
@@ -49,7 +61,14 @@ def register_search_projects(
         ] = 25,
         offset: Annotated[
             StrictInt,
-            Field(ge=0, le=10000, description="Number of matching projects to skip."),
+            Field(
+                ge=0,
+                le=10000,
+                description=(
+                    "Matching projects to skip, from 0 to 10000; use with limit "
+                    "for the next page."
+                ),
+            ),
         ] = 0,
     ):
         try:
@@ -66,7 +85,7 @@ def register_search_projects(
                 request,
                 TenantScope(context.tenant_id, context.is_admin),
             )
-            return result.model_dump(mode="json")
+            return result.model_dump(mode="json", exclude_none=True)
         except ValidationError:
             return {
                 "status": "ERROR",

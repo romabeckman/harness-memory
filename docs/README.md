@@ -15,8 +15,8 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
 | [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
 | [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Recommended |
-| [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters for knowledge tables, tenants, projects, and snapshots. | Optional |
-| [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication boundary for CI/CD deployments and environment snapshots. | Optional |
+| [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters, including reconstructed snapshot payloads. | Optional |
+| [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication, normalized snapshot persistence, and environment baselines. | Optional |
 | [**scopes.md**](./feature/api/scopes.md) | API and MCP scope permissions, credential boundaries, and current route exceptions. | Optional |
 | [**service-accounts.md**](./feature/api/service-accounts.md) | Tenant-bound automation identities and their lifecycle rules. | Optional |
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
@@ -28,7 +28,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**platform-foundation.md**](./feature/core/platform-foundation.md) | PostgreSQL foundation, migrations, and platform runtime boundaries. | Optional |
 | [**production-delivery.md**](./feature/core/production-delivery.md) | Containers, startup schema gates, CI, and telemetry. | Optional |
 | [**relationship-context.md**](./feature/core/relationship-context.md) | Tenant-scoped relationship and dependency context queries. | Optional |
-| [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable snapshot publication, hashing, revision, and activation rules. | Optional |
+| [**snapshot-publication.md**](./feature/core/snapshot-publication.md) | Immutable normalized snapshots, payload reconstruction, hashing, and activation. | Optional |
 | [**tenant-foundation.md**](./feature/core/tenant-foundation.md) | First-class tenant persistence, strict UUID foreign keys, and isolated provisioning. | Optional |
 | [**mcp-access-surface.md**](./feature/mcp/mcp-access-surface.md) | MCP resources and deterministic workflow prompts. | Optional |
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |

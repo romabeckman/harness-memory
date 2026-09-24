@@ -146,7 +146,7 @@ def test_http_rejects_payload_tenant_override_before_tool_execution():
                 "method": "tools/call",
                 "params": {
                     "name": "search_entities",
-                    "arguments": {"request": {"key": "payments", "tenant_id": "tenant-b"}},
+                    "arguments": {"request": {"key": "payments", "tenant_scope": "tenant-b"}},
                 },
             },
             headers={
@@ -157,7 +157,7 @@ def test_http_rejects_payload_tenant_override_before_tool_execution():
 
     assert response.status_code == 200
     assert b"INVALID_ARGUMENT" in response.content
-    assert b"tenant_id" in response.content
+    assert b"tenant_scope" in response.content
     assert b'"isError":true' in response.content.replace(b" ", b"")
     assert calls == []
 

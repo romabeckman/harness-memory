@@ -29,18 +29,31 @@ def register_find_integration_paths(
     @server.tool(
         name="find_integration_paths",
         description=(
-            "Find bounded, evidence-backed dependency paths between two tenant-visible "
-            "entities, including ownership data. Requires memory:read."
+            "Find bounded integration paths between two entities in active project "
+            "snapshots. Get both entity IDs from search_entities. Traversal uses "
+            "provides, consumes, depends_on, publishes, subscribes_to, and implements "
+            "relations; paths include direction, provenance, evidence, and ownership. "
+            "Requires memory:read."
         ),
     )
     def find_integration_paths(
         source_entity_id: Annotated[
             UUID,
-            Field(description="Identifier of the starting entity."),
+            Field(
+                description=(
+                    "Starting entity UUID from search_entities.entity_id; "
+                    "required endpoint in an active snapshot."
+                )
+            ),
         ],
         target_entity_id: Annotated[
             UUID,
-            Field(description="Identifier of the destination entity."),
+            Field(
+                description=(
+                    "Destination entity UUID from search_entities.entity_id; "
+                    "required endpoint in an active snapshot."
+                )
+            ),
         ],
         max_depth: Annotated[
             StrictInt,

@@ -24,17 +24,29 @@ def register_search_entities(
     @server.tool(
         name="search_entities",
         description=(
-            "Find entities in active project snapshots. Use exact key and project filters, "
-            "name for a case-insensitive prefix, or query for a literal phrase in keys, "
-            "names, and metadata content. "
-            "At least one filter is required. Results echo the page limit and are bounded. "
-            "Requires memory:read."
+            "Find entities in active project snapshots by default. Set "
+            "include_past_snapshots to search older snapshots as well. Each match "
+            "identifies its snapshot, environment, and publication version when known. "
+            "Confirm the project "
+            "with search_projects when its key is unknown. A request with at least one "
+            "filter or tenant/project/snapshot/environment selector is required. Combine "
+            "filters to narrow results; use next_cursor with unchanged filters for later "
+            "pages. Results include entity_id, project_id, and snapshot_id for context "
+            "reads. Requires memory:read."
         ),
     )
     def search_entities(
         request: Annotated[
             SearchEntitiesInput,
-            Field(description="Entity filters, page size, and optional continuation cursor."),
+            Field(
+                description=(
+                    "Required request object. Supply at least one filter or "
+                    "tenant/project/snapshot/environment selector; include_history, "
+                    "include_past_snapshots, limit, and cursor alone do not qualify. "
+                    "Use unchanged filters "
+                    "with a continuation cursor."
+                )
+            ),
         ],
     ):
         if all(
@@ -45,6 +57,10 @@ def register_search_entities(
                 request.type,
                 request.project,
                 request.query,
+                request.tenant_id,
+                request.project_id,
+                request.snapshot_id,
+                request.environment,
             )
         ):
             raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")

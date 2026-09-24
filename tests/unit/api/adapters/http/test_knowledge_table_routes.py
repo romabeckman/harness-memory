@@ -39,7 +39,8 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
             [
                 Tenant(id=tenant_id, key="acme", name="Acme", status="active"),
                 Tenant(id=other_tenant_id, key="other", name="Other", status="active"),
-                Project(id=project_id, tenant_id=tenant_id, key="catalog", name="Catalog"),
+                Project(id=project_id, tenant_id=tenant_id, key="catalog", name="Catalog",
+                        active_snapshot_id=snapshot_id),
                 Project(
                     id=other_project_id,
                     tenant_id=other_tenant_id,
@@ -67,7 +68,6 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
                 revision=9,
                 schema_version="1.0",
                 payload_hash=sha256(b"catalog").hexdigest(),
-                payload={},
                 metadata_json={},
             )
         )

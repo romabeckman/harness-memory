@@ -33,7 +33,7 @@ async def test_relationship_tools_are_catalogued_with_strict_input_fields():
     assert names == ["get_context", "get_dependencies"]
     for tool in tools:
         assert "entity_id" in tool.input_schema["properties"]
-        assert "tenant_id" not in tool.input_schema["properties"]
+        assert ("tenant_id" in tool.input_schema["properties"]) == (tool.name == "get_context")
 
 
 @pytest.mark.asyncio

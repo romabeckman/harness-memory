@@ -219,12 +219,26 @@ class PublishKnowledgeHandler:
             payload_hash=payload_hash,
         )
 
-        new_snapshot_id = self._publication_repository.publish_atomically_with_environment(
-            tenant_id=input.tenant_id,
-            publication=publication,
-            snapshot=snapshot,
-            environment_id=env.id,
+        publish_args = dict(
+            tenant_id=input.tenant_id, publication=publication,
+            snapshot=snapshot, environment_id=env.id,
         )
+        if input.expected_current_snapshot_id is not None:
+            publish_args["expected_current_snapshot_id"] = input.expected_current_snapshot_id
+        new_snapshot_id = self._publication_repository.publish_atomically_with_environment(**publish_args)
+
+        recorded = self._publication_repository.find_by_deployment(
+            project_key=input.project_key,
+            env_name=input.environment_name,
+            deployment_id=input.deployment_id,
+            tenant_id=input.tenant_id,
+        )
+        if recorded is not None and recorded.id != publication.id:
+            return PublishKnowledgeOutput(
+                publication_id=recorded.id.value,
+                snapshot_id=new_snapshot_id,
+                status=PublicationStatus.ALREADY_PUBLISHED,
+            )
 
         return PublishKnowledgeOutput(
             publication_id=publication.id.value,

@@ -38,7 +38,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="1" * 64,
-            payload={},
             metadata_json={},
         )
         active = Snapshot(
@@ -47,7 +46,6 @@ def _seed(session_factory):
             revision=2,
             schema_version="1.0",
             payload_hash="2" * 64,
-            payload={},
             metadata_json={},
         )
         other_project = Project(tenant_id="tenant-b", key="payments", name="Other")
@@ -60,7 +58,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="3" * 64,
-            payload={},
             metadata_json={},
         )
         session.add(other_snapshot)
@@ -311,6 +308,57 @@ def test_context_and_dependencies_accept_stable_entity_identity():
 
     assert context.entity.id == stable_id
     assert dependencies.entity.id == stable_id
+
+
+def test_context_can_read_pinned_snapshot_after_project_pointer_changes():
+    _, session_factory = _repository()
+    ids = _seed(session_factory)
+    with session_factory() as session:
+        old_snapshot_id = session.get(Entity, ids["old"]).snapshot_id
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    with pytest.raises(EntityContextNotFound):
+        repository.load_context(TenantScope("tenant-a"), GetContextInput(entity_id=ids["old"]))
+    pinned = repository.load_context(
+        TenantScope("tenant-a"),
+        GetContextInput(entity_id=ids["old"], snapshot_id=old_snapshot_id),
+    )
+
+    assert pinned.entity.key == "old-service"
+    assert pinned.project.snapshot_id == old_snapshot_id
+
+
+def test_shared_canonical_identity_requires_occurrence_or_project_selector():
+    _, session_factory = _repository()
+    identity = uuid4()
+    occurrences = []
+    with session_factory() as session:
+        for key in ("one", "two"):
+            project = Project(tenant_id="tenant-a", key=key)
+            session.add(project)
+            session.flush()
+            snapshot = Snapshot(tenant_id="tenant-a", project_id=project.id,
+                                revision=1, schema_version="1.0",
+                                payload_hash=key[0] * 64, metadata_json={})
+            session.add(snapshot)
+            session.flush()
+            project.active_snapshot_id = snapshot.id
+            entity = Entity(tenant_id="tenant-a", project_id=project.id,
+                            snapshot_id=snapshot.id, entity_key="shared", entity_type="service",
+                            identity_id=identity, metadata_json={})
+            session.add(entity)
+            session.flush()
+            occurrences.append((entity.id, project.id))
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    with pytest.raises(ValueError, match="ambiguous"):
+        repository.load_context(TenantScope("tenant-a"), GetContextInput(entity_id=identity))
+    selected = repository.load_context(
+        TenantScope("tenant-a"),
+        GetContextInput(entity_id=identity, project_id=occurrences[1][1]),
+    )
+    assert selected.project.key == "two"
 
 
 def test_dependency_query_is_bounded_and_reports_truncation():

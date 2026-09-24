@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     Uuid,
@@ -87,6 +87,10 @@ class Entity(Base):
     entity_key: Mapped[str] = mapped_column(String(255), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    canonical_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    graph_position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")
     )

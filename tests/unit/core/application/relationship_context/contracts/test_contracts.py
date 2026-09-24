@@ -74,7 +74,8 @@ def test_relationship_contracts_reject_invalid_identity_direction_and_extra_fiel
     with pytest.raises(ValidationError):
         GetDependenciesInput(entity_id=uuid4(), direction="recursive")
     with pytest.raises(ValidationError):
-        GetContextInput(entity_id=uuid4(), tenant_id="tenant-b")
+        GetContextInput(entity_id=uuid4(), unknown_field="tenant-b")
+    assert GetContextInput(entity_id=uuid4(), tenant_id="tenant-b").tenant_id == "tenant-b"
 
 
 def test_relation_and_dependency_views_preserve_provenance_and_evidence():

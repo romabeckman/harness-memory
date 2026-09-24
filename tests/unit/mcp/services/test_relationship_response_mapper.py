@@ -1,4 +1,5 @@
 import pytest
+import json
 from pydantic import ValidationError
 
 from core.application.relationship_context.errors.entity_context_not_found import (
@@ -19,6 +20,29 @@ def test_relationship_mapper_maps_success_to_json():
             return {"status": "OK"}
 
     assert RelationshipResponseMapper().success(Result()) == {"status": "OK"}
+
+
+def test_relationship_mapper_bounds_large_repeated_document_context_and_reports_truncation():
+    class Result:
+        def model_dump(self, mode):
+            assert mode == "json"
+            entity = {"key": "doc", "metadata": {"content": "x" * 5000}}
+            return {
+                "entity": entity,
+                "project": {"key": "p"},
+                "owners": [],
+                "relations": [{"source": entity.copy(), "target": entity.copy(),
+                               "evidence": [{"excerpt": "y" * 5000}]} for _ in range(100)],
+                "dependencies": [],
+                "relations_truncated": False,
+                "dependencies_truncated": False,
+            }
+
+    mapped = RelationshipResponseMapper().success(Result())
+
+    assert len(json.dumps(mapped).encode("utf-8")) <= 262144
+    assert mapped["response_truncated"] is True
+    assert mapped["entity"]["metadata"]["content"] == "x" * 5000
 
 
 def test_relationship_mapper_uses_one_safe_not_found_shape():

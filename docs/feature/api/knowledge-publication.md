@@ -21,7 +21,7 @@ edges:
     target: "feature:snapshot-publication"
     read: optional
     when: "Read when changing snapshot construction, activation, idempotency, or publication persistence."
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # API Knowledge Publication
 Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate it for a project environment.
@@ -38,6 +38,8 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "api/adapters/http/api_security.py",
     "core/application/knowledge_publication/use_cases/publish_knowledge/handler.py",
     "core/infrastructure/postgres/repositories/knowledge_publication_repository.py",
+    "core/infrastructure/postgres/repositories/snapshot_payload_reader.py",
+    "core/infrastructure/postgres/repositories/snapshot_persistence_mapper.py",
     "core/infrastructure/postgres/repositories/environment_repository.py"
   ],
   "code_files": [
@@ -54,12 +56,14 @@ Accept a CI/CD deployment declaration, build a knowledge snapshot, and activate 
     "core/infrastructure/postgres/models/knowledge_publication.py",
     "core/infrastructure/postgres/models/environment.py",
     "migrations/versions/008_create_environments_and_publications.py",
-    "migrations/versions/009_token_scopes_and_environment_revisions.py"
+    "migrations/versions/009_token_scopes_and_environment_revisions.py",
+    "migrations/versions/011_snapshot_payload_removal.py"
   ],
   "test_files": [
     "tests/unit/api/adapters/http/test_publication_baseline_routes.py",
     "tests/unit/core/application/knowledge_publication/use_cases/test_document_graph.py",
     "tests/integration/core/infrastructure/postgres/repositories/test_publication_baseline.py",
+    "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_payload_reader.py",
     "tests/unit/api/adapters/http/test_knowledge_publication_routes.py",
     "tests/unit/api/adapters/http/test_api_authentication.py",
     "tests/unit/core/application/knowledge_publication/use_cases/test_publish_knowledge.py",
@@ -91,6 +95,7 @@ tests/{unit,integration}/                  # Route, use-case, domain, and reposi
 | Header | `Authorization: Bearer <token>` with `memory:publish`, or the admin bearer. |
 | Required fields | `project_key`, `environment`, `deployment_id`, `version` |
 | Admin destination | `tenant_id` in the JSON body; required only for `API_ADMIN_TOKEN` |
+| Activation precondition | Optional `expected_current_snapshot_id`; rejects a changed environment baseline with HTTP 409. |
 | Fact fields | `entities`, `relations`, `evidence`; default to empty arrays |
 | Snapshot metadata | `metadata` JSON object; the SDK sends the generated `docs/.graph.json` object here. |
 | New publication | HTTP 201 with status `ACTIVATED` |
@@ -111,7 +116,7 @@ REQUIRED: Query across tenants unless `tenant_id` is supplied; scope project/env
 
 The SDK publishes `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Keep complete ADR, feature, and digest Markdown in entity metadata; keep the generated graph index in snapshot metadata. The API still accepts its existing entity enum for other clients.
 
-REQUIRED: Persist the graph index in `snapshots.metadata` and document facts in normalized entity/relation/evidence rows. Keep prior document versions in immutable snapshots and line revisions with Git merge conflict markers. Content and snapshot metadata changes participate in payload hashing and deployment-conflict checks. Existing database columns require no migration.
+REQUIRED: Persist the graph index in `snapshots.metadata` and document facts in normalized entity/relation/evidence rows. Keep prior document versions in immutable snapshots and line revisions with Git merge conflict markers. Content and snapshot metadata changes participate in payload hashing and deployment-conflict checks. Migration `011` verifies and copies every payload-only field into normalized rows before dropping `snapshots.payload`; API details and SDK baselines reconstruct the existing payload shape from those rows.
 
 ### Activation
 
@@ -120,6 +125,7 @@ REQUIRED: Accept body `tenant_id` from a token with `memory:publish`; otherwise 
 REQUIRED: Create a missing project/environment pair on its first trusted publication.
 REQUIRED: Use `(tenant, project, environment, deployment_id)` as the idempotency lookup.
 REQUIRED: Return the existing publication and snapshot for a completed retry.
+REQUIRED: Under the environment lock, reject older ordered versions and a changed expected snapshot. Stage-only publication advances the project pointer only when it previously pointed to that environment's old snapshot.
 REQUIRED: Allocate a distinct snapshot revision under the environment lock when another deployment already uses the version-derived revision. Hash the stored revision and compare retries against that revision.
 REQUIRED: Use PostgreSQL `READ COMMITTED` for the locked revision allocation so a transaction waiting on the environment lock sees earlier commits.
 REQUIRED: Create and promote the snapshot in one persistence operation.

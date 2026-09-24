@@ -1,8 +1,11 @@
+import json
+
 from pydantic import ValidationError
 
 from core.application.relationship_context.errors.entity_context_not_found import (
     EntityContextNotFound,
 )
+from core.application.relationship_context.errors.entity_context_ambiguous import EntityContextAmbiguous
 from core.application.relationship_context.errors.relationship_query_failure import (
     RelationshipQueryFailure,
 )
@@ -12,8 +15,48 @@ from .authorization_failure import AuthorizationFailure
 
 
 class RelationshipResponseMapper:
+    MAX_RESPONSE_BYTES = 262144
+
     def success(self, result):
-        return result.model_dump(mode="json") if hasattr(result, "model_dump") else result
+        payload = result.model_dump(mode="json") if hasattr(result, "model_dump") else result
+        if not isinstance(payload, dict) or self._size(payload) <= self.MAX_RESPONSE_BYTES:
+            return payload
+        payload["response_truncated"] = True
+        for section in ("owners", "relations", "dependencies", "items"):
+            for item in payload.get(section, []):
+                for nested in (item, item.get("source", {}), item.get("target", {}),
+                               item.get("peer", {})):
+                    if isinstance(nested, dict) and nested.get("metadata"):
+                        nested["metadata"] = {}
+        if self._size(payload) <= self.MAX_RESPONSE_BYTES:
+            return payload
+        for section in ("relations", "dependencies", "items"):
+            for item in payload.get(section, []):
+                if isinstance(item, dict) and item.get("evidence"):
+                    item["evidence"] = []
+        if self._size(payload) <= self.MAX_RESPONSE_BYTES:
+            return payload
+        for section in ("relations", "dependencies", "items", "owners"):
+            rows = payload.get(section)
+            while isinstance(rows, list) and rows and self._size(payload) > self.MAX_RESPONSE_BYTES:
+                rows.pop()
+                flag = f"{section}_truncated"
+                if flag in payload:
+                    payload[flag] = True
+        if self._size(payload) <= self.MAX_RESPONSE_BYTES:
+            return payload
+        entity = payload.get("entity")
+        if isinstance(entity, dict) and entity.get("metadata"):
+            entity["metadata"] = {"truncated": True}
+        if self._size(payload) <= self.MAX_RESPONSE_BYTES:
+            return payload
+        return {"status": "ERROR", "error": {
+            "code": "RESPONSE_TOO_LARGE", "message": "context exceeds response byte limit",
+        }}
+
+    @staticmethod
+    def _size(payload: dict) -> int:
+        return len(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
 
     def failure(self, error: Exception) -> dict:
         if isinstance(error, ValidationError):
@@ -24,6 +67,8 @@ class RelationshipResponseMapper:
             code, message = "RELATIONSHIP_UNAUTHORIZED", "relationship access is unauthorized"
         elif isinstance(error, EntityContextNotFound):
             code, message = "ENTITY_NOT_FOUND", "entity context not found"
+        elif isinstance(error, EntityContextAmbiguous):
+            code, message = "AMBIGUOUS_ENTITY", str(error)
         elif isinstance(error, RelationshipQueryFailure):
             code, message = "RELATIONSHIP_QUERY_FAILED", "relationship query failed"
         else:

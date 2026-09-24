@@ -1,8 +1,10 @@
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from fastmcp import Client
 
+from core.application.entity_discovery.contracts.entity_search_item import EntitySearchItem
 from core.application.entity_discovery.contracts.entity_search_page import EntitySearchPage
 from core.application.entity_discovery.use_cases.search_entities.handler import (
     SearchEntitiesHandler,
@@ -94,3 +96,37 @@ async def test_search_tool_sanitizes_failures_and_rejects_missing_context():
     async with Client(no_context) as client:
         result = await client.call_tool("search_entities", {"request": {"key": "payments"}})
     assert result.data["error"]["code"] == "MISSING_TENANT_CONTEXT"
+
+
+@pytest.mark.asyncio
+async def test_search_tool_exposes_historical_option_and_publication_attribution():
+    repository = Mock()
+    snapshot_id = uuid4()
+    publication_id = uuid4()
+    repository.search.return_value = EntitySearchPage(
+        items=(EntitySearchItem(
+            entity_id=uuid4(), key="payments-api", type="api", project_key="payments",
+            snapshot_id=snapshot_id, revision=2, environment_name="production",
+            is_current_snapshot=False, publication_id=publication_id,
+            publication_version="2.0.0", publication_status="COMPLETED",
+            deployment_id="deploy-2",
+        ),),
+        limit=25,
+    )
+    server = create_mcp_server(
+        search_handler=SearchEntitiesHandler(repository),
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool(
+            "search_entities", {"request": {"query": "payments",
+                                             "include_past_snapshots": True}}
+        )
+
+    _, criteria, _, _ = repository.search.call_args.args
+    assert criteria.include_past_snapshots is True
+    assert result.data["items"][0]["snapshot_id"] == str(snapshot_id)
+    assert result.data["items"][0]["publication_id"] == str(publication_id)
+    assert result.data["items"][0]["publication_version"] == "2.0.0"
+    assert result.data["items"][0]["is_current_snapshot"] is False

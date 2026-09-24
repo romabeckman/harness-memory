@@ -26,5 +26,13 @@ class FilterFingerprint:
         }
         if criteria.query is not None:
             payload["query"] = criteria.query
+        if criteria.include_history:
+            payload["include_history"] = True
+        if criteria.include_past_snapshots:
+            payload["include_past_snapshots"] = True
+        for field in ("tenant_id", "project_id", "snapshot_id", "environment"):
+            value = getattr(criteria, field)
+            if value is not None:
+                payload[field] = str(value)
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return cls(hashlib.sha256(encoded).hexdigest())

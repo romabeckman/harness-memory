@@ -14,7 +14,7 @@ export class ValidatePublicationTargetPhase extends AbstractPublicationPhase {
     if (!options.apiUrl || !token) {
       throw new ConfigurationError("apiUrl and token are required for publication target validation");
     }
-    context.resolvedTenantId = await this.client.validateTarget({
+    const target = await this.client.validateTarget({
       apiUrl: options.apiUrl,
       token,
       tenantId: options.tenantId,
@@ -23,5 +23,11 @@ export class ValidatePublicationTargetPhase extends AbstractPublicationPhase {
       deploymentId: options.deploymentId,
       version: options.version,
     });
+    if (typeof target === "string") {
+      context.resolvedTenantId = target;
+    } else {
+      context.resolvedTenantId = target.tenantId;
+      context.expectedCurrentSnapshotId = target.expectedCurrentSnapshotId;
+    }
   }
 }

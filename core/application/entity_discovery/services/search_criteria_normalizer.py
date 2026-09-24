@@ -21,6 +21,12 @@ class NormalizeEntitySearch:
             type=input_model.type,
             project=input_model.project,
             query=input_model.query,
+            include_history=input_model.include_history,
+            include_past_snapshots=input_model.include_past_snapshots,
+            tenant_id=input_model.tenant_id,
+            project_id=input_model.project_id,
+            snapshot_id=input_model.snapshot_id,
+            environment=input_model.environment,
         )
 
 
