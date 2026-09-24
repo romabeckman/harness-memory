@@ -27,7 +27,10 @@ def register_project_resource(
     @server.resource(
         "memory://projects/{project_key}",
         name="project_memory",
-        description="Bounded facts from a project's active snapshot.",
+        description=(
+            "Bounded facts from the project's active execution snapshot. For generic "
+            "current environment facts, use search_projects and search_entities."
+        ),
         mime_type="application/json",
     )
     def project_resource(project_key: str):

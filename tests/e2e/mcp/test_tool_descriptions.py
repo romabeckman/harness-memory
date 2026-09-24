@@ -71,8 +71,10 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
 
     guidance = {
         "search_projects": ("omit key and query", "list accessible projects"),
-        "search_entities": ("at least one filter", "search_projects"),
-        "get_context": ("search_entities", "snapshot_id"),
+        "search_entities": (
+            "at least one filter", "search_projects", "current environment snapshots"
+        ),
+        "get_context": ("search_entities", "snapshot_id", "newest current occurrence"),
         "get_dependencies": ("search_entities", "depends_on"),
         "find_integration_paths": ("search_entities", "active"),
         "analyze_impact": ("search_entities", "same entity"),
@@ -85,6 +87,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
             assert phrase in description, (name, phrase)
 
     assert "current_snapshot_id" in tools["search_projects"].description
+    assert "explicit historical request" in tools["search_entities"].description
     assert "search_projects.environments" in tools["get_environment"].description
 
     field_guidance = {

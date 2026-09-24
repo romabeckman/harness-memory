@@ -93,12 +93,12 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Entity resource**: Reuse active relationship context at `memory://entities/{entity_id}`.
+- **Entity resource**: Read context from the newest current environment occurrence at `memory://entities/{entity_id}`; use `get_context` with `snapshot_id` to pin one environment.
 - **Project resource**: Read only the project's active snapshot at `memory://projects/{project_key}`; decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
 - **Normalized content**: Keep document text in `entities.metadata`; entity search and bounded MCP resources read entities, relations, and evidence directly.
 - **Prompt surface**: Confirm project keys with `search_projects`, guide content queries with `search_entities`, and keep business decisions in existing capabilities.
-- **Current-first guidance**: Use `Project.active_snapshot_id` for the latest project execution. Use `Environment.current_snapshot_id` for the latest version of a named environment; never substitute the project snapshot for an environment-specific answer.
+- **Current-first guidance**: Use each `Environment.current_snapshot_id` for generic project facts and label findings by environment. Use `Project.active_snapshot_id` as current only when no environment records exist. Search historical snapshots only when the user explicitly asks for history, past state, comparison, or changes.
 - **Environment surface**: Read active environment snapshots and compare added, removed,
   modified, and unchanged entity fingerprints without exposing a write operation.
 
@@ -112,10 +112,10 @@ tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and 
 
 ## TOOL CALL ORDER
 
-1. Call `search_projects` without filters to list accessible projects, or supply **key** or **query** to narrow results. Reuse returned project and environment identifiers.
-2. Call `search_entities` with at least one filter or scope selector. For a named environment, call `get_environment` first, then use its environment or current snapshot ID. Reuse `entity_id` and `snapshot_id` for pinned `get_context` reads.
+1. Call `search_projects` without filters to list accessible projects, or supply **key** or **query** to narrow results. For generic project questions, inspect each non-null environment `current_snapshot_id` and keep findings labeled by environment.
+2. Call `search_entities` with at least one filter or scope selector. For a named environment, use only its current snapshot. Reuse `entity_id`, `project_id`, and `snapshot_id` from the same result to pin `get_context`.
 3. Use entity IDs from `search_entities` for `get_dependencies`, `find_integration_paths`, or `analyze_impact` when authorized.
-4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`. Establish current baselines before historical comparisons; use `include_past_snapshots=true` and selected older snapshot IDs when history is requested, even if current facts exist.
+4. Use project key and environment names from `search_projects` for `get_environment` and `compare_environments`. If current search has no match, refine the current query or report no current match. Search older snapshots only when the user explicitly asks for history, a past state, comparison, or changes; establish the current baseline first.
 
 REQUIRED: Supply one target UUID to `analyze_impact`; if multiple target fields are supplied, all must identify the same entity.
 PROHIBITED: Register the legacy `publish_project_snapshot` adapter in the default MCP catalog; publish through REST or the SDK CLI.
@@ -124,7 +124,7 @@ PROHIBITED: Register the legacy `publish_project_snapshot` adapter in the defaul
 
 | Name | Type | Required | Description | Default |
 |------|------|----------|-------------|---------|
-| `entity_id` | UUID | Resource path | Active entity identity. | — |
+| `entity_id` | UUID | Resource path | Entity identity; the resource resolves its newest current environment occurrence. | — |
 | `project_key` | URI segment | Resource path | Percent-encoded project key, decoded once. | — |
 | `snapshot_id` | UUID | Resource path | Snapshot identity. | — |
 | `fact_limit` | fixed integer | Internal | Maximum resource facts. | `25` |
@@ -142,7 +142,7 @@ PROHIBITED: Let resource adapters own SQL, traversal, activation, or impact clas
 
 ## TIPS
 
-Percent-encode project keys containing `/` as one URI segment before calling the project resource.
+Percent-encode project keys containing `/` as one URI segment before calling the project resource. Use that resource for the active project execution; use environment snapshot IDs for generic current facts.
 
 ## DOCUMENT MAP
 

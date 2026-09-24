@@ -20,7 +20,10 @@ def register_entity_resource(
     @server.resource(
         "memory://entities/{entity_id}",
         name="entity_memory",
-        description="Bounded active-snapshot entity context.",
+        description=(
+            "Bounded context from the newest current environment occurrence. "
+            "Use get_context with snapshot_id to pin one environment."
+        ),
         mime_type="application/json",
     )
     def entity_resource(entity_id: UUID):

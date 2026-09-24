@@ -40,6 +40,7 @@ from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
+from .current_snapshot_predicate import current_snapshot_predicate
 from .tenant_scope_predicate import tenant_scope_predicate
 
 
@@ -103,7 +104,7 @@ class PostgresRelationshipQueryRepository:
                     if request.snapshot_id is not None:
                         predicates.append(Entity.snapshot_id == request.snapshot_id)
                     else:
-                        predicates.append(Project.active_snapshot_id == Entity.snapshot_id)
+                        predicates.append(current_snapshot_predicate())
                     if request.project_id is not None:
                         predicates.append(Project.id == request.project_id)
                     if request.tenant_id is not None:
@@ -231,12 +232,12 @@ class PostgresRelationshipQueryRepository:
         if snapshot_id is not None:
             predicates.append(Entity.snapshot_id == snapshot_id)
         else:
-            predicates.append(Project.active_snapshot_id == Entity.snapshot_id)
+            predicates.append(current_snapshot_predicate())
         if project_id is not None:
             predicates.append(Project.id == project_id)
         if tenant_id is not None:
             predicates.append(Entity.tenant_id == tenant_id)
-        results = session.execute(
+        statement = (
             select(Entity, Project, Snapshot)
             .join(
                 Project,
@@ -253,11 +254,22 @@ class PostgresRelationshipQueryRepository:
                     tenant_scope_predicate(scope, Snapshot.tenant_id),
                 ),
             )
-            .where(*predicates).limit(2)
-        ).all()
-        if not results:
+            .where(*predicates)
+        )
+        matching_project_ids = session.execute(
+            statement.with_only_columns(Project.id).order_by(None).distinct().limit(2)
+        ).scalars().all()
+        if not matching_project_ids:
             raise EntityContextNotFound(entity_id, scope.tenant_id)
-        if len(results) > 1:
+        if len(matching_project_ids) > 1:
+            raise EntityContextAmbiguous()
+        results = session.execute(
+            statement.order_by(
+                Snapshot.created_at.desc(), Snapshot.revision.desc(), Snapshot.id.desc(),
+                Entity.created_at.desc(), Entity.id.desc(),
+            ).limit(2 if snapshot_id is not None else 1)
+        ).all()
+        if snapshot_id is not None and len(results) > 1:
             raise EntityContextAmbiguous()
         return results[0]
 

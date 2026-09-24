@@ -19,13 +19,14 @@ def test_create_mcp_server_is_named_and_database_independent():
 def test_server_instructions_prioritize_current_scope_and_allow_requested_history():
     instructions = create_mcp_server().instructions
 
-    assert "Project.active_snapshot_id" in instructions
     assert "Environment.current_snapshot_id" in instructions
     assert "get_environment" in instructions
     assert "include_past_snapshots=true" in instructions
-    assert "do not substitute the project snapshot" in instructions
+    assert "all environments' current_snapshot_id values" in instructions
+    assert "Do not search historical snapshots unless the user explicitly asks" in instructions
+    assert "Pin get_context with entity_id and snapshot_id" in instructions
     assert "compare_environments reads their current snapshots" in instructions
-    assert "Establish the current baseline first" in instructions
+    assert "establish the current baseline first" in instructions
     assert "historical" in instructions
     assert "comparison" in instructions
 
