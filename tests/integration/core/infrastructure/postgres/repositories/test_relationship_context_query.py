@@ -431,11 +431,11 @@ def test_context_lists_selected_entities_newest_first_with_pagination_and_scope(
 
     repository = PostgresRelationshipQueryRepository(session_factory)
     first = repository.list_contexts(
-        TenantScope("tenant-a"), GetContextInput(tenant_id="tenant-a", result_limit=1)
+        TenantScope("tenant-a"), GetContextInput(tenant_id="tenant-a", limit=1)
     )
     second = repository.list_contexts(
         TenantScope("tenant-a"),
-        GetContextInput(tenant_id="tenant-a", result_limit=1, offset=1),
+        GetContextInput(tenant_id="tenant-a", limit=1, offset=1),
     )
     project_page = repository.list_contexts(
         TenantScope("tenant-a"), GetContextInput(project_id=project.id)
@@ -454,3 +454,57 @@ def test_context_lists_selected_entities_newest_first_with_pagination_and_scope(
     assert [item.entity.key for item in project_page.items] == ["newest"]
     assert [item.entity.key for item in pinned.items] == ["old-service"]
     assert forbidden.items == ()
+
+
+def test_context_result_limit_only_bounds_relations_inside_each_item():
+    _, session_factory = _repository()
+    _seed(session_factory)
+    repository = PostgresRelationshipQueryRepository(session_factory)
+
+    page = repository.list_contexts(
+        TenantScope("tenant-a"),
+        GetContextInput(tenant_id="tenant-a", result_limit=1),
+    )
+
+    assert page.count > 1
+    service = next(item for item in page.items if item.entity.key == "payments-service")
+    assert len(service.relations) == 1
+    assert len(service.dependencies) == 1
+    assert service.relations_truncated is True
+    assert service.dependencies_truncated is True
+
+
+def test_context_lists_500_entities_per_page():
+    _, session_factory = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="bulk", name="Bulk")
+        session.add(project)
+        session.flush()
+        snapshot = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, revision=1,
+            schema_version="1.0", payload_hash="5" * 64, metadata_json={},
+        )
+        session.add(snapshot)
+        session.flush()
+        project.active_snapshot_id = snapshot.id
+        session.add_all(
+            Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                entity_key=f"service-{index:03}", entity_type="service", metadata_json={},
+            )
+            for index in range(501)
+        )
+        session.commit()
+
+    repository = PostgresRelationshipQueryRepository(session_factory)
+    first = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id, limit=500)
+    )
+    second = repository.list_contexts(
+        TenantScope("tenant-a"), GetContextInput(project_id=project.id, limit=500, offset=500)
+    )
+
+    assert first.count == len(first.items) == 500
+    assert first.has_more is True
+    assert second.count == len(second.items) == 1
+    assert second.has_more is False

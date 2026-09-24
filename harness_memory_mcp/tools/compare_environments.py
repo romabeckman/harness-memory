@@ -59,9 +59,9 @@ def register_compare_environments(
             int,
             Field(
                 ge=1,
-                le=100,
+                le=500,
                 description=(
-                    "Maximum entities in each result category per page, from 1 to 100; "
+                    "Maximum entities in each result category per page, from 1 to 500; "
                     "totals remain unpaged."
                 ),
             ),

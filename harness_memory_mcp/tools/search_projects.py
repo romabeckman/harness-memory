@@ -57,8 +57,8 @@ def register_search_projects(
         ] = None,
         limit: Annotated[
             StrictInt,
-            Field(ge=1, le=100, description="Maximum number of results, from 1 to 100."),
-        ] = 25,
+            Field(ge=1, le=500, description="Maximum number of results per page, from 1 to 500."),
+        ] = 100,
         offset: Annotated[
             StrictInt,
             Field(

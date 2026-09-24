@@ -131,11 +131,11 @@ tests/{unit,integration,e2e}/        # Contract, repository, and MCP tests
 | `environment` / `snapshot_id` | string / UUID | No | Select environment current state or an immutable snapshot. | project active |
 | `include_history` | boolean | No | Include document revisions and retired documents. | `false` |
 | `include_past_snapshots` | boolean | No | Search past and current snapshots; requires a search filter or scope selector. Independent of `include_history`. | `false` |
-| `limit` | strict integer | No | Result bound from 1 through 100. | `25` |
+| `limit` | strict integer | No | Entity results per page from 1 through 500. | `100` |
 | `cursor` | opaque string | No | Versioned token up to 1,024 characters. | unset |
 | `search_projects.key` | string | No | Exact, case-sensitive project key; blank text is invalid. | unset |
 | `search_projects.query` | string | No | Case-insensitive substring in project keys or names; blank text is invalid. | unset |
-| `search_projects.limit` | strict integer | No | Result bound from 1 through 100. | `25` |
+| `search_projects.limit` | strict integer | No | Project results per page from 1 through 500. | `100` |
 | `search_projects.offset` | strict integer | No | Number of project records to skip, up to 10,000. | `0` |
 
 ## BEST PRACTICES

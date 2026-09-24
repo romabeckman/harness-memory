@@ -16,10 +16,10 @@ class SearchProjectsInput(BaseModel):
         ),
     ] = None
     limit: StrictInt = Field(
-        default=25,
+        default=100,
         ge=1,
-        le=100,
-        description="Maximum number of results, from 1 to 100.",
+        le=500,
+        description="Maximum number of results per page, from 1 to 500.",
     )
     offset: StrictInt = Field(
         default=0,

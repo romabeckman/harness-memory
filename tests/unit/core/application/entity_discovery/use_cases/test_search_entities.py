@@ -30,20 +30,33 @@ def _item():
 
 def test_handler_searches_once_with_normalized_criteria_and_scope():
     repository = Mock()
-    repository.search.return_value = EntitySearchPage(items=(_item(),), limit=25)
+    repository.search.return_value = EntitySearchPage(items=(_item(),), limit=100)
     handler = SearchEntitiesHandler(repository)
 
     output = handler.execute(SearchEntitiesInput(name=" Payments "), TenantScope("tenant-a"))
 
     assert output.count == 1
-    assert output.limit == 25
+    assert output.limit == 100
     assert output.items[0].key == "payments-api"
     repository.search.assert_called_once()
     scope, criteria, cursor, limit = repository.search.call_args.args
     assert scope.tenant_id == "tenant-a"
     assert criteria.name == "payments"
     assert cursor is None
-    assert limit == 25
+    assert limit == 100
+
+
+def test_handler_returns_500_entities_when_requested():
+    repository = Mock()
+    repository.search.return_value = EntitySearchPage(items=(_item(),) * 500, limit=500)
+
+    output = SearchEntitiesHandler(repository).execute(
+        SearchEntitiesInput(key="payments-api", limit=500), TenantScope("tenant-a")
+    )
+
+    assert output.count == len(output.items) == 500
+    assert output.limit == 500
+    assert repository.search.call_args.args[3] == 500
 
 
 def test_handler_maps_empty_and_populated_pages():

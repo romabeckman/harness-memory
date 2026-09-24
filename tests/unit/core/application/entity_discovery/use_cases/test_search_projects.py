@@ -41,8 +41,27 @@ def test_handler_lists_projects_without_filters():
 
     assert result.count == 0
     repository.search_projects.assert_called_once_with(
-        TenantScope("tenant-a"), key=None, query=None, limit=26, offset=0
+        TenantScope("tenant-a"), key=None, query=None, limit=101, offset=0
     )
+
+
+def test_handler_returns_500_projects_and_reports_next_page():
+    repository = Mock()
+    repository.search_projects.return_value = [
+        ProjectSearchItem(
+            key=f"project-{index}", name=f"Project {index}", has_active_snapshot=False,
+        )
+        for index in range(501)
+    ]
+
+    result = SearchProjectsHandler(repository).execute(
+        {"limit": 500}, TenantScope("tenant-a")
+    )
+
+    assert result.count == 500
+    assert len(result.items) == 500
+    assert result.has_more is True
+    assert repository.search_projects.call_args.kwargs["limit"] == 501
 
 
 def test_handler_rejects_missing_scope_without_repository_call():

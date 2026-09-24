@@ -8,7 +8,7 @@ from .entity_search_item import EntitySearchItem
 class EntitySearchPage(BaseModel):
     items: tuple[EntitySearchItem, ...] = ()
     next_cursor: SearchCursor | None = None
-    limit: StrictInt = Field(ge=1, le=100)
+    limit: StrictInt = Field(ge=1, le=500)
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
 

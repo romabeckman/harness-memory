@@ -6,7 +6,7 @@ from .outbound import GetContextOutput
 class GetContextPage(BaseModel):
     items: tuple[GetContextOutput, ...]
     count: StrictInt = Field(ge=0)
-    limit: StrictInt = Field(ge=1, le=25)
+    limit: StrictInt = Field(ge=1, le=500)
     offset: StrictInt = Field(ge=0)
     has_more: StrictBool
 

@@ -52,7 +52,13 @@ def _relation(entity: EntityContextItem) -> RelationView:
 def test_relationship_bounds_accept_valid_limits_and_defaults():
     assert RelationshipQueryBounds(limit=25, evidence_limit=5).limit == 25
     assert RelationshipQueryBounds().evidence_limit == 5
-    assert GetContextInput(entity_id=uuid4()).limit == 25
+    assert GetContextInput(entity_id=uuid4()).limit == 100
+    assert GetContextInput(entity_id=uuid4(), limit=500).limit == 500
+    assert GetContextInput(entity_id=uuid4()).result_limit == 25
+    with pytest.raises(ValidationError):
+        GetContextInput(entity_id=uuid4(), limit=501)
+    with pytest.raises(ValidationError):
+        GetContextInput(entity_id=uuid4(), result_limit=26)
     assert GetDependenciesInput(entity_id=uuid4()).direction is RelationshipDirection.BOTH
 
 

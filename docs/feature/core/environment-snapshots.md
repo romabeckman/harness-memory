@@ -148,7 +148,7 @@ tests/unit/                # Unit test suites across domain, application, infra,
 | `tenant_id` | UUID | Conditional | Select target tenant; admin must provide it, scoped tokens default to owner | Owner tenant |
 | `source_environment` | string | Compare | Origin environment name | — |
 | `target_environment` | string | Compare | Destination environment name | — |
-| `limit` / `offset` | integer | Compare | Bound and page environment comparison results; MCP caps pages at 100 and offset at 10,000 | `100` / `0` |
+| `limit` / `offset` | integer | Compare | Bound and page environment comparison results; MCP caps each category at 500 and offset at 10,000 | `100` / `0` |
 
 ## BEST PRACTICES
 

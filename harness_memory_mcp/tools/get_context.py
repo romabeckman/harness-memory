@@ -44,10 +44,10 @@ def register_get_context(
             StrictInt,
             Field(
                 ge=1,
-                le=100,
-                description="Maximum related items to return, from 1 to 100.",
+                le=500,
+                description="Maximum entity contexts per page, from 1 to 500.",
             ),
-        ] = 25,
+        ] = 100,
         evidence_limit: Annotated[
             StrictInt,
             Field(
@@ -89,7 +89,7 @@ def register_get_context(
             Field(
                 ge=1,
                 le=25,
-                description="Maximum entity contexts per page, from 1 to 25.",
+                description="Maximum relations and dependencies within each context, from 1 to 25.",
             ),
         ] = 25,
         offset: Annotated[

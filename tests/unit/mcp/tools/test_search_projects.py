@@ -26,12 +26,12 @@ async def test_search_projects_returns_bounded_project_references_and_uses_tenan
     assert result.data == {
         "items": [{"key": "send", "name": "Send", "has_active_snapshot": True}],
         "count": 1,
-        "limit": 25,
+        "limit": 100,
         "offset": 0,
         "has_more": False,
     }
     repository.search_projects.assert_called_once_with(
-        TenantScope("tenant-a"), key="send", query=None, limit=26, offset=0
+        TenantScope("tenant-a"), key="send", query=None, limit=101, offset=0
     )
 
 
@@ -62,7 +62,7 @@ async def test_search_projects_supports_name_or_key_query_and_offset_pages():
     )
 
 
-@pytest.mark.parametrize("arguments", [{}, {"key": None, "query": None, "limit": 25, "offset": 0}])
+@pytest.mark.parametrize("arguments", [{}, {"key": None, "query": None, "limit": 100, "offset": 0}])
 @pytest.mark.asyncio
 async def test_search_projects_lists_projects_without_filters(arguments):
     repository = Mock()
@@ -79,7 +79,7 @@ async def test_search_projects_lists_projects_without_filters(arguments):
 
     assert result.data["items"][0]["key"] == "send"
     repository.search_projects.assert_called_once_with(
-        TenantScope("tenant-a"), key=None, query=None, limit=26, offset=0
+        TenantScope("tenant-a"), key=None, query=None, limit=101, offset=0
     )
 
 

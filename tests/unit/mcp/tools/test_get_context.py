@@ -18,11 +18,13 @@ def test_get_context_uses_trusted_tenant_context_and_serializes_result():
     entity_id = uuid4()
 
     tool = register_get_context(server, handler, tenant)
-    result = tool(entity_id=entity_id, limit=3, evidence_limit=1)
+    result = tool(entity_id=entity_id, result_limit=3, evidence_limit=1)
 
     assert result == {"ok": True}
     request, scope = handler.execute.call_args.args
     assert request.entity_id == entity_id
+    assert request.limit == 100
+    assert request.result_limit == 3
     assert scope == TenantScope("tenant-a")
 
 

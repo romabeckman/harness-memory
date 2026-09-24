@@ -6,7 +6,7 @@ from .project_search_item import ProjectSearchItem
 class ProjectSearchPage(BaseModel):
     items: tuple[ProjectSearchItem, ...] = ()
     count: StrictInt = Field(ge=0)
-    limit: StrictInt = Field(ge=1, le=100)
+    limit: StrictInt = Field(ge=1, le=500)
     offset: StrictInt = Field(ge=0, le=10000)
     has_more: StrictBool = False
 

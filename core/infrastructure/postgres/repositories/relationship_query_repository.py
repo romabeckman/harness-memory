@@ -124,19 +124,19 @@ class PostgresRelationshipQueryRepository:
                             Snapshot.created_at.desc(), Snapshot.revision.desc(),
                             Snapshot.id.desc(), Entity.created_at.desc(), Entity.id.desc(),
                         )
-                        .limit(request.result_limit + 1)
+                        .limit(request.limit + 1)
                         .offset(request.offset)
                     ).all()
                     items = tuple(
                         self._build_context(session, scope, request, entity, project, snapshot)
-                        for entity, project, snapshot in rows[: request.result_limit]
+                        for entity, project, snapshot in rows[: request.limit]
                     )
                     return GetContextPage(
                         items=items,
                         count=len(items),
-                        limit=request.result_limit,
+                        limit=request.limit,
                         offset=request.offset,
-                        has_more=len(rows) > request.result_limit,
+                        has_more=len(rows) > request.limit,
                     )
         except RelationshipQueryFailure:
             raise
@@ -144,20 +144,23 @@ class PostgresRelationshipQueryRepository:
             raise RelationshipQueryFailure(str(error)) from None
 
     def _build_context(self, session, scope, request, entity, project, snapshot):
-        relation_rows = self._load_relations(session, scope, snapshot.id, entity.id, request.limit)
+        relation_rows = self._load_relations(
+            session, scope, snapshot.id, entity.id, request.result_limit,
+        )
         dependency_rows = self._load_relations(
-            session, scope, snapshot.id, entity.id, request.limit, dependency_only=True,
+            session, scope, snapshot.id, entity.id, request.result_limit, dependency_only=True,
         )
         relation_views = self._map_relations(
-            relation_rows[: request.limit], entity.id,
+            relation_rows[: request.result_limit], entity.id,
             self._load_evidence(
-                session, scope, snapshot.id, relation_rows[: request.limit], request.evidence_limit,
+                session, scope, snapshot.id, relation_rows[: request.result_limit],
+                request.evidence_limit,
             ),
         )
         dependency_views = self._map_dependencies(
-            dependency_rows[: request.limit], entity.id,
+            dependency_rows[: request.result_limit], entity.id,
             self._load_evidence(
-                session, scope, snapshot.id, dependency_rows[: request.limit],
+                session, scope, snapshot.id, dependency_rows[: request.result_limit],
                 request.evidence_limit,
             ),
         )
@@ -179,8 +182,8 @@ class PostgresRelationshipQueryRepository:
             owners=owners,
             relations=tuple(relation_views),
             dependencies=tuple(dependency_views),
-            relations_truncated=len(relation_rows) > request.limit,
-            dependencies_truncated=len(dependency_rows) > request.limit,
+            relations_truncated=len(relation_rows) > request.result_limit,
+            dependencies_truncated=len(dependency_rows) > request.result_limit,
         )
 
     def load_dependencies(

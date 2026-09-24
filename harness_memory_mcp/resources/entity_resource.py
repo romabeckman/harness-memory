@@ -26,7 +26,7 @@ def register_entity_resource(
     def entity_resource(entity_id: UUID):
         try:
             context = tenant_context.require_scope("memory:read")
-            request = GetContextInput(entity_id=entity_id, limit=25, evidence_limit=5)
+            request = GetContextInput(entity_id=entity_id, result_limit=25, evidence_limit=5)
             result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)
         except Exception as error:

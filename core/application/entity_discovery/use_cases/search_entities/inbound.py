@@ -101,10 +101,10 @@ class SearchEntitiesInput(BaseModel):
         ),
     )
     limit: StrictInt = Field(
-        default=25,
+        default=100,
         ge=1,
-        le=100,
-        description="Maximum number of results in this page, from 1 to 100.",
+        le=500,
+        description="Maximum number of results in this page, from 1 to 500.",
     )
     cursor: Annotated[
         StrictStr | None,

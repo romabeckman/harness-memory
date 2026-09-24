@@ -1,18 +1,16 @@
 from uuid import UUID
 
-from pydantic import ConfigDict, Field, StrictInt, StrictStr, model_validator
-
-from core.application.relationship_context.types.relationship_query_bounds import (
-    RelationshipQueryBounds,
-)
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, model_validator
 
 
-class GetContextInput(RelationshipQueryBounds):
+class GetContextInput(BaseModel):
     entity_id: UUID | None = None
     snapshot_id: UUID | None = None
     project_id: UUID | None = None
     tenant_id: StrictStr | None = Field(default=None, min_length=1, max_length=255)
+    limit: StrictInt = Field(default=100, ge=1, le=500)
     result_limit: StrictInt = Field(default=25, ge=1, le=25)
+    evidence_limit: StrictInt = Field(default=5, ge=0, le=20)
     offset: StrictInt = Field(default=0, ge=0, le=10000)
 
     model_config = ConfigDict(frozen=True, extra="forbid")

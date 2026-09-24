@@ -106,9 +106,10 @@ tests/{unit,integration,e2e}/               # Contract, repository, and MCP test
 | `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
 | `tenant_id` / `project_id` | string / UUID | One of four selectors for `get_context` | Narrow resolution or list contexts within a known tenant or project. | unset |
 | `snapshot_id` | UUID | One of four selectors for `get_context` | Pin one entity or list contexts in an immutable snapshot, including historical snapshots. | current active |
-| `limit` | strict integer | No | Relation bound from 1 through 100. | `25` |
+| `get_context.limit` | strict integer | No | Entity contexts per page from 1 through 500. | `100` |
 | `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
-| `result_limit` | strict integer | No | Contexts per page from 1 through 25 when `entity_id` is absent. | `25` |
+| `result_limit` | strict integer | No | Relations and dependencies within each context, from 1 through 25. | `25` |
+| `get_dependencies.limit` | strict integer | No | Relationships in one entity result, from 1 through 100. Not a page limit. | `25` |
 | `offset` | strict integer | No | Matching contexts to skip, from 0 through 10,000. | `0` |
 
 ## BEST PRACTICES

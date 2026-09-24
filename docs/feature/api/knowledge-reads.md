@@ -100,7 +100,7 @@ tests/unit/api/adapters/http/         # Route and isolation checks
 
 ## SEARCH RULES
 
-Collection routes support `limit` from 1 to 500 and `offset` from 0. Scoped reads span
+Collection routes default `limit` to 100, support 1 to 500 items per page, and accept `offset` from 0. Scoped reads span
 tenants; `tenant_id` narrows results when supplied. `API_ADMIN_TOKEN` can read
 and manage REST resources. `HARNESS_MEMORY_API_KEY` and database tokens with `memory:read`
 can read knowledge tables. Database
