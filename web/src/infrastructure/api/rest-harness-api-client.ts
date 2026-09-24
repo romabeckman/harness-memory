@@ -6,6 +6,10 @@ import {
   CreateTokenDto,
   CreatedTokenDto,
   CreateTenantDto,
+  UpdateTenantDto,
+  ProjectDto,
+  CreateProjectDto,
+  UpdateProjectDto,
   CreateServiceAccountDto,
 } from '@/application/ports/harness-api-client.port'
 
@@ -44,15 +48,90 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     return (await response.json()) as T
   }
 
-  public async listTenants(): Promise<TenantDto[]> {
-    return this.request<TenantDto[]>('/v1/tenants', { method: 'GET' })
+  public async listTenants(
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<TenantDto[]> {
+    const params = new URLSearchParams()
+    if (query) params.set('q', query)
+    if (limit !== undefined) params.set('limit', String(limit))
+    if (offset !== undefined) params.set('offset', String(offset))
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request<TenantDto[]>(`/v1/tenants${qs}`, { method: 'GET' })
   }
 
   public async createTenant(payload: CreateTenantDto): Promise<TenantDto> {
+    const key = payload.key || payload.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
     return this.request<TenantDto>('/v1/tenants', {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, key }),
+    })
+  }
+
+  public async updateTenant(tenantId: string, payload: UpdateTenantDto): Promise<TenantDto> {
+    return this.request<TenantDto>(`/v1/tenants/${encodeURIComponent(tenantId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  public async deleteTenant(tenantId: string): Promise<void> {
+    await this.request<void>(`/v1/tenants/${encodeURIComponent(tenantId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  public async listProjects(
+    tenantId?: string,
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<ProjectDto[]> {
+    const params = new URLSearchParams()
+    if (tenantId) params.set('tenant_id', tenantId)
+    if (query) params.set('q', query)
+    if (limit !== undefined) params.set('limit', String(limit))
+    if (offset !== undefined) params.set('offset', String(offset))
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request<ProjectDto[]>(`/v1/projects${qs}`, { method: 'GET' })
+  }
+
+  public async getProject(tenantId: string, projectKey: string): Promise<ProjectDto> {
+    return this.request<ProjectDto>(
+      `/v1/projects/${encodeURIComponent(projectKey)}?tenant_id=${encodeURIComponent(tenantId)}`,
+      { method: 'GET' }
+    )
+  }
+
+  public async createProject(payload: CreateProjectDto): Promise<ProjectDto> {
+    return this.request<ProjectDto>('/v1/projects', {
       method: 'POST',
       body: JSON.stringify(payload),
     })
+  }
+
+  public async updateProject(
+    tenantId: string,
+    projectKey: string,
+    payload: UpdateProjectDto
+  ): Promise<ProjectDto> {
+    return this.request<ProjectDto>(
+      `/v1/projects/${encodeURIComponent(projectKey)}?tenant_id=${encodeURIComponent(tenantId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    )
+  }
+
+  public async deleteProject(tenantId: string, projectKey: string): Promise<void> {
+    await this.request<void>(
+      `/v1/projects/${encodeURIComponent(projectKey)}?tenant_id=${encodeURIComponent(tenantId)}`,
+      {
+        method: 'DELETE',
+      }
+    )
   }
 
   public async listServiceAccounts(tenantId?: string): Promise<ServiceAccountDto[]> {

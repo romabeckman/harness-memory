@@ -1,7 +1,40 @@
 export interface TenantDto {
   id: string
   name: string
+  key?: string
+  status?: 'active' | 'disabled'
+  metadata?: Record<string, unknown>
   created_at?: string
+  updated_at?: string
+}
+
+export interface UpdateTenantDto {
+  name?: string
+  status?: 'active' | 'disabled'
+  metadata?: Record<string, unknown>
+}
+
+export interface ProjectDto {
+  id: string
+  tenant_id: string
+  key: string
+  name?: string | null
+  active_snapshot_id?: string | null
+  metadata?: Record<string, unknown>
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CreateProjectDto {
+  tenant_id: string
+  key: string
+  name?: string | null
+  metadata?: Record<string, unknown>
+}
+
+export interface UpdateProjectDto {
+  name?: string | null
+  metadata?: Record<string, unknown>
 }
 
 export interface ServiceAccountDto {
@@ -44,6 +77,8 @@ export interface CreatedTokenDto {
 
 export interface CreateTenantDto {
   name: string
+  key?: string
+  metadata?: Record<string, unknown>
 }
 
 export interface CreateServiceAccountDto {
@@ -52,8 +87,20 @@ export interface CreateServiceAccountDto {
 }
 
 export interface HarnessApiClientPort {
-  listTenants(): Promise<TenantDto[]>
+  listTenants(query?: string, limit?: number, offset?: number): Promise<TenantDto[]>
   createTenant(payload: CreateTenantDto): Promise<TenantDto>
+  updateTenant(tenantId: string, payload: UpdateTenantDto): Promise<TenantDto>
+  deleteTenant(tenantId: string): Promise<void>
+  listProjects(
+    tenantId?: string,
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<ProjectDto[]>
+  getProject(tenantId: string, projectKey: string): Promise<ProjectDto>
+  createProject(payload: CreateProjectDto): Promise<ProjectDto>
+  updateProject(tenantId: string, projectKey: string, payload: UpdateProjectDto): Promise<ProjectDto>
+  deleteProject(tenantId: string, projectKey: string): Promise<void>
   listServiceAccounts(tenantId?: string): Promise<ServiceAccountDto[]>
   createServiceAccount(payload: CreateServiceAccountDto): Promise<ServiceAccountDto>
   listTokens(): Promise<TokenMetadataDto[]>

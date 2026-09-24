@@ -7,6 +7,7 @@ import { logoutAction } from '@/app/actions/auth'
 import { TokenList } from '@/components/token-list'
 import { CreateTokenDialog } from '@/components/create-token-dialog'
 import { SecretRevealModal } from '@/components/secret-reveal-modal'
+import { AdminSidebar } from '@/components/admin-sidebar'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -39,9 +40,14 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-gray-100 flex flex-col">
-      {/* Top Navbar */}
-      <header className="border-b border-border bg-card/60 backdrop-blur sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between">
+    <div className="min-h-screen bg-background text-gray-100 flex">
+      {/* Sidebar Navigation */}
+      <AdminSidebar />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Navbar */}
+        <header className="border-b border-border bg-card/60 backdrop-blur sticky top-0 z-30 px-6 py-3.5 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400">
             <Key className="h-5 w-5" />
@@ -150,6 +156,7 @@ export default function DashboardPage() {
           onClose={() => setRevealedToken(null)}
         />
       )}
+      </div>
     </div>
   )
 }

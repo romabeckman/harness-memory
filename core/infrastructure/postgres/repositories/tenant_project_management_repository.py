@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -39,6 +39,35 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
         with self._session_factory() as session:
             tenant = session.get(Tenant, tenant_id)
             return self._tenant(tenant) if tenant else None
+
+    def list_tenants(
+        self,
+        query: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        stmt = select(Tenant)
+        count_stmt = select(func.count(Tenant.id))
+        if status is not None:
+            stmt = stmt.where(Tenant.status == status)
+            count_stmt = count_stmt.where(Tenant.status == status)
+        if query:
+            pattern = f"%{query}%"
+            filter_or = or_(Tenant.key.ilike(pattern), Tenant.name.ilike(pattern))
+            stmt = stmt.where(filter_or)
+            count_stmt = count_stmt.where(filter_or)
+        with self._session_factory() as session:
+            total = session.scalar(count_stmt) or 0
+            rows = session.scalars(
+                stmt.order_by(Tenant.created_at.desc()).limit(limit).offset(offset)
+            ).all()
+            return {
+                "items": [self._tenant(t) for t in rows],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
 
     def update_tenant(self, tenant_id: UUID, values: dict[str, Any]) -> dict | None:
         try:
@@ -87,6 +116,42 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
                 return self._project(project)
         except IntegrityError as error:
             raise ValueError("project key already exists for tenant") from error
+
+    def get_project(self, tenant_id: UUID, key: str) -> dict | None:
+        with self._session_factory() as session:
+            project = session.scalar(
+                select(Project).where(Project.tenant_id == tenant_id, Project.key == key)
+            )
+            return self._project(project) if project else None
+
+    def list_projects(
+        self,
+        tenant_id: UUID | None = None,
+        query: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        stmt = select(Project)
+        count_stmt = select(func.count(Project.id))
+        if tenant_id is not None:
+            stmt = stmt.where(Project.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(Project.tenant_id == tenant_id)
+        if query:
+            pattern = f"%{query}%"
+            filter_or = or_(Project.key.ilike(pattern), Project.name.ilike(pattern))
+            stmt = stmt.where(filter_or)
+            count_stmt = count_stmt.where(filter_or)
+        with self._session_factory() as session:
+            total = session.scalar(count_stmt) or 0
+            rows = session.scalars(
+                stmt.order_by(Project.created_at.desc()).limit(limit).offset(offset)
+            ).all()
+            return {
+                "items": [self._project(p) for p in rows],
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+            }
 
     def update_project(
         self, tenant_id: UUID, key: str, values: dict[str, Any]

@@ -15,6 +15,23 @@ class ProjectManagementService:
     ) -> dict:
         return self._repository.create_project(tenant_id, key, name, metadata)
 
+    def get(self, tenant_id: UUID, key: str) -> dict:
+        project = self._repository.get_project(tenant_id, key)
+        if project is None:
+            raise LookupError("project not found")
+        return project
+
+    def list(
+        self,
+        tenant_id: UUID | None = None,
+        query: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict:
+        return self._repository.list_projects(
+            tenant_id=tenant_id, query=query, limit=limit, offset=offset
+        )
+
     def update(self, tenant_id: UUID, key: str, values: dict[str, Any]) -> dict:
         project = self._repository.update_project(tenant_id, key, values)
         if project is None:
