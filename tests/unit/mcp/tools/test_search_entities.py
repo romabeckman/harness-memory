@@ -71,7 +71,10 @@ async def test_search_tool_returns_stable_error_when_all_filters_are_missing(pay
         )
 
     assert result.is_error is True
-    assert result.content[0].text == "INVALID_ARGUMENT: at least one discovery filter is required"
+    assert result.content[0].text == (
+        "INVALID_ARGUMENT: at least one discovery filter is required: key, name, type, "
+        "project, query, tenant_id, project_id, snapshot_id, or environment"
+    )
     repository.search.assert_not_called()
 
 

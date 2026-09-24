@@ -1,10 +1,12 @@
 from collections.abc import Mapping
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
+from core.application.relationship_context.errors.entity_context_ambiguous import (
+    EntityContextAmbiguous,
+)
 from core.application.relationship_context.errors.entity_context_not_found import (
     EntityContextNotFound,
 )
-from core.application.relationship_context.errors.entity_context_ambiguous import EntityContextAmbiguous
 from core.application.relationship_context.errors.relationship_query_failure import (
     RelationshipQueryFailure,
 )
@@ -40,6 +42,8 @@ class GetContextHandler:
             else GetContextInput.model_validate(request)
         )
         try:
+            if input_model.entity_id is None:
+                return self._repository.list_contexts(scope, input_model)
             return self._repository.load_context(scope, input_model)
         except (EntityContextNotFound, EntityContextAmbiguous, RelationshipQueryFailure):
             raise

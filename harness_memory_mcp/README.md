@@ -38,13 +38,13 @@ The server verifies the token against the database and derives its subject and t
 
 | Tool | Purpose |
 | --- | --- |
-| `search_projects` | Find project keys by exact key or partial key/name query, including projects without snapshots. |
-| `search_entities` | Search active-snapshot entities by exact key/project, name prefix, type, or metadata phrase. |
-| `get_context` | Read bounded context, relationships, and evidence for an entity. |
+| `search_projects` | List accessible projects without filters, or find project keys by exact key or partial key/name query, including projects without snapshots. |
+| `search_entities` | Search current environment snapshots by exact key/project, name prefix, type, or metadata phrase; search history only on request. |
+| `get_context` | Read one entity's context, or list contexts by snapshot, project, or tenant, newest first. |
 | `get_dependencies` | Query inbound or outbound dependencies. |
 | `find_integration_paths` | Find known paths between engineering entities. |
 | `analyze_impact` | Identify known direct and indirect effects of a structured change. |
-| `get_environment` | Read an environment and its active snapshot. |
+| `get_environment` | Read an environment and its current snapshot. |
 | `compare_environments` | Compare active entity fingerprints between environments. |
 
 MCP clients cannot publish or make arbitrary graph edits. Impact results come from stored relationships and evidence; the server does not guess missing relationships.
@@ -53,8 +53,8 @@ MCP clients cannot publish or make arbitrary graph edits. Impact results come fr
 
 | URI | Content |
 | --- | --- |
-| `memory://entities/{entity_id}` | Entity context and bounded relationships. |
-| `memory://projects/{project_key}` | Project facts from its active snapshot. |
+| `memory://entities/{entity_id}` | Context from the newest current environment occurrence. |
+| `memory://projects/{project_key}` | Facts from the project's active execution snapshot. |
 | `memory://snapshots/{snapshot_id}` | Tenant-owned snapshot facts and metadata. |
 
 Resource reads are tenant-scoped and bounded. URL-encode project keys that contain `/` so the key stays within one URI segment.

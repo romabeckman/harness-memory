@@ -34,6 +34,12 @@ async def test_relationship_tools_are_catalogued_with_strict_input_fields():
     for tool in tools:
         assert "entity_id" in tool.input_schema["properties"]
         assert ("tenant_id" in tool.input_schema["properties"]) == (tool.name == "get_context")
+    context_schema = tools[0].input_schema
+    assert "entity_id" not in context_schema.get("required", [])
+    assert all(
+        selector in context_schema["properties"]
+        for selector in ("snapshot_id", "project_id", "tenant_id")
+    )
 
 
 @pytest.mark.asyncio
@@ -91,3 +97,40 @@ async def test_relationship_tools_require_read_scope_before_handler_access():
     assert dependencies.data["error"]["code"] == "RELATIONSHIP_UNAUTHORIZED"
     repository.load_context.assert_not_called()
     repository.load_dependencies.assert_not_called()
+
+
+@pytest.mark.parametrize("selector", ["snapshot_id", "project_id", "tenant_id"])
+@pytest.mark.asyncio
+async def test_get_context_lists_by_scope_selector(selector):
+    repository = Mock()
+    repository.list_contexts.return_value = {
+        "items": [], "count": 0, "limit": 25, "offset": 0, "has_more": False,
+    }
+    server = create_mcp_server(
+        relationship_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+    value = "tenant-a" if selector == "tenant_id" else str(uuid4())
+
+    async with Client(server) as client:
+        result = await client.call_tool("get_context", {selector: value})
+
+    assert result.data["items"] == []
+    assert repository.list_contexts.call_args.args[1].entity_id is None
+    repository.load_context.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_context_rejects_missing_selector():
+    repository = Mock()
+    server = create_mcp_server(
+        relationship_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool("get_context", {}, raise_on_error=False)
+
+    assert result.data["error"]["code"] == "INVALID_RELATIONSHIP_CONTRACT"
+    repository.load_context.assert_not_called()
+    repository.list_contexts.assert_not_called()

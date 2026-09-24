@@ -21,7 +21,8 @@ def register_get_environment(
         name="get_environment",
         description=(
             "Read a named environment's metadata, type, and current snapshot ID. "
-            "Find the project key and available environment names with search_projects. "
+            "Find the project key and available environments with "
+            "search_projects.environments. "
             "Project key and environment are required; use tenant_id when a key repeats "
             "across tenants and your credential permits that tenant. Requires memory:read."
         ),
@@ -36,7 +37,7 @@ def register_get_environment(
             Field(
                 description=(
                     "Required exact environment name from "
-                    "search_projects.environment_names, such as staging or production."
+                    "search_projects.environments[].name, such as staging or production."
                 )
             ),
         ],

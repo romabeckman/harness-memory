@@ -16,14 +16,14 @@ from core.infrastructure.postgres.repositories.api_token_repository import ApiTo
 from core.infrastructure.postgres.repositories.entity_search_repository import (
     PostgresEntitySearchRepository,
 )
-from core.infrastructure.postgres.repositories.knowledge_read_repository import (
-    KnowledgeReadRepository,
-)
 from core.infrastructure.postgres.repositories.impact_analysis_repository import (
     PostgresImpactAnalysisRepository,
 )
 from core.infrastructure.postgres.repositories.integration_path_repository import (
     PostgresIntegrationPathRepository,
+)
+from core.infrastructure.postgres.repositories.knowledge_read_repository import (
+    KnowledgeReadRepository,
 )
 from core.infrastructure.postgres.repositories.memory_resource_repository import (
     PostgresMemoryResourceRepository,
@@ -44,6 +44,7 @@ from harness_memory_mcp.resources.project_resource import register_project_resou
 from harness_memory_mcp.resources.snapshot_resource import register_snapshot_resource
 from harness_memory_mcp.server.http_security import install_http_security_error_mapping
 from harness_memory_mcp.server.server_lifespan_manager import ServerLifespanManager
+from harness_memory_mcp.services.admin_token_verifier import AdminTokenVerifier
 from harness_memory_mcp.services.audited_operation import ExecuteAuditedOperation
 from harness_memory_mcp.services.authenticated_principal_factory import (
     AuthenticatedPrincipalFactory,
@@ -53,7 +54,6 @@ from harness_memory_mcp.services.component_scope_policy import (
     component_scope_auth,
 )
 from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVerifier
-from harness_memory_mcp.services.admin_token_verifier import AdminTokenVerifier
 from harness_memory_mcp.services.security_audit_middleware import (
     AuditingTokenVerifier,
     SecurityAuditMiddleware,
@@ -136,9 +136,17 @@ def create_mcp_server(
                 postgres = PostgresSettings(database_url=settings.database_url)
                 engine = PostgresEngineFactory.create(postgres)
                 api_token_repository = ApiTokenRepository(engine=engine)
-            auth_provider = DatabaseTokenVerifier(api_token_repository,
-                admin_token=settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
-                read_api_key=settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
+            auth_provider = DatabaseTokenVerifier(
+                api_token_repository,
+                admin_token=(
+                    settings.api_admin_token.get_secret_value()
+                    if settings.api_admin_token else None
+                ),
+                read_api_key=(
+                    settings.harness_memory_api_key.get_secret_value()
+                    if settings.harness_memory_api_key else None
+                ),
+            )
         else:
             auth_provider = JWTVerifier(
                 jwks_uri=str(settings.mcp_jwks_uri),
@@ -150,8 +158,15 @@ def create_mcp_server(
             if settings.api_admin_token or settings.harness_memory_api_key:
                 auth_provider = AdminTokenVerifier(
                     auth_provider,
-                    settings.api_admin_token.get_secret_value() if settings.api_admin_token else None,
-                    settings.harness_memory_api_key.get_secret_value() if settings.harness_memory_api_key else None)
+                    (
+                        settings.api_admin_token.get_secret_value()
+                        if settings.api_admin_token else None
+                    ),
+                    (
+                        settings.harness_memory_api_key.get_secret_value()
+                        if settings.harness_memory_api_key else None
+                    ),
+                )
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
         settings.mcp_tenant_claim if settings is not None else "tenant_id"
     )
@@ -181,13 +196,27 @@ def create_mcp_server(
         name="harness-memory",
         instructions=(
             "Discover project records with search_projects. Use key for an exact project "
-            "key or query for a partial key or name. A project without an active snapshot "
-            "has no current graph data. For facts, use search_entities with the exact "
-            "project key and a short query phrase; query searches entity keys, names, and "
-            "metadata content, including document sections. Use get_context on selected "
-            "entity IDs to inspect matching facts. search_entities reads active snapshots. "
-            "If a search is empty, verify the project with search_projects and try a more "
-            "specific entity key or content phrase before reporting the fact as unknown."
+            "key or query for a partial key or name. Environment.current_snapshot_id is "
+            "the current snapshot for that environment. For generic project questions, inspect all "
+            "environments' current_snapshot_id values and search each non-null snapshot; "
+            "label findings by environment. For a named environment, use only its current "
+            "snapshot. Project.active_snapshot_id is legacy current state only when no "
+            "environment records exist. If environments exist but none has a current "
+            "snapshot, report no current environment data. Use search_entities' legacy "
+            "default only when no environment records exist. Use get_environment for "
+            "environment metadata. For facts, use search_entities "
+            "with the exact project key and a short query phrase; query searches entity "
+            "keys, names, and metadata content, including document sections. Pin get_context "
+            "with entity_id and snapshot_id from the same search result. Without snapshot_id, "
+            "get_context resolves the newest current occurrence. search_entities reads "
+            "current snapshots by default. For a comparison of environments, "
+            "compare_environments reads their current snapshots. If current search has no "
+            "match, refine the current query or report no match in current snapshots. Do "
+            "not search historical snapshots unless the user explicitly asks for history, "
+            "past state, comparison, or changes. For those requests, establish the current "
+            "baseline first, then use search_entities with include_past_snapshots=true and "
+            "inspect historical snapshot_id values with get_context. Never call an older "
+            "snapshot current."
         ),
         auth=auth_provider,
         lifespan=lifespan_manager.lifespan if lifespan_manager is not None else None,

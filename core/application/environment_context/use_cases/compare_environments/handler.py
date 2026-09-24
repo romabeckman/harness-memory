@@ -47,7 +47,7 @@ class CompareEnvironmentsHandler:
                 target_env.current_snapshot_id is not None):
             page = compare(
                 source_env.current_snapshot_id, target_env.current_snapshot_id,
-                input.tenant_id, offset=max(0, input.offset), limit=min(100, max(1, input.limit)),
+                input.tenant_id, offset=max(0, input.offset), limit=min(500, max(1, input.limit)),
             )
             return CompareEnvironmentsOutput(
                 source_environment=input.source_environment,
@@ -88,7 +88,7 @@ class CompareEnvironmentsHandler:
         )
 
         offset = max(0, input.offset)
-        limit = min(100, max(1, input.limit))
+        limit = min(500, max(1, input.limit))
 
         added_slice = tuple(added_all[offset : offset + limit])
         removed_slice = tuple(removed_all[offset : offset + limit])

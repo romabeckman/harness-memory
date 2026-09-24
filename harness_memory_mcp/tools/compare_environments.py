@@ -21,7 +21,7 @@ def register_compare_environments(
         name="compare_environments",
         description=(
             "Compare current snapshots of two environments in one project. Find the "
-            "project key and environment names with search_projects; use get_environment "
+            "project key and environments with search_projects; use get_environment "
             "to inspect either current snapshot first. Returns added, removed, modified, "
             "and unchanged entity keys with per-list totals and pagination. Project key "
             "and both environment names are required. Requires memory:read."
@@ -41,7 +41,7 @@ def register_compare_environments(
             str,
             Field(
                 description=(
-                    "Required source environment name from search_projects.environment_names; "
+                    "Required source environment name from search_projects.environments[].name; "
                     "inspect its current snapshot with get_environment."
                 )
             ),
@@ -50,7 +50,7 @@ def register_compare_environments(
             str,
             Field(
                 description=(
-                    "Required target environment name from search_projects.environment_names; "
+                    "Required target environment name from search_projects.environments[].name; "
                     "inspect its current snapshot with get_environment."
                 )
             ),
@@ -59,9 +59,9 @@ def register_compare_environments(
             int,
             Field(
                 ge=1,
-                le=100,
+                le=500,
                 description=(
-                    "Maximum entities in each result category per page, from 1 to 100; "
+                    "Maximum entities in each result category per page, from 1 to 500; "
                     "totals remain unpaged."
                 ),
             ),

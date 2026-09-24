@@ -70,9 +70,11 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         tools = {tool.name: tool for tool in await client.list_tools()}
 
     guidance = {
-        "search_projects": ("key or query", "at least one"),
-        "search_entities": ("at least one filter", "search_projects"),
-        "get_context": ("search_entities", "snapshot_id"),
+        "search_projects": ("omit key and query", "list accessible projects"),
+        "search_entities": (
+            "at least one filter", "search_projects", "current environment snapshots"
+        ),
+        "get_context": ("search_entities", "snapshot_id", "newest current occurrence"),
         "get_dependencies": ("search_entities", "depends_on"),
         "find_integration_paths": ("search_entities", "active"),
         "analyze_impact": ("search_entities", "same entity"),
@@ -84,9 +86,13 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         for phrase in phrases:
             assert phrase in description, (name, phrase)
 
+    assert "current_snapshot_id" in tools["search_projects"].description
+    assert "explicit historical request" in tools["search_entities"].description
+    assert "search_projects.environments" in tools["get_environment"].description
+
     field_guidance = {
-        ("search_projects", "key"): "key or query",
-        ("search_projects", "query"): "key or query",
+        ("search_projects", "key"): "omit key and query",
+        ("search_projects", "query"): "omit key and query",
         ("search_entities", "request"): "at least one filter",
         ("get_context", "entity_id"): "search_entities",
         ("get_context", "snapshot_id"): "search_entities",
@@ -96,6 +102,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         ("analyze_impact", "change"): "entity_id",
         ("get_environment", "project_key"): "search_projects",
         ("compare_environments", "source_environment"): "get_environment",
+        ("compare_environments", "target_environment"): "search_projects.environments",
     }
     for (tool_name, field_name), phrase in field_guidance.items():
         description = tools[tool_name].input_schema["properties"][field_name]["description"]

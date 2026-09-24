@@ -378,6 +378,101 @@ def test_environment_selection_and_cursor_keep_original_snapshot_after_promotion
     assert [item.key for item in refreshed.items] == ["c"]
 
 
+def test_project_search_uses_current_snapshot_from_each_environment():
+    session_factory, _ = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="catalog")
+        session.add(project)
+        session.flush()
+        production = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="production", type="production"
+        )
+        staging = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="staging", type="staging"
+        )
+        session.add_all([production, staging])
+        session.flush()
+        production_old = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
+            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+        )
+        production_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
+            revision=2, schema_version="1.0", payload_hash="b" * 64, metadata_json={},
+        )
+        staging_old = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
+            revision=1, schema_version="1.0", payload_hash="c" * 64, metadata_json={},
+        )
+        staging_current = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
+            revision=2, schema_version="1.0", payload_hash="d" * 64, metadata_json={},
+        )
+        session.add_all([production_old, production_current, staging_old, staging_current])
+        session.flush()
+        production.current_snapshot_id = production_current.id
+        staging.current_snapshot_id = staging_current.id
+        project.active_snapshot_id = production_old.id
+        for snapshot, key in (
+            (production_old, "production-old"),
+            (production_current, "production-current"),
+            (staging_old, "staging-old"),
+            (staging_current, "staging-current"),
+        ):
+            session.add(Entity(
+                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+                entity_key=key, entity_type="service", metadata_json={},
+            ))
+        session.commit()
+
+    result = PostgresEntitySearchRepository(session_factory).search(
+        TenantScope("tenant-a"),
+        EntitySearchCriteria(project="catalog", tenant_id="tenant-a"),
+        None,
+        25,
+    )
+
+    assert {item.key for item in result.items} == {
+        "production-current", "staging-current"
+    }
+    assert {item.environment_name for item in result.items} == {"production", "staging"}
+    assert all(item.is_current_snapshot for item in result.items)
+
+
+def test_unpublished_environment_does_not_fall_back_to_project_active_snapshot():
+    session_factory, _ = _repository()
+    with session_factory() as session:
+        project = Project(tenant_id="tenant-a", key="catalog")
+        session.add(project)
+        session.flush()
+        environment = Environment(
+            tenant_id="tenant-a", project_id=project.id, name="production", type="production"
+        )
+        session.add(environment)
+        session.flush()
+        snapshot = Snapshot(
+            tenant_id="tenant-a", project_id=project.id, environment_id=environment.id,
+            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+        )
+        session.add(snapshot)
+        session.flush()
+        project.active_snapshot_id = snapshot.id
+        session.add(Entity(
+            tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
+            entity_key="stale", entity_type="service", metadata_json={},
+        ))
+        session.commit()
+
+    result = PostgresEntitySearchRepository(session_factory).search(
+        TenantScope("tenant-a"),
+        EntitySearchCriteria(project="catalog", tenant_id="tenant-a"),
+        None,
+        25,
+    )
+
+    assert result.items == ()
+
+
 def test_past_snapshot_search_returns_bounded_occurrences_with_publication_context():
     session_factory, _ = _repository()
     with session_factory() as session:

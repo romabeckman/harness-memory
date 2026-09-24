@@ -36,5 +36,5 @@ def test_entity_resource_delegates_with_active_context_bounds():
 
     assert result == {"ok": True}
     request, scope = handler.execute.call_args.args
-    assert request == GetContextInput(entity_id=entity_id, limit=25, evidence_limit=5)
+    assert request == GetContextInput(entity_id=entity_id, result_limit=25, evidence_limit=5)
     assert scope == TenantScope("tenant-a")
