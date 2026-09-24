@@ -51,6 +51,14 @@ def test_project_and_snapshot_constraints_are_scoped_and_deferred():
         and constraint.initially == "DEFERRED"
         for constraint in project.constraints
     )
+    assert "payload" not in snapshot.columns
+    assert {"project_key", "project_name", "generated_at"} <= set(snapshot.columns.keys())
+
+
+def test_normalized_graph_rows_keep_snapshot_payload_projection_fields():
+    assert {"canonical_key", "graph_position"} <= set(Entity.__table__.columns.keys())
+    assert {"relation_ref", "graph_position"} <= set(Relation.__table__.columns.keys())
+    assert "graph_position" in Evidence.__table__.columns
 
 
 def test_graph_fact_constraints_enforce_ownership_and_provenance():
@@ -73,8 +81,7 @@ def test_environment_and_publication_constraints():
 
     assert any(
         isinstance(constraint, UniqueConstraint)
-        and {column.name for column in constraint.columns}
-        == {"tenant_id", "project_id", "name"}
+        and {column.name for column in constraint.columns} == {"tenant_id", "project_id", "name"}
         for constraint in env_table.constraints
     )
     assert any(
@@ -88,4 +95,3 @@ def test_environment_and_publication_constraints():
         and [col.name for col in constraint.columns] == ["current_snapshot_id", "tenant_id"]
         for constraint in env_table.constraints
     )
-

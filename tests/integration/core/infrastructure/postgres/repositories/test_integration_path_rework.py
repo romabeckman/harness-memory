@@ -228,7 +228,6 @@ def _comma_key_repository():
             revision=1,
             schema_version="1.0",
             payload_hash="c" * 64,
-            payload={},
             metadata_json={},
         )
         session.add(snapshot)

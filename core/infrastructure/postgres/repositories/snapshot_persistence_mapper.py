@@ -1,10 +1,9 @@
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from typing import Any
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot import (
     ProjectKnowledgeSnapshot,
 )
-from core.application.snapshot_publication.services.snapshot_payload import snapshot_payload
 
 from ..models.entity import Entity
 from ..models.evidence import Evidence
@@ -54,7 +53,9 @@ class SnapshotPersistenceMapper:
             revision=snapshot.revision.value,
             schema_version=snapshot.schema_version.value,
             payload_hash=hash_value,
-            payload=snapshot_payload(snapshot),
+            project_key=snapshot.project.key.value,
+            project_name=snapshot.project.name,
+            generated_at=snapshot.generated_at.value,
             metadata_json=snapshot.project.metadata.to_dict(),
         )
         entities = tuple(
@@ -67,9 +68,11 @@ class SnapshotPersistenceMapper:
                 entity_key=item.key.value,
                 entity_type=item.type.value,
                 name=item.name,
+                canonical_key=item.canonical_key,
+                graph_position=position,
                 metadata_json=item.metadata.to_dict(),
             )
-            for item in snapshot.entities
+            for position, item in enumerate(snapshot.entities)
         )
         relations = tuple(
             Relation(
@@ -82,9 +85,11 @@ class SnapshotPersistenceMapper:
                 target_identity_id=identity_ids[item.target_entity_key.value],
                 relation_type=item.type.value,
                 provenance_kind=item.provenance.value,
+                relation_ref=item.reference.value,
+                graph_position=position,
                 metadata_json=item.metadata.to_dict(),
             )
-            for item in snapshot.relations
+            for position, item in enumerate(snapshot.relations)
         )
         evidence = tuple(
             Evidence(
@@ -96,9 +101,10 @@ class SnapshotPersistenceMapper:
                 ),
                 source=item.source,
                 excerpt=item.excerpt,
+                graph_position=position,
                 metadata_json=item.metadata.to_dict(),
             )
-            for item in snapshot.evidence
+            for position, item in enumerate(snapshot.evidence)
         )
         return SnapshotGraphRows(
             snapshot_row, entities, relations, evidence, entity_ids, identity_ids, relation_ids

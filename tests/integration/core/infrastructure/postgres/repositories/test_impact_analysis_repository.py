@@ -52,7 +52,6 @@ def _seed(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="a" * 64,
-            payload={},
             metadata_json={},
         )
         session.add(snapshot)
@@ -434,7 +433,6 @@ def test_same_canonical_consumer_from_two_projects_keeps_both_project_contexts()
                 revision=1,
                 schema_version="1.0",
                 payload_hash=project_key,
-                payload={},
                 metadata_json={},
             )
             session.add(snapshot)

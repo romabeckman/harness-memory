@@ -67,7 +67,6 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
                 revision=9,
                 schema_version="1.0",
                 payload_hash=sha256(b"catalog").hexdigest(),
-                payload={},
                 metadata_json={},
             )
         )

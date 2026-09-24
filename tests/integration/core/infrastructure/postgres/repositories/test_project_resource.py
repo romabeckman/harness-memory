@@ -34,7 +34,6 @@ def _seed_project(session_factory):
             revision=1,
             schema_version="1.0",
             payload_hash="1" * 64,
-            payload={"raw": "historical"},
             metadata_json={},
         )
         active = Snapshot(
@@ -43,7 +42,6 @@ def _seed_project(session_factory):
             revision=2,
             schema_version="1.0",
             payload_hash="2" * 64,
-            payload={"raw": "active"},
             metadata_json={"source": "catalog"},
         )
         session.add_all([historical, active])

@@ -152,6 +152,8 @@ Projects publish complete snapshots rather than directly mutating arbitrary grap
 
 Important relationships can also carry **provenance** and **evidence**, making it possible to understand not only what is known, but where that knowledge came from.
 
+Snapshots store document and graph facts in normalized entity, relation, and evidence rows. Document content remains searchable through entity metadata; REST snapshot details and SDK publication baselines reconstruct the submitted payload shape from those rows.
+
 ## MCP Interface
 
 The MCP surface is read-only and exposes the following tools:

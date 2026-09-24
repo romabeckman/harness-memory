@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Integer,
     String,
     Uuid,
     func,
@@ -55,6 +55,9 @@ class Evidence(Base):
     relation_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     source: Mapped[str] = mapped_column(String(1024), nullable=False)
     excerpt: Mapped[str | None] = mapped_column(String(4096), nullable=True)
+    graph_position: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")
     )

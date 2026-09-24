@@ -27,7 +27,6 @@ def test_reads_snapshot_entity_fingerprints_for_tenant() -> None:
                 revision=1,
                 schema_version="1.0",
                 payload_hash="a" * 64,
-                payload={},
                 metadata_json={},
             )
         )
