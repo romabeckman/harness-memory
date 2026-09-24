@@ -10,6 +10,7 @@ class KnowledgePublicationRequest(BaseModel):
     environment: str = Field(..., min_length=1)
     deployment_id: str = Field(..., min_length=1)
     version: str = Field(..., min_length=1)
+    expected_current_snapshot_id: UUID | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     entities: list[Any] = Field(default_factory=list)
     relations: list[Any] = Field(default_factory=list)

@@ -15,7 +15,7 @@ edges:
     target: "feature:environment-snapshots"
   - relation: references
     target: "adr:security"
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # Snapshot Publisher SDK
 Extract repository context, synthesize knowledge graph via local LLM, validate schema, and publish snapshots over REST.
@@ -118,7 +118,7 @@ sdk/
 - **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
 - **Agent runners**: Select `codex-cli` or `claude-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
 - **Validator**: Check Schema 1.0, canonicalize `canonical_key`, and compute SHA-256.
-- **REST client**: Preflight project, environment, and deployment identity with `memory:publish`; publish after graph validation and retry 429/5xx with jitter.
+- **REST client**: Preflight project, environment, deployment identity, and current snapshot with `memory:publish`; publish with a baseline precondition after graph validation and retry 429/5xx with jitter.
 - **CLI progress**: Send phases to stderr and JSON to stdout. `--debug` adds redacted timings; `--verbose` prints repository and target.
 - **Exit codes**: Map domain failures to stable CLI statuses.
 
@@ -138,7 +138,7 @@ sdk/
 3. Load the authenticated baseline (HTTP 404 means none) and local docs, including untracked files. Docs are authoritative; source content is not sent to Codex.
 4. Compare `docs/adr/` and `docs/feature/` text with the baseline. Ignore whitespace; any other text or document-set change triggers synthesis.
 5. Publish ADR/feature Markdown and `docs/.digest.md` as document entities. Store `docs/.graph.json` in snapshot metadata.
-6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`.
+6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`. Mark locally deleted documents `metadata.lifecycle=removed`, preserving their history while excluding them from default search.
 7. Validate the graph before publishing. `--dry-run` skips publication.
 ### Storage and history
 

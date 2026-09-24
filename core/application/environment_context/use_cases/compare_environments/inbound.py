@@ -7,5 +7,5 @@ class CompareEnvironmentsInput:
     source_environment: str
     target_environment: str
     tenant_id: str | None = "default"
-    limit: int = 500
+    limit: int = 100
     offset: int = 0

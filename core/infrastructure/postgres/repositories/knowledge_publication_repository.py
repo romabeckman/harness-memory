@@ -4,6 +4,8 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
+from packaging.version import InvalidVersion, Version
+from core.domain.snapshot_publication.errors.revision_conflict import RevisionConflict
 
 from core.application.snapshot_publication.services.payload_hash_calculator import (
     PayloadHashCalculator,
@@ -182,6 +184,7 @@ class PostgresKnowledgePublicationRepository:
         publication: DomainKnowledgePublication,
         snapshot: ProjectKnowledgeSnapshot,
         environment_id: UUID,
+        expected_current_snapshot_id: UUID | None = None,
     ) -> UUID:
         with self._session_factory() as session:
             with session.begin():
@@ -211,6 +214,48 @@ class PostgresKnowledgePublicationRepository:
                 ).first()
                 if env is None:
                     raise ValueError(f"environment {environment_id} not found")
+                if env.project_id != proj.id:
+                    raise ValueError("environment does not belong to project")
+
+                existing = session.scalar(
+                    select(ModelKnowledgePublication).where(
+                        ModelKnowledgePublication.tenant_id == tenant_id,
+                        ModelKnowledgePublication.project_id == proj.id,
+                        ModelKnowledgePublication.environment_id == env.id,
+                        ModelKnowledgePublication.deployment_id == publication.deployment_id.value,
+                    )
+                )
+                if existing is not None:
+                    if existing.snapshot_id is None or existing.version != publication.version:
+                        raise RevisionConflict("deployment identity was reused with different content")
+                    recorded_snapshot = session.get(ModelSnapshot, existing.snapshot_id)
+                    if recorded_snapshot is None:
+                        raise RevisionConflict("deployment snapshot is unavailable")
+                    replay = replace(snapshot, revision=Revision(recorded_snapshot.revision))
+                    replay_content = snapshot_payload(replay)
+                    replay_content.pop("generated_at", None)
+                    if self._hash_calculator.calculate(replay_content).value != recorded_snapshot.payload_hash:
+                        raise RevisionConflict("deployment identity was reused with different content")
+                    return existing.snapshot_id
+
+                if (expected_current_snapshot_id is not None and
+                        env.current_snapshot_id != expected_current_snapshot_id):
+                    raise RevisionConflict("current snapshot changed; refresh publication baseline")
+
+                if env.current_snapshot_id is not None:
+                    current_publication = session.scalar(
+                        select(ModelKnowledgePublication).where(
+                            ModelKnowledgePublication.tenant_id == tenant_id,
+                            ModelKnowledgePublication.snapshot_id == env.current_snapshot_id,
+                        )
+                    )
+                    if current_publication is not None:
+                        try:
+                            older = Version(publication.version) < Version(current_publication.version)
+                        except InvalidVersion:
+                            older = False
+                        if older:
+                            raise RevisionConflict("older version cannot replace current environment snapshot")
 
                 latest_revision = session.scalar(
                     select(func.max(ModelSnapshot.revision)).where(
@@ -258,8 +303,10 @@ class PostgresKnowledgePublicationRepository:
                 session.add(model)
                 session.flush()
 
+                previous_environment_snapshot_id = env.current_snapshot_id
                 env.current_snapshot_id = rows.snapshot.id
-                if env.type == "production" or proj.active_snapshot_id is None:
+                if (env.type == "production" or proj.active_snapshot_id is None or
+                        proj.active_snapshot_id == previous_environment_snapshot_id):
                     proj.active_snapshot_id = rows.snapshot.id
                 session.flush()
 

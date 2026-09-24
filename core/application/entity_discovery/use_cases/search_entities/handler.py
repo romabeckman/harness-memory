@@ -59,7 +59,7 @@ class SearchEntitiesHandler:
         if not isinstance(page, EntitySearchPage):
             raise EntitySearchFailure()
         next_cursor = (
-            self._cursor_codec.encode(criteria, page.items[-1])
+            self._cursor_codec.encode(criteria, page.items[-1], page.next_cursor)
             if page.next_cursor is not None and page.items
             else None
         )

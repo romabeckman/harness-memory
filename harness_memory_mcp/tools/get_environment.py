@@ -30,13 +30,18 @@ def register_get_environment(
             str,
             Field(description="Environment name, such as development, staging, or production."),
         ],
+        tenant_id: Annotated[str | None, Field(max_length=255,
+            description="Select one tenant ID when project keys repeat across tenants.")] = None,
     ):
         try:
             ctx = tenant_context.require_scope("memory:read")
+            if tenant_id is not None and not ctx.is_admin and tenant_id != ctx.tenant_id:
+                return {"error": {"code": "INVALID_ARGUMENT",
+                                  "message": "tenant selector is outside the trusted read scope"}}
             input_data = GetEnvironmentInput(
                 project_key=project_key,
                 environment_name=environment,
-                tenant_id=None if ctx.is_admin else ctx.tenant_id,
+                tenant_id=tenant_id if ctx.is_admin else ctx.tenant_id,
             )
             result = handler.execute(input_data)
             return {

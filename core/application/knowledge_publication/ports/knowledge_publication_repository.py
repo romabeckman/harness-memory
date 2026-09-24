@@ -24,5 +24,6 @@ class KnowledgePublicationRepository(Protocol):
         publication: KnowledgePublication,
         snapshot: ProjectKnowledgeSnapshot,
         environment_id: UUID,
+        expected_current_snapshot_id: UUID | None = None,
     ) -> UUID:
         ...

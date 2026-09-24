@@ -5,6 +5,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
+from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.infrastructure.postgres.models.entity import Entity
 from core.infrastructure.postgres.models.environment import Environment
@@ -15,6 +16,8 @@ from core.infrastructure.postgres.models.relation import Relation
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.models.tenant import Tenant
 from core.infrastructure.postgres.repositories.snapshot_payload_reader import SnapshotPayloadReader
+from core.infrastructure.postgres.repositories.entity_search_repository import PostgresEntitySearchRepository
+from core.domain.snapshot_publication.types.entity_type import EntityType
 
 
 class KnowledgeReadRepository:
@@ -112,9 +115,34 @@ class KnowledgeReadRepository:
             limit=limit,
             offset=offset,
         )
+        project_ids = [UUID(project["id"]) for project in projects]
+        environment_names: dict[UUID, list[str]] = {project_id: [] for project_id in project_ids}
+        tenant_keys: dict[str, str] = {}
+        if project_ids:
+            with self._session_factory() as session:
+                tenant_keys = {
+                    str(tenant_key_id): tenant_key
+                    for tenant_key_id, tenant_key in session.execute(
+                        select(Tenant.id, Tenant.key).where(
+                            Tenant.id.in_([UUID(project["tenant_id"]) for project in projects])
+                        )
+                    ).all()
+                }
+                rows = session.execute(
+                    select(Environment.project_id, Environment.name)
+                    .where(Environment.project_id.in_(project_ids))
+                    .order_by(Environment.project_id, Environment.name)
+                ).all()
+                for project_id, name in rows:
+                    environment_names[project_id].append(name)
         return tuple(
             ProjectSearchItem(
                 key=project["key"],
+                tenant_id=project["tenant_id"],
+                tenant_key=tenant_keys.get(project["tenant_id"]),
+                project_id=UUID(project["id"]),
+                active_snapshot_id=UUID(project["active_snapshot_id"]) if project["active_snapshot_id"] else None,
+                environment_names=tuple(environment_names[UUID(project["id"])]),
                 name=project["name"],
                 has_active_snapshot=project["active_snapshot_id"] is not None,
             )
@@ -323,36 +351,33 @@ class KnowledgeReadRepository:
         query: str | None,
         limit: int,
         offset: int,
+        include_history: bool = False,
+        environment: str | None = None,
+        project_id: UUID | None = None,
     ) -> list[dict]:
-        statement = select(Entity, Project.key).join(
-            Project, and_(Project.id == Entity.project_id, Project.tenant_id == Entity.tenant_id)
+        try:
+            selected_type = EntityType(entity_type) if entity_type is not None else None
+        except ValueError:
+            return []
+        criteria = EntitySearchCriteria(
+            key=entity_key, name=name, type=selected_type, project=project_key,
+            query=query, tenant_id=tenant_id, project_id=project_id,
+            snapshot_id=snapshot_id, environment=environment,
+            include_history=include_history, allow_unfiltered=True,
         )
-        if tenant_id is not None:
-            statement = statement.where(Entity.tenant_id == UUID(tenant_id))
-        if project_key is not None:
-            statement = statement.where(Project.key == project_key)
-        if snapshot_id is not None:
-            statement = statement.where(Entity.snapshot_id == snapshot_id)
-        if entity_type is not None:
-            statement = statement.where(Entity.entity_type == entity_type)
-        if entity_key is not None:
-            statement = statement.where(Entity.entity_key == entity_key)
-        if name is not None:
-            statement = statement.where(Entity.name.ilike(self._pattern(name)))
-        if query:
-            pattern = self._pattern(query)
-            statement = statement.where(
-                or_(
-                    Entity.entity_key.ilike(pattern),
-                    Entity.entity_type.ilike(pattern),
-                    Entity.name.ilike(pattern),
-                    Project.key.ilike(pattern),
-                )
-            )
+        selected = PostgresEntitySearchRepository._statement(
+            TenantScope(tenant_id or "*", is_admin=tenant_id is None),
+            criteria, None, limit,
+        ).limit(limit).offset(offset).subquery()
+        statement = (
+            select(Entity, Project.key)
+            .join(selected, Entity.id == selected.c.occurrence_id)
+            .join(Project, and_(Project.id == Entity.project_id,
+                                Project.tenant_id == Entity.tenant_id))
+            .order_by(selected.c.entity_key, selected.c.occurrence_id)
+        )
         with self._session_factory() as session:
-            rows = session.execute(
-                statement.order_by(Entity.created_at.desc(), Entity.id).limit(limit).offset(offset)
-            ).all()
+            rows = session.execute(statement).all()
             return [self._entity(entity, key) for entity, key in rows]
 
     def relations(

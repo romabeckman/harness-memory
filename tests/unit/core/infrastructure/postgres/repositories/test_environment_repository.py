@@ -27,6 +27,27 @@ def _seed_project(engine, tenant_id: str, key: str) -> ModelProject:
 
 
 class TestPostgresEnvironmentRepository:
+    def test_resolve_pair_reads_both_environment_pointers_together(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        project = _seed_project(engine, "tenant-a", "checkout")
+        with Session(engine) as session:
+            session.add_all([
+                ModelEnvironment(tenant_id="tenant-a", project_id=project.id,
+                                 name="staging", type="staging", current_snapshot_id=uuid4()),
+                ModelEnvironment(tenant_id="tenant-a", project_id=project.id,
+                                 name="production", type="production", current_snapshot_id=uuid4()),
+            ])
+            session.commit()
+
+        source, target = PostgresEnvironmentRepository(engine=engine).resolve_pair(
+            "checkout", "staging", "production", "tenant-a"
+        )
+
+        assert source.name.value == "staging"
+        assert target.name.value == "production"
+        assert source.current_snapshot_id != target.current_snapshot_id
+
     def test_resolves_existing_environment(self) -> None:
         engine = create_engine("sqlite://")
         Base.metadata.create_all(engine)
@@ -50,6 +71,23 @@ class TestPostgresEnvironmentRepository:
         assert resolved.name.value == "staging"
         assert resolved.environment_type == EnvironmentType.STAGING
         assert resolved.project_key.value == "checkout"
+
+    def test_resolve_or_create_handles_row_inserted_after_initial_lookup(self, monkeypatch) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        project = _seed_project(engine, "tenant-a", "checkout")
+        existing_id = uuid4()
+        with Session(engine) as session:
+            session.add(ModelEnvironment(id=existing_id, tenant_id="tenant-a",
+                                         project_id=project.id, name="staging", type="staging"))
+            session.commit()
+
+        repository = PostgresEnvironmentRepository(engine=engine)
+        monkeypatch.setattr(repository, "resolve", lambda *_args: None)
+
+        resolved = repository.resolve_or_create("checkout", "staging", "tenant-a")
+
+        assert resolved.id == existing_id
 
     def test_returns_none_for_missing_or_other_tenant(self) -> None:
         engine = create_engine("sqlite://")

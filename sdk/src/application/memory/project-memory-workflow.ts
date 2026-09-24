@@ -54,7 +54,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
         this.debug?.("Memory: no documentation changes; skipping publication");
         return { status: "NO_CHANGES", graph: previous };
       }
-      const graph = this.memory.reconcile(previous, seed, previous);
+      const graph = this.memory.reconcile(previous, seed, previous, { completeSourceInventory: true });
       this.documentValidator.validateAndEnrich(graph, context.commitSha);
       const validated = this.validator.validateAndCanonicalize(this.codec.encode(graph)).document;
       return { status: "READY", graph: validated };
@@ -82,7 +82,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     }
     const decoded = await this.decodeAndValidate(proposed, invocation);
 
-    const graph = this.memory.reconcile(decoded, seed, previous);
+    const graph = this.memory.reconcile(decoded, seed, previous, { completeSourceInventory: true });
     this.documentValidator.validateAndEnrich(graph, context.commitSha);
     const validated = this.validator.validateAndCanonicalize(this.codec.encode(graph)).document;
     this.debug?.(`Memory: validated graph entities=${validated.entities.length}, ` +
@@ -158,7 +158,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     for (const entity of graph.entities) {
       const path = entity.metadata?.path;
       const content = entity.metadata?.content;
-      if (!DOCUMENT_TYPES.has(entity.type) || typeof path !== "string" ||
+      if (!DOCUMENT_TYPES.has(entity.type) || entity.metadata?.lifecycle === "removed" || typeof path !== "string" ||
           !isMemoryPath(path) || path === "docs/.graph.json" || typeof content !== "string") continue;
       documents.set(path, entity.type === "adr" || entity.type === "feature"
         ? this.normalizeDocumentText(content)
@@ -181,7 +181,7 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
     for (const entity of graph.entities) {
       const path = entity.metadata?.path;
       const content = entity.metadata?.content;
-      if ((entity.type !== "adr" && entity.type !== "feature") || typeof path !== "string" ||
+      if ((entity.type !== "adr" && entity.type !== "feature") || entity.metadata?.lifecycle === "removed" || typeof path !== "string" ||
         !/^docs\/(adr|feature)\//.test(path) || typeof content !== "string") continue;
       documents.set(path, content);
     }

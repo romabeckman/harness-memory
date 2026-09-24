@@ -92,6 +92,34 @@ describe("ProjectMemoryWorkflow", () => {
 
     expect(llm.run).toHaveBeenCalledOnce();
   });
+  it("retires deleted source once and skips an unchanged follow-up publication", async () => {
+    const files = completeFiles();
+    const secondFeature = { path: "docs/feature/second.md",
+      content: "---\nnode_id: feature:second\n---\n```graph\n{}\n```\n# Second\nProject context.\n", sha256: "sha" };
+    const index = JSON.parse(files[0].content);
+    index.nodes.push({ id: "feature:second", path: secondFeature.path });
+    files[0].content = JSON.stringify(index);
+    files.push(secondFeature);
+    const previous = new MemoryGraph().seed(files, context.commitSha);
+    const currentFiles = files.filter(file => file.path !== "docs/feature/orders.md");
+    const currentIndex = JSON.parse(currentFiles[0].content);
+    currentIndex.nodes = currentIndex.nodes.filter((node: { path: string }) => node.path !== "docs/feature/orders.md");
+    currentFiles[0].content = JSON.stringify(currentIndex);
+    const llm = { run: vi.fn().mockResolvedValue(generated()) };
+    const baseline = { load: vi.fn().mockResolvedValue(previous) };
+    const workflow = new ProjectMemoryWorkflow(llm, baseline,
+      { read: vi.fn().mockReturnValue(currentFiles) }, new GraphValidator());
+
+    const removed = await workflow.run(options, context);
+    baseline.load.mockResolvedValue(removed.graph);
+    const repeated = await workflow.run(options, context);
+
+    expect(removed.status).toBe("READY");
+    expect(removed.graph.entities.find(entity => entity.key === "feature:orders")?.metadata?.lifecycle)
+      .toBe("removed");
+    expect(repeated.status).toBe("NO_CHANGES");
+    expect(llm.run).toHaveBeenCalledTimes(1);
+  });
   it("does not trigger model execution for changes outside ADR and feature documents", async () => {
     const files = completeFiles();
     const previous = new MemoryGraph().seed(files, context.commitSha);

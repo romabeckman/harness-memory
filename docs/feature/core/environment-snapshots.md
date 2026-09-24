@@ -20,7 +20,7 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 # Environment Snapshots and Pipeline Publication
 Contextualize knowledge by environment, publish complete snapshots through REST and the SDK CLI, and inspect environments through MCP.
@@ -121,8 +121,8 @@ tests/unit/                # Unit test suites across domain, application, infra,
 - **Environment**: Named target in tenant/project (e.g. `production`, `staging`). Holds pointer `current_snapshot_id`.
 - **KnowledgePublication**: Immutable deployment record tracking project, environment, version, revision, deployment ID, status.
 - **Pipeline Publication Boundary**: Deterministic REST ingestion through `POST /v1/knowledge-publications`; use SDK binary `hrns-memo` for pipelines. Python `harness-memory publish` remains a local compatibility path.
-- **MCP Contextual Read Surface**: Interactive read tools `get_environment` and `compare_environments` for inspection and diffing.
-- **Atomic Promotion**: Resolves environment, records publication, links snapshot, and promotes active pointer in one transaction.
+- **MCP Contextual Read Surface**: Interactive read tools `get_environment` and `compare_environments` accept a tenant selector; comparisons return source and target snapshot IDs.
+- **Atomic Promotion**: Resolves environment, records publication, links snapshot, and promotes active pointer in one transaction. Completed deployment retries return the recorded publication and snapshot.
 
 ## HOW TO PUBLISH AND COMPARE
 
@@ -148,7 +148,7 @@ tests/unit/                # Unit test suites across domain, application, infra,
 | `tenant_id` | UUID | Conditional | Select target tenant; admin must provide it, scoped tokens default to owner | Owner tenant |
 | `source_environment` | string | Compare | Origin environment name | — |
 | `target_environment` | string | Compare | Destination environment name | — |
-| `limit` / `offset` | integer | Compare | Bound and page environment comparison results | `500` / `0` |
+| `limit` / `offset` | integer | Compare | Bound and page environment comparison results; MCP caps pages at 100 and offset at 10,000 | `100` / `0` |
 
 ## BEST PRACTICES
 
@@ -158,6 +158,8 @@ REQUIRED: Execute snapshot promotion and publication recording in an atomic tran
 REQUIRED: Sanitize database errors and stack traces before returning responses.
 PROHIBITED: Treat payload tenant fields as authorization; require `memory:publish` before using body `tenant_id` as the write destination.
 PROHIBITED: Unbounded in-memory diffing without pagination or stream limits.
+
+The comparison repository computes counts and the requested page in SQL. Each response includes the two snapshot IDs used for that comparison. Repeat the comparison if either environment pointer changes between page requests.
 
 The REST publication route validates the bearer token, exact scope, active state, and
 owner before selecting the destination tenant.

@@ -81,6 +81,26 @@ describe("snapshot publication phases", () => {
     expect(client.publish).not.toHaveBeenCalled();
   });
 
+  it("passes the validated environment snapshot as publication precondition", async () => {
+    const snapshotId = "c829e56d-d3b7-4a49-9650-46952ea68573";
+    const client = {
+      validateTarget: vi.fn(async () => ({ tenantId: "b0377492-0f1c-4a7e-ab65-e30c2424fd57",
+        expectedCurrentSnapshotId: snapshotId })),
+      publish: vi.fn(async () => ({ status: "ACTIVATED" as const, projectKey: "catalog",
+        environment: "staging", deploymentId: "deploy-1", version: "1", payloadSha256: "hash" })),
+    };
+    const graph = { document: { schema_version: "1.0", entities: [], relations: [], evidence: [] },
+      canonicalJson: "{}", sha256: "hash", counts: { entities: 0, relations: 0, evidence: 0 } };
+    const first = new ValidatePublicationTargetPhase(client);
+    first.setNext(new PublishPhase(client));
+
+    await first.handle({ options, token: "key", validatedGraph: graph });
+
+    expect(client.publish).toHaveBeenCalledWith(expect.objectContaining({
+      expectedCurrentSnapshotId: snapshotId,
+    }));
+  });
+
   it("stops before repository collection when target validation fails", async () => {
     const collector = { collect: vi.fn() };
     const validator = { validateAndCanonicalize: vi.fn() };

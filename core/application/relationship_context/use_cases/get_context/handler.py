@@ -4,6 +4,7 @@ from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.relationship_context.errors.entity_context_not_found import (
     EntityContextNotFound,
 )
+from core.application.relationship_context.errors.entity_context_ambiguous import EntityContextAmbiguous
 from core.application.relationship_context.errors.relationship_query_failure import (
     RelationshipQueryFailure,
 )
@@ -40,7 +41,7 @@ class GetContextHandler:
         )
         try:
             return self._repository.load_context(scope, input_model)
-        except (EntityContextNotFound, RelationshipQueryFailure):
+        except (EntityContextNotFound, EntityContextAmbiguous, RelationshipQueryFailure):
             raise
         except Exception as error:
             raise RelationshipQueryFailure(str(error)) from None

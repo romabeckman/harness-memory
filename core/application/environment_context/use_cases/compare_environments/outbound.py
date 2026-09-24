@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from uuid import UUID
 
 
 @dataclass(frozen=True)
@@ -13,3 +14,5 @@ class CompareEnvironmentsOutput:
     total_removed: int = 0
     total_unchanged: int = 0
     total_modified: int = 0
+    source_snapshot_id: UUID | None = None
+    target_snapshot_id: UUID | None = None

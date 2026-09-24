@@ -55,7 +55,8 @@ def test_input_rejects_invalid_limit_without_coercion(limit):
 
 def test_input_rejects_unknown_fields_and_unsupported_type():
     with pytest.raises(ValidationError):
-        SearchEntitiesInput(key="x", tenant_id="tenant-a")
+        SearchEntitiesInput(key="x", unknown_filter="tenant-a")
+    assert SearchEntitiesInput(key="x", tenant_id="tenant-a").tenant_id == "tenant-a"
     with pytest.raises(ValidationError):
         SearchEntitiesInput(type="database")
 
@@ -99,6 +100,9 @@ def test_search_item_is_bounded_and_page_is_immutable():
 
     assert set(EntitySearchItem.model_fields) == {
         "entity_id",
+        "occurrence_id",
+        "tenant_id",
+        "project_id",
         "key",
         "name",
         "type",

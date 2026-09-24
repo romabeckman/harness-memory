@@ -81,6 +81,25 @@ describe("MemoryGraph", () => {
     const result = memory.reconcile(removed, removed, seed);
     expect(result.entities.find(e => e.type === "feature")?.metadata?.change).toBe("removed");
   });
+  it("retires absent documents only when the local source inventory is complete", () => {
+    const memory = new MemoryGraph();
+    const previous = memory.reconcile(memory.seed([file], "commit-1"), memory.seed([file], "commit-1"));
+    const local = memory.seed([
+      { path: "docs/feature/new.md", content: "# New", sha256: "new" },
+    ], "commit-2");
+
+    const result = memory.reconcile(local, local, previous, { completeSourceInventory: true });
+    const removed = result.entities.find(entity => entity.key === previous.entities[0].key);
+    const original = result.entities.find(entity =>
+      entity.type === "document_revision" && entity.metadata?.document_key === removed?.key);
+
+    expect(removed?.metadata?.lifecycle).toBe("removed");
+    expect(removed?.metadata?.change).toBe("removed");
+    expect(removed?.metadata?.content).toBe(content);
+    expect(original?.metadata?.content).toBe(content);
+    expect(result.entities.find(entity => entity.metadata?.path === "docs/feature/new.md")?.metadata?.lifecycle)
+      .toBe("active");
+  });
   it("drops legacy README, specs, and rule facts from a previous snapshot", () => {
     const memory = new MemoryGraph();
     const local = memory.seed([file], "commit-2");

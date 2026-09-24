@@ -36,6 +36,8 @@ export class PublishPhase extends AbstractPublicationPhase {
       environment: options.environment,
       deploymentId: options.deploymentId,
       version: options.version,
+      ...(context.expectedCurrentSnapshotId
+        ? { expectedCurrentSnapshotId: context.expectedCurrentSnapshotId } : {}),
       graph: validatedGraph,
     });
   }

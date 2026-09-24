@@ -7,6 +7,9 @@ from core.domain.snapshot_publication.types.entity_type import EntityType
 
 class EntitySearchItem(BaseModel):
     entity_id: UUID
+    occurrence_id: UUID | None = None
+    tenant_id: str | None = None
+    project_id: UUID | None = None
     key: str = Field(min_length=1, max_length=255)
     name: str | None = Field(default=None, min_length=1, max_length=255)
     type: EntityType

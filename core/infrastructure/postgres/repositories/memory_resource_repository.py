@@ -3,7 +3,7 @@ from collections import defaultdict
 from hashlib import sha256
 from typing import Callable
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, case, func, literal, or_, select, union_all
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -57,6 +57,62 @@ class PostgresMemoryResourceRepository:
         if session_factory is None:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
+
+    def compare_snapshot_entities(
+        self, source_snapshot_id, target_snapshot_id, tenant_id: str | None,
+        *, offset: int, limit: int,
+    ) -> dict[str, tuple[str, ...] | int]:
+        source = aliased(Entity, name="comparison_source")
+        target = aliased(Entity, name="comparison_target")
+        same_key = and_(
+            source.entity_key == target.entity_key,
+            source.tenant_id == target.tenant_id,
+            source.project_id == target.project_id,
+        )
+        changed = or_(
+            source.entity_type != target.entity_type,
+            source.name.is_distinct_from(target.name),
+            source.metadata_json != target.metadata_json,
+        )
+        source_rows = (
+            select(
+                source.entity_key.label("entity_key"),
+                case(
+                    (target.id.is_(None), "added"),
+                    (changed, "modified"),
+                    else_="unchanged",
+                ).label("status"),
+            )
+            .select_from(source)
+            .outerjoin(target, and_(same_key, target.snapshot_id == target_snapshot_id))
+            .where(source.snapshot_id == source_snapshot_id)
+        )
+        target_only = (
+            select(target.entity_key.label("entity_key"), literal("removed").label("status"))
+            .select_from(target)
+            .outerjoin(source, and_(same_key, source.snapshot_id == source_snapshot_id))
+            .where(target.snapshot_id == target_snapshot_id, source.id.is_(None))
+        )
+        if tenant_id is not None:
+            source_rows = source_rows.where(source.tenant_id == tenant_id)
+            target_only = target_only.where(target.tenant_id == tenant_id)
+        comparisons = union_all(source_rows, target_only).subquery()
+        with self._session_factory() as session:
+            with session.begin():
+                counts = dict(session.execute(
+                    select(comparisons.c.status, func.count())
+                    .group_by(comparisons.c.status)
+                ).all())
+                result: dict[str, tuple[str, ...] | int] = {}
+                for status in ("added", "removed", "modified", "unchanged"):
+                    result[status] = tuple(session.scalars(
+                        select(comparisons.c.entity_key)
+                        .where(comparisons.c.status == status)
+                        .order_by(comparisons.c.entity_key)
+                        .limit(limit).offset(offset)
+                    ).all())
+                    result[f"total_{status}"] = counts.get(status, 0)
+                return result
 
     def get_snapshot_entity_fingerprints(
         self, snapshot_id, tenant_id: str | None = None

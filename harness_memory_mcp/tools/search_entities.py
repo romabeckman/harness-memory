@@ -45,6 +45,10 @@ def register_search_entities(
                 request.type,
                 request.project,
                 request.query,
+                request.tenant_id,
+                request.project_id,
+                request.snapshot_id,
+                request.environment,
             )
         ):
             raise ToolError("INVALID_ARGUMENT: at least one discovery filter is required")

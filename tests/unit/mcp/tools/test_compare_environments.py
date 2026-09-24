@@ -40,6 +40,18 @@ def test_compare_environments_returns_structural_diff() -> None:
     assert handler.execute.call_args[0][0].tenant_id == "tenant-a"
 
 
+def test_compare_environments_selector_cannot_widen_trusted_tenant() -> None:
+    server = FastMCP(name="test")
+    handler = Mock()
+    tool = register_compare_environments(server, handler, TenantContextProvider("tenant-a"))
+
+    result = tool(project_key="catalog", source_environment="staging",
+                  target_environment="production", tenant_id="tenant-b")
+
+    assert result["error"]["code"] == "INVALID_ARGUMENT"
+    handler.execute.assert_not_called()
+
+
 def test_compare_environments_maps_missing_tenant_context() -> None:
     server = FastMCP(name="test")
     handler = Mock()

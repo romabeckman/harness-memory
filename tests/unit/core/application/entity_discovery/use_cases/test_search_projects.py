@@ -21,7 +21,7 @@ def test_handler_normalizes_input_and_bounds_project_results():
         {"query": " Send ", "limit": 1, "offset": 2}, TenantScope("tenant-a")
     )
 
-    assert result.model_dump(mode="json") == {
+    assert result.model_dump(mode="json", exclude_none=True) == {
         "items": [{"key": "send", "name": "Send", "has_active_snapshot": True}],
         "count": 1,
         "limit": 1,

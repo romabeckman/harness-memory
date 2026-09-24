@@ -1,4 +1,5 @@
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import (
     BaseModel,
@@ -41,6 +42,16 @@ class SearchEntitiesInput(BaseModel):
             ),
         ),
     ] = None
+    include_history: bool = Field(
+        default=False,
+        description="Include removed documents and historical document revisions in the selected snapshot.",
+    )
+    tenant_id: StrictStr | None = Field(default=None, max_length=255,
+                                         description="Narrow global read to one tenant ID.")
+    project_id: UUID | None = Field(default=None, description="Select one project occurrence.")
+    snapshot_id: UUID | None = Field(default=None, description="Pin an immutable snapshot.")
+    environment: StrictStr | None = Field(default=None, max_length=64,
+                                           description="Select the current snapshot of this environment.")
     limit: StrictInt = Field(
         default=25,
         ge=1,
@@ -57,7 +68,7 @@ class SearchEntitiesInput(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    @field_validator("key", "name", "project", "query")
+    @field_validator("key", "name", "project", "query", "tenant_id", "environment")
     @classmethod
     def trim_text_filter(cls, value: str | None) -> str | None:
         if value is None:
