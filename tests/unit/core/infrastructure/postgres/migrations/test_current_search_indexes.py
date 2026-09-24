@@ -12,6 +12,10 @@ def test_current_search_migration_adds_reversible_global_and_metadata_indexes(mo
     migration.upgrade()
 
     assert migration.down_revision == "011"
+    assert "SET CONSTRAINTS ALL IMMEDIATE" in statements
+    assert statements.index("SET CONSTRAINTS ALL IMMEDIATE") < next(
+        index for index, sql in enumerate(statements) if "CREATE INDEX" in sql
+    )
     assert any("CREATE EXTENSION IF NOT EXISTS pg_trgm" in sql for sql in statements)
     assert any("gin_trgm_ops" in sql and "metadata" in sql for sql in statements)
     assert any("ix_entities_key_snapshot_occurrence" in sql for sql in statements)
