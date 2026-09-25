@@ -1,7 +1,7 @@
 ---
 doc_type: feature
 domain: snapshot_publisher
-stack: [TypeScript 7.x, Node.js 20+, Vitest 1.x, Git, REST, JSON Schema]
+stack: [TypeScript 7.x, Node.js 20+, Vitest 4.x, Git, REST, JSON Schema]
 node_id: "feature:snapshot-publisher"
 tags: [sdk, cli, publication, pipeline, snapshots]
 edges:
