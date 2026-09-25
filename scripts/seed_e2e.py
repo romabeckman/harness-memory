@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from core.infrastructure.postgres.models.tenant import Tenant
+from core.infrastructure.postgres.models.project import Project
 from core.infrastructure.postgres.models.api_service_account import ApiServiceAccount
 from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
 
@@ -85,6 +86,28 @@ def seed_database():
             print(f"Created Pre-existing Token: {token.name} ({token.id})")
         else:
             print(f"Found existing Token: {existing_token.name} ({existing_token.id})")
+
+        # 4. Pre-existing Project
+        project_key = "e2e-project"
+        stmt = select(Project).where(
+            Project.tenant_id == tenant.id,
+            Project.key == project_key,
+        )
+        existing_project = session.scalars(stmt).first()
+
+        if not existing_project:
+            project = Project(
+                id=uuid.UUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+                tenant_id=tenant.id,
+                key=project_key,
+                name="E2E Pre-existing Project",
+                metadata_json={"environment": "test", "seeded_by": "seed_e2e.py"},
+            )
+            session.add(project)
+            session.flush()
+            print(f"Created Pre-existing Project: {project.name} ({project.id})")
+        else:
+            print(f"Found existing Project: {existing_project.name} ({existing_project.id})")
 
         session.commit()
         print("\n[SEED SUCCESS] E2E Database seeds successfully provisioned!")
