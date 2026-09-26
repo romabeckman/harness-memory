@@ -78,6 +78,7 @@ export class ConfigResolver {
       );
     }
 
+
     const effort =
       (parsedCli["--effort"] ||
         env.HARNESS_MEMORY_EFFORT ||

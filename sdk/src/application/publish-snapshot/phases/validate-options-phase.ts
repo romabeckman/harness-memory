@@ -23,3 +23,4 @@ export class ValidateOptionsPhase extends AbstractPublicationPhase {
     context.token = options.token || process.env.HARNESS_MEMORY_API_KEY;
   }
 }
+

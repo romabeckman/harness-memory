@@ -218,10 +218,11 @@ export class LocalLlmRunner implements LlmRunnerPort {
         try {
           trimmed = agentRunner.parseOutput(stdout).trim();
         } catch (err: any) {
+          const stderrInfo = stderr.trim() ? ` (stderr: ${this.redact(stderr.trim())})` : "";
           return reject(
             err instanceof LlmExecutionError
-              ? err
-              : new LlmExecutionError(`Failed to read ${agentRunner.type} output`)
+              ? new LlmExecutionError(`${err.message}${stderrInfo}`)
+              : new LlmExecutionError(`Failed to read ${agentRunner.type} output: ${err.message}${stderrInfo}`)
           );
         }
         if (!trimmed) {
@@ -247,15 +248,17 @@ export class LocalLlmRunner implements LlmRunnerPort {
         ? Promise.resolve().then(() => child.stdin.end())
         : this.streamPayloadToStdin(child.stdin, options);
       inputWrite.catch((err: any) => {
-        if (!child.killed) {
-          clearTimeout(timer);
-          child.kill("SIGKILL");
-          reject(
-            new LlmExecutionError(
-              `Failed to write to LLM stdin: ${this.redact(err.message)}`
-            )
-          );
-        }
+        setTimeout(() => {
+          if (!child.killed && child.exitCode === null) {
+            clearTimeout(timer);
+            child.kill("SIGKILL");
+            reject(
+              new LlmExecutionError(
+                `Failed to write to LLM stdin: ${this.redact(err.message)}`
+              )
+            );
+          }
+        }, 150);
       });
     });
   }

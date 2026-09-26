@@ -3,6 +3,7 @@ export const LLM_AGENT_TYPES = [
   "claude-cli",
   "antigravity-cli",
   "copilot-cli",
+  "agy-cli",
 ] as const;
 
 export type LlmAgentType = (typeof LLM_AGENT_TYPES)[number];

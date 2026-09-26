@@ -21,6 +21,7 @@ def create_token_router(service: TokenService) -> APIRouter:
                 name=payload.name,
                 expires_at=payload.expires_at,
                 scopes=payload.scopes,
+                project_keys=payload.project_keys,
             )
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
@@ -35,6 +36,7 @@ def create_token_router(service: TokenService) -> APIRouter:
             expires_at=token.expires_at,
             token=issued.plaintext,
             scopes=set(token.scopes),
+            project_keys=sorted(token.allowed_project_keys),
         )
 
     @router.get("", response_model=list[TokenResponse])
@@ -64,6 +66,7 @@ def create_token_router(service: TokenService) -> APIRouter:
                 name=item.name,
                 expires_at=item.expires_at,
                 scopes=set(item.scopes),
+                project_keys=sorted(item.allowed_project_keys),
             )
             for item in tokens[offset:offset + limit]
         ]
@@ -81,6 +84,7 @@ def create_token_router(service: TokenService) -> APIRouter:
             name=token.name,
             expires_at=token.expires_at,
             scopes=set(token.scopes),
+            project_keys=sorted(token.allowed_project_keys),
         )
 
     @router.patch("/{token_id}", response_model=TokenResponse)
@@ -102,6 +106,7 @@ def create_token_router(service: TokenService) -> APIRouter:
             name=token.name,
             expires_at=token.expires_at,
             scopes=set(token.scopes),
+            project_keys=sorted(token.allowed_project_keys),
         )
 
     @router.delete("/{token_id}", status_code=status.HTTP_204_NO_CONTENT)

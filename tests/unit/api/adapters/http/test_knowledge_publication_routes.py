@@ -14,7 +14,9 @@ from core.domain.tenant_security.value_objects.authenticated_principal import Au
 
 
 def authenticated_principal() -> AuthenticatedPrincipal:
-    return AuthenticatedPrincipal("pipeline", "tenant-a", frozenset({"memory:publish"}))
+    return AuthenticatedPrincipal(
+        "pipeline", "tenant-a", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"catalog"})
+    )
 
 
 class FakePublishKnowledgeHandler:
@@ -124,3 +126,35 @@ class TestKnowledgePublicationRoutes:
         assert response.status_code == 201
         assert handler.received_input.tenant_id == target_tenant_id
         assert handler.received_input.metadata == {"nodes": [{"id": "feature:orders"}], "edges": []}
+
+    def test_publication_rejects_unauthorized_project_with_403(self) -> None:
+        handler = FakePublishKnowledgeHandler(
+            PublishKnowledgeOutput(
+                publication_id=uuid4(),
+                snapshot_id=uuid4(),
+                status=PublicationStatus.COMPLETED,
+            )
+        )
+        app = FastAPI()
+        app.include_router(
+            create_knowledge_publication_router(
+                handler,
+                lambda: AuthenticatedPrincipal(
+                    "pipeline", "tenant-a", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"other-project"})
+                ),
+            ),
+            prefix="/v1",
+        )
+        client = TestClient(app)
+
+        response = client.post(
+            "/v1/knowledge-publications",
+            json={
+                "project_key": "catalog",
+                "environment": "staging",
+                "deployment_id": "deploy-1",
+                "version": "1.0.0",
+            },
+        )
+        assert response.status_code == 403
+        assert "insufficient project permission" in response.json()["detail"]

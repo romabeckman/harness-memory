@@ -174,7 +174,7 @@ When values are absent, the resolver uses these fallbacks:
 
 | Flag | Environment variable | Required | Description |
 | --- | --- | --- | --- |
-| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli`, `claude-cli`, `antigravity-cli`, or `copilot-cli`; JSON config may also supply `agent`. |
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli`, `claude-cli`, `antigravity-cli`, `copilot-cli`, or `agy-cli`; JSON config may also supply `agent`. |
 | `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the selected runner. |
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |

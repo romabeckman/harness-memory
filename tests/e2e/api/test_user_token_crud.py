@@ -19,10 +19,7 @@ def test_swagger_and_healthcheck_are_exposed():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
-    )
+    Base.metadata.create_all(engine)
     client = TestClient(
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
@@ -43,10 +40,7 @@ def test_user_and_token_crud_http_contract():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
-    )
+    Base.metadata.create_all(engine)
     client = TestClient(
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
@@ -63,13 +57,15 @@ def test_user_and_token_crud_http_contract():
         == "Ada Lovelace"
     )
 
+    client.post("/v1/projects", json={"tenant_id": user_id, "key": "backend", "name": "Backend"})
     expires_at = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     created_token = client.post(
         "/v1/tokens",
-        json={"user_id": user_id, "name": "agent", "expires_at": expires_at},
+        json={"user_id": user_id, "name": "agent", "expires_at": expires_at, "project_keys": ["backend"]},
     )
     assert created_token.status_code == 201
     assert created_token.json()["token"].startswith("hm_")
+    assert created_token.json()["project_keys"] == ["backend"]
     token_id = created_token.json()["id"]
     assert client.get(f"/v1/tokens/{token_id}").status_code == 200
     assert (
@@ -83,10 +79,7 @@ def test_http_rejects_token_lifetime_over_ninety_days():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
-    )
+    Base.metadata.create_all(engine)
     client = TestClient(
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
@@ -100,6 +93,7 @@ def test_http_rejects_token_lifetime_over_ninety_days():
         json={
             "user_id": user_id,
             "name": "agent",
+            "project_keys": ["backend"],
             "expires_at": (datetime.now(UTC) + timedelta(days=91)).isoformat(),
         },
     )
@@ -111,15 +105,20 @@ def test_service_account_crud_issues_non_expiring_token():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
-    )
+    Base.metadata.create_all(engine)
     client = TestClient(
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
     )
-    tenant_id = "a89e819c-27cb-4c90-82ec-baa868cd529d"
+    tenant_resp = client.post("/v1/tenants", json={"key": "build-tenant", "name": "Build Tenant"})
+    assert tenant_resp.status_code == 201
+    tenant_id = tenant_resp.json()["id"]
+    proj_resp = client.post(
+        "/v1/projects",
+        json={"tenant_id": tenant_id, "key": "automation-proj", "name": "Automation Project"},
+    )
+    assert proj_resp.status_code == 201
+
     created = client.post(
         "/v1/service-accounts",
         json={"name": "Build agent", "tenant_id": tenant_id},
@@ -146,13 +145,14 @@ def test_service_account_crud_issues_non_expiring_token():
 
     created_token = client.post(
         "/v1/tokens",
-        json={"service_account_id": account_id, "name": "automation"},
+        json={"service_account_id": account_id, "name": "automation", "project_keys": ["automation-proj"]},
     )
 
     assert created_token.status_code == 201
     assert created_token.json()["service_account_id"] == account_id
     assert created_token.json()["user_id"] is None
     assert created_token.json()["expires_at"] is None
+    assert created_token.json()["project_keys"] == ["automation-proj"]
     token_id = created_token.json()["id"]
     assert client.get(f"/v1/tokens/{token_id}").json()["expires_at"] is None
 
@@ -164,25 +164,24 @@ def test_token_requires_one_owner_and_user_token_expiration():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    Base.metadata.create_all(
-        engine,
-        tables=[ApiUser.__table__, ApiServiceAccount.__table__, ApiAccessToken.__table__],
-    )
+    Base.metadata.create_all(engine)
     client = TestClient(
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
     )
+    tenant_resp = client.post("/v1/tenants", json={"key": "t-owner", "name": "Owner Tenant"})
+    tenant_id = tenant_resp.json()["id"]
     user_id = client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).json()[
         "id"
     ]
 
-    missing_owner = client.post("/v1/tokens", json={"name": "invalid"})
+    missing_owner = client.post("/v1/tokens", json={"name": "invalid", "project_keys": ["backend"]})
     missing_user_expiration = client.post(
-        "/v1/tokens", json={"user_id": user_id, "name": "invalid"}
+        "/v1/tokens", json={"user_id": user_id, "name": "invalid", "project_keys": ["backend"]}
     )
     account_id = client.post(
         "/v1/service-accounts",
-        json={"name": "Build agent", "tenant_id": "a89e819c-27cb-4c90-82ec-baa868cd529d"},
+        json={"name": "Build agent", "tenant_id": tenant_id},
     ).json()["id"]
     multiple_owners = client.post(
         "/v1/tokens",
@@ -190,14 +189,31 @@ def test_token_requires_one_owner_and_user_token_expiration():
             "user_id": user_id,
             "service_account_id": account_id,
             "name": "invalid",
+            "project_keys": ["backend"],
         },
     )
     missing_service_account = client.post(
         "/v1/tokens",
-        json={"service_account_id": "b89e819c-27cb-4c90-82ec-baa868cd529d", "name": "invalid"},
+        json={
+            "service_account_id": "b89e819c-27cb-4c90-82ec-baa868cd529d",
+            "name": "invalid",
+            "project_keys": ["backend"],
+        },
+    )
+
+    missing_projects = client.post(
+        "/v1/tokens",
+        json={
+            "user_id": user_id,
+            "name": "invalid",
+            "expires_at": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+            "project_keys": [],
+        },
     )
 
     assert missing_owner.status_code == 422
     assert missing_user_expiration.status_code == 422
     assert multiple_owners.status_code == 422
     assert missing_service_account.status_code == 404
+    assert missing_projects.status_code == 422
+

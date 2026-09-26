@@ -43,6 +43,7 @@ def test_api_issued_token_authenticates_mcp_client():
     issued = TokenService(tokens, users).create(
         user_id=user.id,
         name="mcp-client",
+        project_keys=["catalog"],
         expires_at=datetime.now(UTC) + timedelta(days=30),
     )
     audit_records = []
@@ -99,7 +100,12 @@ def test_service_account_token_authenticates_with_its_bound_tenant():
     account = ServiceAccountService(accounts).create("deployment agent", tenant_id)
     issued = TokenService(
         tokens, ApiUserRepository(factory), service_account_repository=accounts
-    ).create(service_account_id=account.id, name="mcp-client", expires_at=None)
+    ).create(
+        service_account_id=account.id,
+        name="mcp-client",
+        project_keys=["catalog"],
+        expires_at=None,
+    )
 
     verified = asyncio.run(DatabaseTokenVerifier(tokens).verify_token(issued.plaintext))
 
