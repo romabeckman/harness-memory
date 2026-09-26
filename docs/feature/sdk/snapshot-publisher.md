@@ -71,9 +71,11 @@ Extract repository context, synthesize knowledge graph via local LLM, validate s
     "sdk/src/infrastructure/llm/llm-agent-runner.ts",
     "sdk/src/infrastructure/llm/codex-cli-runner.ts",
     "sdk/src/infrastructure/llm/claude-cli-runner.ts",
+    "sdk/src/infrastructure/llm/agy-cli-runner.ts",
     "sdk/src/infrastructure/llm/local-llm-runner.ts"
   ],
   "test_files": [
+    "sdk/tests/unit/infrastructure/llm/agy-cli-runner.test.ts",
     "sdk/tests/unit/application/publish-snapshot/publish-snapshot-phases.test.ts",
     "sdk/tests/unit/application/memory/memory-graph.test.ts",
     "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
@@ -116,7 +118,7 @@ sdk/
 - **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries; otherwise generate project key + UTC timestamp + UUID.
 - **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
 - **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
-- **Agent runners**: Select `codex-cli` or `claude-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
+- **Agent runners**: Select `codex-cli`, `claude-cli`, or `agy-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
 - **Validator**: Check Schema 1.0, canonicalize `canonical_key`, and compute SHA-256.
 - **REST client**: Preflight project, environment, deployment identity, and current snapshot with `memory:publish`; publish with a baseline precondition after graph validation and retry 429/5xx with jitter.
 - **CLI progress**: Send phases to stderr and JSON to stdout. `--debug` adds redacted timings; `--verbose` prints repository and target.
@@ -149,7 +151,7 @@ Publish only `adr`, `feature`, `document`, `document_revision`, and `document_se
 REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
 
 ### Prerequisites
-Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a `memory:publish` token.
+Use Node.js 20+, the selected CLI (`codex`, `claude`, or `agy`) in `PATH`, and a `memory:publish` token.
 
 ### Steps
 1. Set `--agent` and publication options.
@@ -159,7 +161,8 @@ Use Node.js 20+, the selected CLI (`codex` or `claude`) in `PATH`, and a `memory
 
 | Option | Env Var | Required | Description | Default |
 |--------|---------|----------|-------------|---------|
-| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli` or `claude-cli`; JSON config may supply it | — |
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli`, `claude-cli`, or `agy-cli`; JSON config may supply it | — |
+
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target deployment environment | — |
 | `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Target project identifier | — |
 | `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | No | Deployment execution ID; explicit and CI values take precedence | Project key + UTC timestamp + UUID |

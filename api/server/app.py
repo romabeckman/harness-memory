@@ -87,16 +87,17 @@ def create_app(
     management_router.include_router(
         create_service_account_router(ServiceAccountService(service_account_repository))
     )
+    resource_repository = PostgresTenantProjectManagementRepository(session_factory)
     management_router.include_router(
         create_token_router(
             TokenService(
                 token_repository,
                 user_repository,
                 service_account_repository=service_account_repository,
+                project_repository=resource_repository,
             )
         )
     )
-    resource_repository = PostgresTenantProjectManagementRepository(session_factory)
     management_router.include_router(
         create_tenant_project_management_router(
             TenantManagementService(resource_repository),

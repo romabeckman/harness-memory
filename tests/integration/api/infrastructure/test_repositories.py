@@ -34,6 +34,7 @@ def test_user_and_token_repositories_persist_crud():
         name="automation",
         token_hash="a" * 64,
         expires_at=datetime.now(UTC) + timedelta(days=30),
+        allowed_project_keys=frozenset({"proj-1"}),
     )
 
     tokens.add(token)
@@ -59,8 +60,24 @@ def test_token_repository_authenticates_only_unexpired_hashes():
     tokens = ApiTokenRepository(factory)
     user = users.add(User(uuid4(), "Ada", "ada@example.com"))
     now = datetime.now(UTC)
-    active = AccessToken(uuid4(), user.id, "active", "a" * 64, now + timedelta(days=1), now)
-    expired = AccessToken(uuid4(), user.id, "expired", "b" * 64, now - timedelta(days=1), now)
+    active = AccessToken(
+        uuid4(),
+        user.id,
+        "active",
+        "a" * 64,
+        now + timedelta(days=1),
+        now,
+        allowed_project_keys=frozenset({"proj-1"}),
+    )
+    expired = AccessToken(
+        uuid4(),
+        user.id,
+        "expired",
+        "b" * 64,
+        now - timedelta(days=1),
+        now,
+        allowed_project_keys=frozenset({"proj-1"}),
+    )
     tokens.add(active)
     tokens.add(expired)
 
@@ -89,6 +106,7 @@ def test_service_account_repository_and_non_expiring_token():
         expires_at=None,
         created_at=now,
         service_account_id=account.id,
+        allowed_project_keys=frozenset({"proj-1"}),
     )
 
     tokens.add(token)

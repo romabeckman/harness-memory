@@ -1,5 +1,5 @@
 import { ConfigurationError } from "../../../domain/configuration-error.js";
-import { isLlmAgentType } from "../../../domain/llm-agent.js";
+import { isLlmAgentType, LLM_AGENT_TYPES } from "../../../domain/llm-agent.js";
 import { AbstractPublicationPhase } from "./abstract-publication-phase.js";
 import type { PublicationPhaseContext } from "./publication-phase-context.js";
 
@@ -16,8 +16,9 @@ export class ValidateOptionsPhase extends AbstractPublicationPhase {
     }
     if (!options.agent) throw new ConfigurationError("agent is required");
     if (!isLlmAgentType(options.agent)) {
-      throw new ConfigurationError(`agent must be one of: codex-cli, claude-cli; received '${options.agent}'`);
+      throw new ConfigurationError(`agent must be one of: ${LLM_AGENT_TYPES.join(", ")}; received '${options.agent}'`);
     }
     context.token = options.token || process.env.HARNESS_MEMORY_API_KEY;
   }
 }
+

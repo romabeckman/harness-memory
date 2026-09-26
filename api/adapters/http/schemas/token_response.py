@@ -11,3 +11,4 @@ class TokenResponse(BaseModel):
     name: str
     expires_at: datetime | None
     scopes: set[str]
+    project_keys: list[str] = []

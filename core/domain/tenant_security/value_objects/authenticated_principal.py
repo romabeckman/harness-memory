@@ -9,6 +9,7 @@ class AuthenticatedPrincipal:
     tenant_id: str
     scopes: frozenset[str]
     is_admin: bool = False
+    allowed_project_keys: frozenset[str] = frozenset()
 
     def __post_init__(self) -> None:
         subject = self.subject.strip() if isinstance(self.subject, str) else ""
@@ -34,6 +35,22 @@ class AuthenticatedPrincipal:
                 if isinstance(scope, str) and scope.strip()
             ),
         )
+        object.__setattr__(
+            self,
+            "allowed_project_keys",
+            frozenset(
+                key.strip()
+                for key in (self.allowed_project_keys or ())
+                if isinstance(key, str) and key.strip()
+            ),
+        )
 
     def has_scope(self, scope: str) -> bool:
         return scope in self.scopes
+
+    def can_access_project(self, project_key: str) -> bool:
+        if self.is_admin:
+            return True
+        if "*" in self.allowed_project_keys:
+            return True
+        return bool(project_key and project_key.strip() in self.allowed_project_keys)

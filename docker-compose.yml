@@ -94,6 +94,22 @@ services:
     networks:
       - harness_memory_network
 
+  web:
+    build:
+      context: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      HARNESS_API_URL: http://api:8080
+      API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - harness_memory_network
+
+
 volumes:
   harness_memory_postgres:
 

@@ -59,5 +59,6 @@ class DatabaseTokenVerifier(TokenVerifier):
                 "sub": subject,
                 "tenant_id": tenant_id,
                 "scope": " ".join(scopes),
+                "projects": sorted(stored.allowed_project_keys),
             },
         )

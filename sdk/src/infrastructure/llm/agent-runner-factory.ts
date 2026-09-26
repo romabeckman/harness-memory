@@ -1,4 +1,5 @@
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
+import { AgyCliRunner } from "./agy-cli-runner.js";
 import { ClaudeCliRunner } from "./claude-cli-runner.js";
 import { CodexCliRunner } from "./codex-cli-runner.js";
 import { LlmAgentRunner } from "./llm-agent-runner.js";
@@ -6,9 +7,10 @@ import { LlmAgentRunner } from "./llm-agent-runner.js";
 export class AgentRunnerFactory {
   private readonly runners = new Map<string, LlmAgentRunner>();
 
-  constructor(runners: LlmAgentRunner[] = [new CodexCliRunner(), new ClaudeCliRunner()]) {
+  constructor(runners: LlmAgentRunner[] = [new CodexCliRunner(), new ClaudeCliRunner(), new AgyCliRunner()]) {
     for (const runner of runners) this.register(runner);
   }
+
 
   public register(runner: LlmAgentRunner): void {
     if (this.runners.has(runner.type)) {
