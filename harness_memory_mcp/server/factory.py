@@ -140,11 +140,13 @@ def create_mcp_server(
                 api_token_repository,
                 admin_token=(
                     settings.api_admin_token.get_secret_value()
-                    if settings.api_admin_token else None
+                    if settings.api_admin_token
+                    else None
                 ),
                 read_api_key=(
                     settings.harness_memory_api_key.get_secret_value()
-                    if settings.harness_memory_api_key else None
+                    if settings.harness_memory_api_key
+                    else None
                 ),
             )
         else:
@@ -160,11 +162,13 @@ def create_mcp_server(
                     auth_provider,
                     (
                         settings.api_admin_token.get_secret_value()
-                        if settings.api_admin_token else None
+                        if settings.api_admin_token
+                        else None
                     ),
                     (
                         settings.harness_memory_api_key.get_secret_value()
-                        if settings.harness_memory_api_key else None
+                        if settings.harness_memory_api_key
+                        else None
                     ),
                 )
     principal_factory = principal_factory or AuthenticatedPrincipalFactory(
@@ -336,9 +340,7 @@ def create_mcp_server(
             SearchProjectsHandler,
         )
 
-        register_search_projects(
-            server, SearchProjectsHandler(project_search_repository), context
-        )
+        register_search_projects(server, SearchProjectsHandler(project_search_repository), context)
     relationship_repository = relationship_repository or relationship_query_repository
     if relationship_repository is not None:
         from core.application.relationship_context.use_cases.get_context.handler import (

@@ -17,6 +17,7 @@ def test_ci_workflow_defines_required_quality_gates():
         assert f"{job}:" in content
     for coverage_target in ("--cov=api", "--cov=core", "--cov=harness_memory_mcp"):
         assert coverage_target in content
+    assert "pytest tests/unit tests/integration tests/e2e --cov=api" in content
     assert "--cov-fail-under=80" in content
     assert "postgres:17" in content
 

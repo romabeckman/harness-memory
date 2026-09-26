@@ -41,14 +41,33 @@ def test_detect_incompatibility_when_unapplied_migrations():
 
 def test_detect_incompatibility_when_alembic_version_missing():
     runtime = AlembicRuntime(PostgresSettings(database_url=DATABASE_URL))
+    head_revision = None
+    version_table_missing = False
     try:
         runtime.upgrade("head")
+        head_revision = runtime.status().head_revision
+        assert head_revision is not None
         with runtime.engine.begin() as conn:
             conn.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
+        version_table_missing = True
         checker = SchemaCompatibilityChecker()
         status = checker.check(runtime)
         assert status.is_compatible() is False
         assert status.current_revision is None
     finally:
-        runtime.upgrade("head")
-        runtime.dispose()
+        try:
+            if version_table_missing:
+                with runtime.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            "CREATE TABLE alembic_version ("
+                            "version_num VARCHAR(32) NOT NULL, "
+                            "CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num))"
+                        )
+                    )
+                    conn.execute(
+                        text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+                        {"revision": head_revision},
+                    )
+        finally:
+            runtime.dispose()

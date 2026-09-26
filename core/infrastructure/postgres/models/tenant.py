@@ -7,7 +7,6 @@ from sqlalchemy import (
     DateTime,
     String,
     UniqueConstraint,
-    Uuid,
     func,
     text,
 )
