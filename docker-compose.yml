@@ -97,12 +97,18 @@ services:
   web:
     build:
       context: ./web
+    command: ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
     ports:
       - "3000:3000"
     environment:
       HARNESS_API_URL: http://api:8080
       API_ADMIN_TOKEN: ${API_ADMIN_TOKEN:?API_ADMIN_TOKEN is required}
-      NODE_ENV: production
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ./web:/app
+      - harness_memory_web_node_modules:/app/node_modules
+      - harness_memory_web_next:/app/.next
     depends_on:
       api:
         condition: service_healthy
@@ -112,6 +118,8 @@ services:
 
 volumes:
   harness_memory_postgres:
+  harness_memory_web_node_modules:
+  harness_memory_web_next:
 
 networks:
   harness_memory_network:
