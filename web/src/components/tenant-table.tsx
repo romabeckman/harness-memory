@@ -42,7 +42,7 @@ export function TenantTable({
       setTenantToDelete(null)
       onRefresh()
     } else {
-      setDeleteError(res.error || 'Erro ao excluir tenant.')
+      setDeleteError(res.error || 'Failed to delete tenant.')
     }
     setIsDeleting(false)
   }
@@ -51,7 +51,7 @@ export function TenantTable({
     <div className="space-y-4">
       {deleteError && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-          <span className="font-semibold">Bloqueio de exclusão: </span>
+          <span className="font-semibold">Deletion blocked: </span>
           {deleteError}
         </div>
       )}
@@ -64,7 +64,7 @@ export function TenantTable({
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Buscar no backend por nome ou chave..."
+            placeholder="Search by name or key..."
             className="w-full rounded-lg border border-border bg-black/30 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
@@ -75,11 +75,11 @@ export function TenantTable({
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border bg-black/20 text-gray-400 font-semibold">
             <tr>
-              <th className="px-5 py-3">Organização</th>
-              <th className="px-5 py-3">Chave (Slug)</th>
+              <th className="px-5 py-3">Organization</th>
+              <th className="px-5 py-3">Key (Slug)</th>
               <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3">Data de Criação</th>
-              <th className="px-5 py-3 text-right">Ações</th>
+              <th className="px-5 py-3">Date Created</th>
+              <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -87,7 +87,7 @@ export function TenantTable({
               <tr>
                 <td colSpan={5} className="py-12 text-center text-gray-500">
                   <Database className="mx-auto h-6 w-6 text-gray-600 mb-2" />
-                  {loading ? 'Carregando tenants...' : 'Nenhum tenant encontrado.'}
+                  {loading ? 'Loading tenants...' : 'No tenants found.'}
                 </td>
               </tr>
             ) : (
@@ -103,24 +103,24 @@ export function TenantTable({
                           : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                       }`}
                     >
-                      {tenant.status === 'disabled' ? 'Desativado' : 'Ativo'}
+                      {tenant.status === 'disabled' ? 'Disabled' : 'Active'}
                     </span>
                   </td>
                   <td className="px-5 py-3.5 text-gray-400">
-                    {tenant.created_at ? new Date(tenant.created_at).toLocaleDateString('pt-BR') : '—'}
+                    {tenant.created_at ? new Date(tenant.created_at).toLocaleDateString('en-US') : '—'}
                   </td>
                   <td className="px-5 py-3.5 text-right space-x-1">
                     <button
                       onClick={() => setEditingTenant(tenant)}
                       className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition"
-                      title="Editar tenant"
+                      title="Edit tenant"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setTenantToDelete(tenant)}
                       className="p-1.5 text-gray-400 hover:text-red-400 rounded hover:bg-red-500/10 transition"
-                      title="Excluir tenant com confirmação"
+                      title="Delete tenant with confirmation"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -134,8 +134,8 @@ export function TenantTable({
         {/* Server-side Pagination Bar */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3 bg-black/10 text-xs text-gray-400">
           <div>
-            <span>Página {page + 1}</span>
-            {loading && <span className="ml-2 text-blue-400 text-[11px]">(Atualizando...)</span>}
+            <span>Page {page + 1}</span>
+            {loading && <span className="ml-2 text-blue-400 text-[11px]">(Updating...)</span>}
           </div>
           <div className="flex items-center space-x-1.5">
             <button
@@ -144,14 +144,14 @@ export function TenantTable({
               className="flex items-center space-x-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-white/5 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Anterior</span>
+              <span>Previous</span>
             </button>
             <button
               onClick={() => onPageChange(page + 1)}
               disabled={!hasMore || loading}
               className="flex items-center space-x-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-white/5 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              <span>Próxima</span>
+              <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -173,8 +173,8 @@ export function TenantTable({
       {tenantToDelete && (
         <ConfirmDeleteDialog
           isOpen={true}
-          title="Confirmar Exclusão de Organização"
-          description={`Esta ação excluirá permanentemente a organização "${tenantToDelete.name}". A exclusão falhará caso haja projetos ou contas de serviço associadas.`}
+          title="Confirm Organization Deletion"
+          description={`This will permanently delete the organization "${tenantToDelete.name}". Deletion will fail if projects or service accounts are associated with it.`}
           targetKey={tenantToDelete.key || tenantToDelete.name}
           onConfirm={handleConfirmDelete}
           onClose={() => setTenantToDelete(null)}

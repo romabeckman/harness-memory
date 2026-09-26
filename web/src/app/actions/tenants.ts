@@ -14,7 +14,7 @@ export async function listTenantsAction(
     const data = await client.listTenants(query, limit, offset)
     return { data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Falha ao listar tenants'
+    const msg = err instanceof Error ? err.message : 'Failed to list tenants'
     return { error: msg }
   }
 }
@@ -24,10 +24,10 @@ export async function createTenantAction(
 ): Promise<{ success: boolean; data?: TenantDto; error?: string }> {
   try {
     if (!payload.key?.trim()) {
-      return { success: false, error: 'Chave do tenant é obrigatória' }
+      return { success: false, error: 'Tenant key is required' }
     }
     if (!payload.name?.trim()) {
-      return { success: false, error: 'Nome do tenant é obrigatório' }
+      return { success: false, error: 'Tenant name is required' }
     }
     const client = ClientFactory.getHarnessClient()
     const data = await client.createTenant({
@@ -38,7 +38,7 @@ export async function createTenantAction(
     revalidatePath('/tenants')
     return { success: true, data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao criar tenant'
+    const msg = err instanceof Error ? err.message : 'Failed to create tenant'
     return { success: false, error: msg }
   }
 }
@@ -53,7 +53,7 @@ export async function updateTenantAction(
     revalidatePath('/tenants')
     return { success: true, data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao atualizar tenant'
+    const msg = err instanceof Error ? err.message : 'Failed to update tenant'
     return { success: false, error: msg }
   }
 }
@@ -67,7 +67,7 @@ export async function deleteTenantAction(
     revalidatePath('/tenants')
     return { success: true }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao excluir tenant'
+    const msg = err instanceof Error ? err.message : 'Failed to delete tenant'
     return { success: false, error: msg }
   }
 }

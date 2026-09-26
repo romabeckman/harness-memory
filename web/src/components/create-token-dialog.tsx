@@ -84,7 +84,7 @@ export function CreateTokenDialog({
       setCurrentServiceAccountName('')
       setAvailableProjects([])
       setProjectKeys([])
-      setError('Nenhum tenant disponível para titular do token.')
+      setError('No tenant is available to own this token.')
       return
     }
     setLoadingProjects(true)
@@ -98,7 +98,7 @@ export function CreateTokenDialog({
         setCurrentServiceAccountId(saRes.data.id)
         setCurrentServiceAccountName(saRes.data.name)
       } else {
-        setError(saRes.error || 'Não foi possível resolver a Service Account do tenant.')
+        setError(saRes.error || 'Could not find a service account for this tenant.')
       }
 
       if (tId === ALL_TENANTS_VALUE) {
@@ -118,7 +118,7 @@ export function CreateTokenDialog({
         setProjectKeys([])
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar dados do tenant')
+      setError(err instanceof Error ? err.message : 'Failed to load tenant data')
     } finally {
       setLoadingProjects(false)
       setLoadingServiceAccount(false)
@@ -161,7 +161,7 @@ export function CreateTokenDialog({
 
   const activeTenantName =
     selectedTenantId === ALL_TENANTS_VALUE
-      ? 'Todos os tenants'
+      ? 'All tenants'
       : tenants.find((t) => t.id === selectedTenantId)?.name ||
         initialTenantName ||
         selectedTenantId
@@ -171,22 +171,22 @@ export function CreateTokenDialog({
     setError(null)
 
     if (!name.trim()) {
-      setError('Por favor, defina um nome para o token.')
+      setError('Enter a name for the token.')
       return
     }
 
     if (!currentServiceAccountId) {
-      setError('Nenhuma conta de serviço vinculada para este tenant.')
+      setError('No service account is linked to this tenant.')
       return
     }
 
     if (scopes.length === 0) {
-      setError('Selecione pelo menos um escopo de permissão.')
+      setError('Select at least one permission scope.')
       return
     }
 
     if (selectedTenantId !== ALL_TENANTS_VALUE && projectKeys.length === 0) {
-      setError('Selecione pelo menos um projeto para autorizar o token.')
+      setError('Select at least one project for this token.')
       return
     }
 
@@ -210,10 +210,10 @@ export function CreateTokenDialog({
         setName('')
         onSuccess(res.plaintext)
       } else {
-        setError(res.error || 'Falha ao emitir token.')
+        setError(res.error || 'Failed to issue token.')
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro inesperado')
+      setError(err instanceof Error ? err.message : 'Unexpected error')
     } finally {
       setLoading(false)
     }
@@ -225,7 +225,7 @@ export function CreateTokenDialog({
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center space-x-2 text-white">
             <PlusCircle className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold">Emitir Novo Access Token</h2>
+            <h2 className="text-lg font-semibold">Issue New Access Token</h2>
           </div>
           <button
             onClick={onClose}
@@ -245,12 +245,12 @@ export function CreateTokenDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
-              Nome do Token
+              Token Name
             </label>
             <input
               type="text"
               required
-              placeholder="ex: github-actions-checkout, cursor-mcp"
+              placeholder="e.g., github-actions-checkout, cursor-mcp"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -260,7 +260,7 @@ export function CreateTokenDialog({
           {/* Tenant Selector */}
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
-              Organização Destino (Tenant)
+              Destination Organization (Tenant)
             </label>
             {tenants.length > 0 ? (
               <div className="relative">
@@ -271,7 +271,7 @@ export function CreateTokenDialog({
                   className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value={ALL_TENANTS_VALUE}>
-                    Todos os projetos (todos os tenants)
+                    All projects (all tenants)
                   </option>
                   {tenants.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -292,10 +292,10 @@ export function CreateTokenDialog({
           <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Shield className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Titular (Service Account):</span>
+              <span>Owner (Service Account):</span>
               <span className="font-semibold text-white">
                 {loadingServiceAccount
-                  ? 'Identificando...'
+                  ? 'Identifying...'
                   : currentServiceAccountName || 'default-automation'}
               </span>
             </div>
@@ -311,7 +311,7 @@ export function CreateTokenDialog({
           <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
-                  Projetos Autorizados (Obrigatório)
+                  Authorized Projects (Required)
                 </label>
                 {availableProjects.length > 0 && (
                   <button
@@ -321,21 +321,21 @@ export function CreateTokenDialog({
                     className="text-xs text-blue-400 hover:text-blue-300 transition"
                   >
                     {projectKeys.length === availableProjects.length
-                      ? 'Desmarcar Todos'
-                      : 'Selecionar Todos'}
+                      ? 'Deselect All'
+                      : 'Select All'}
                   </button>
                 )}
               </div>
 
             {loadingProjects ? (
               <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
-                Carregando projetos...
+                Loading projects...
               </div>
             ) : availableProjects.length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  Nenhum projeto encontrado em {activeTenantName}. Cadastre ao menos um projeto antes de emitir tokens de acesso.
+                  No projects found in {activeTenantName}. Create at least one project before issuing access tokens.
                 </span>
               </div>
             ) : (
@@ -345,7 +345,7 @@ export function CreateTokenDialog({
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
                     <input
                       type="text"
-                      placeholder="Filtrar projetos..."
+                      placeholder="Filter projects..."
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
                       className="w-full rounded-lg border border-border bg-black/30 pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
@@ -382,12 +382,12 @@ export function CreateTokenDialog({
                   })}
                   {filteredProjects.length === 0 && (
                     <div className="p-2 text-center text-xs text-gray-500">
-                      Nenhum projeto corresponde ao filtro.
+                      No projects match the filter.
                     </div>
                   )}
                 </div>
                 <div className="text-[11px] text-gray-400">
-                  {projectKeys.length} de {availableProjects.length} projeto(s) selecionado(s).
+                  {projectKeys.length} of {availableProjects.length} projects selected.
                 </div>
               </div>
             )}
@@ -397,7 +397,7 @@ export function CreateTokenDialog({
 
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
-              Escopos Permitidos (Menor Privilégio)
+              Allowed Scopes (Least Privilege)
             </label>
             <div className="space-y-2">
               <label className="flex items-start space-x-3 p-2.5 rounded-lg border border-border bg-black/20 hover:bg-black/30 cursor-pointer">
@@ -410,7 +410,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:read</span>
                   <span className="block text-xs text-gray-400">
-                    Permite leitura contextual e consultas via FastMCP para agentes de IA e desenvolvedores.
+                    Allows contextual reads and FastMCP queries for AI agents and developers.
                   </span>
                 </div>
               </label>
@@ -425,7 +425,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:publish</span>
                   <span className="block text-xs text-gray-400">
-                    Permite publicação de snapshots imutáveis em esteiras de CI/CD (SDK Publisher).
+                    Allows publishing immutable snapshots from CI/CD pipelines (SDK Publisher).
                   </span>
                 </div>
               </label>
@@ -440,7 +440,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:impact</span>
                   <span className="block text-xs text-gray-400">
-                    Permite execução de análises de impacto e raio de alcance transversal no grafo.
+                    Allows impact and blast radius analysis across the graph.
                   </span>
                 </div>
               </label>
@@ -449,7 +449,7 @@ export function CreateTokenDialog({
 
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
-              Prazo de Validade / Expiração
+              Validity / Expiration
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -461,7 +461,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                30 Dias
+                30 Days
               </button>
               <button
                 type="button"
@@ -472,7 +472,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                90 Dias
+                90 Days
               </button>
               <button
                 type="button"
@@ -483,7 +483,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                Nunca Expira
+                Never Expires
               </button>
             </div>
           </div>
@@ -495,14 +495,14 @@ export function CreateTokenDialog({
               disabled={loading}
               className="rounded-lg border border-border bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               type="submit"
               disabled={loading || loadingProjects || loadingServiceAccount}
               className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-50"
             >
-              {loading ? 'Emitindo...' : 'Criar Token'}
+              {loading ? 'Issuing...' : 'Create Token'}
             </button>
           </div>
         </form>

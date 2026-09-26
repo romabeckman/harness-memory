@@ -48,7 +48,7 @@ export function ProjectTable({
       setProjectToDelete(null)
       onRefresh()
     } else {
-      setDeleteError(res.error || 'Erro ao excluir projeto.')
+      setDeleteError(res.error || 'Failed to delete project.')
     }
     setIsDeleting(false)
   }
@@ -62,7 +62,7 @@ export function ProjectTable({
     <div className="space-y-4">
       {deleteError && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
-          <span className="font-semibold">Bloqueio de exclusão: </span>
+          <span className="font-semibold">Deletion blocked: </span>
           {deleteError}
         </div>
       )}
@@ -76,7 +76,7 @@ export function ProjectTable({
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Buscar no backend por chave ou nome..."
+              placeholder="Search by key or name..."
               className="w-full rounded-lg border border-border bg-black/30 pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -87,7 +87,7 @@ export function ProjectTable({
               onChange={(e) => onSelectTenant(e.target.value)}
               className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              <option value="">Todas as Organizações</option>
+              <option value="">All Organizations</option>
               {tenants.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -103,11 +103,11 @@ export function ProjectTable({
         <table className="w-full text-left text-xs">
           <thead className="border-b border-border bg-black/20 text-gray-400 font-semibold">
             <tr>
-              <th className="px-5 py-3">Chave do Projeto</th>
-              <th className="px-5 py-3">Nome Amigável</th>
-              <th className="px-5 py-3">Organização (Tenant)</th>
-              <th className="px-5 py-3">Snapshot Ativo</th>
-              <th className="px-5 py-3 text-right">Ações</th>
+              <th className="px-5 py-3">Project Key</th>
+              <th className="px-5 py-3">Display Name</th>
+              <th className="px-5 py-3">Organization (Tenant)</th>
+              <th className="px-5 py-3">Active Snapshot</th>
+              <th className="px-5 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -115,7 +115,7 @@ export function ProjectTable({
               <tr>
                 <td colSpan={5} className="py-12 text-center text-gray-500">
                   <Layers className="mx-auto h-6 w-6 text-gray-600 mb-2" />
-                  {loading ? 'Carregando projetos...' : 'Nenhum projeto encontrado.'}
+                  {loading ? 'Loading projects...' : 'No projects found.'}
                 </td>
               </tr>
             ) : (
@@ -131,21 +131,21 @@ export function ProjectTable({
                         {proj.active_snapshot_id.substring(0, 8)}...
                       </span>
                     ) : (
-                      <span className="text-gray-500 text-[11px]">Nenhuma publicação</span>
+                      <span className="text-gray-500 text-[11px]">No publications</span>
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-right space-x-1">
                     <button
                       onClick={() => setEditingProject(proj)}
                       className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition"
-                      title="Editar projeto"
+                      title="Edit project"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => setProjectToDelete(proj)}
                       className="p-1.5 text-gray-400 hover:text-red-400 rounded hover:bg-red-500/10 transition"
-                      title="Excluir projeto com confirmação"
+                      title="Delete project with confirmation"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -159,8 +159,8 @@ export function ProjectTable({
         {/* Server-side Pagination Bar */}
         <div className="flex items-center justify-between border-t border-border px-5 py-3 bg-black/10 text-xs text-gray-400">
           <div>
-            <span>Página {page + 1}</span>
-            {loading && <span className="ml-2 text-blue-400 text-[11px]">(Atualizando...)</span>}
+            <span>Page {page + 1}</span>
+            {loading && <span className="ml-2 text-blue-400 text-[11px]">(Updating...)</span>}
           </div>
           <div className="flex items-center space-x-1.5">
             <button
@@ -169,14 +169,14 @@ export function ProjectTable({
               className="flex items-center space-x-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-white/5 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Anterior</span>
+              <span>Previous</span>
             </button>
             <button
               onClick={() => onPageChange(page + 1)}
               disabled={!hasMore || loading}
               className="flex items-center space-x-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-white/5 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              <span>Próxima</span>
+              <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -199,8 +199,8 @@ export function ProjectTable({
       {projectToDelete && (
         <ConfirmDeleteDialog
           isOpen={true}
-          title="Confirmar Exclusão de Projeto"
-          description={`Esta ação excluirá permanentemente o projeto "${projectToDelete.name || projectToDelete.key}". A exclusão falhará se houver ambientes ou snapshots ativos vinculados.`}
+          title="Confirm Project Deletion"
+          description={`This will permanently delete the project "${projectToDelete.name || projectToDelete.key}". Deletion will fail if active environments or snapshots are linked to it.`}
           targetKey={projectToDelete.key}
           onConfirm={handleConfirmDelete}
           onClose={() => setProjectToDelete(null)}

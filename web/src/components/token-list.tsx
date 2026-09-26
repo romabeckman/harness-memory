@@ -37,7 +37,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
     if (!projects || projects.length === 0 || projects.includes('*')) {
       return (
         <span className="inline-flex items-center rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-400 border border-cyan-500/20">
-          <FolderGit2 className="mr-1 h-3 w-3" /> Todos (*)
+          <FolderGit2 className="mr-1 h-3 w-3" /> All (*)
         </span>
       )
     }
@@ -104,14 +104,14 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
     if (isExpired(token)) {
       return (
         <span className="inline-flex items-center text-xs text-amber-400">
-          <Clock className="mr-1 h-3.5 w-3.5" /> Expirado
+          <Clock className="mr-1 h-3.5 w-3.5" /> Expired
         </span>
       )
     }
 
     return (
       <span className="inline-flex items-center text-xs text-emerald-400">
-        <CheckCircle className="mr-1 h-3.5 w-3.5" /> Ativo
+        <CheckCircle className="mr-1 h-3.5 w-3.5" /> Active
       </span>
     )
   }
@@ -121,7 +121,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
       <div className="flex items-center justify-between">
         <input
           type="text"
-          placeholder="Filtrar tokens por nome..."
+          placeholder="Filter tokens by name..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-72 rounded-lg border border-border bg-card px-3 py-2 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
@@ -135,13 +135,13 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
         <table className="min-w-full divide-y divide-border text-left text-xs">
           <thead className="bg-black/30 text-gray-400 uppercase tracking-wider font-semibold">
             <tr>
-              <th className="px-4 py-3">Nome da Credencial</th>
-              <th className="px-4 py-3">Escopos Permitidos</th>
-              <th className="px-4 py-3">Projetos Autorizados</th>
-              <th className="px-4 py-3">Criado em</th>
-              <th className="px-4 py-3">Expiração</th>
+              <th className="px-4 py-3">Credential Name</th>
+              <th className="px-4 py-3">Allowed Scopes</th>
+              <th className="px-4 py-3">Authorized Projects</th>
+              <th className="px-4 py-3">Created</th>
+              <th className="px-4 py-3">Expiration</th>
               <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Ação</th>
+              <th className="px-4 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border font-normal text-gray-300">
@@ -149,7 +149,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                   <Key className="mx-auto h-8 w-8 text-gray-600 mb-2 opacity-50" />
-                  Nenhum token encontrado.
+                  No tokens found.
                 </td>
               </tr>
             ) : (
@@ -170,13 +170,13 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
                     {renderProjectBadges(token.project_keys)}
                   </td>
                   <td className="px-4 py-3.5 text-gray-400">
-                    {token.created_at ? new Date(token.created_at).toLocaleDateString('pt-BR') : '-'}
+                    {token.created_at ? new Date(token.created_at).toLocaleDateString('en-US') : '-'}
                   </td>
                   <td className="px-4 py-3.5 text-gray-400">
                     {token.expires_at ? (
-                      new Date(token.expires_at).toLocaleDateString('pt-BR')
+                      new Date(token.expires_at).toLocaleDateString('en-US')
                     ) : (
-                      <span className="text-gray-500 italic">Nunca expira</span>
+                      <span className="text-gray-500 italic">Never expires</span>
                     )}
                   </td>
                   <td className="px-4 py-3.5">{renderStatus(token)}</td>
@@ -188,20 +188,20 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
                           disabled={revokingId === token.id}
                           className="rounded bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-500"
                         >
-                          {revokingId === token.id ? 'Revogando...' : 'Confirmar'}
+                          {revokingId === token.id ? 'Revoking...' : 'Confirm'}
                         </button>
                         <button
                           onClick={() => setConfirmRevokeId(null)}
                           className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-400 hover:text-white"
                         >
-                          Cancelar
+                          Cancel
                         </button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setConfirmRevokeId(token.id)}
                         className="inline-flex items-center text-xs text-gray-400 hover:text-red-400 transition"
-                        title="Revogar token"
+                        title="Revoke token"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

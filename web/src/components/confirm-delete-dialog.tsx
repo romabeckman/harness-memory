@@ -63,12 +63,12 @@ export function ConfirmDeleteDialog({
           <p className="text-xs text-gray-300 leading-relaxed">{description}</p>
 
           <div className="rounded-lg border border-red-500/20 bg-red-950/30 p-3 text-xs text-red-200">
-            Para confirmar, digite exatamente <strong className="font-mono text-white select-all">{targetKey}</strong> abaixo:
+            To confirm, type exactly <strong className="font-mono text-white select-all">{targetKey}</strong> below:
           </div>
 
           <div>
             <label className="block text-[11px] font-medium text-gray-400 mb-1">
-              Chave de confirmação
+              Confirmation key
             </label>
             <input
               type="text"
@@ -88,7 +88,7 @@ export function ConfirmDeleteDialog({
               disabled={isDeleting}
               className="rounded-lg border border-border px-3.5 py-2 text-xs text-gray-400 hover:bg-white/5 hover:text-white transition"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               type="submit"
@@ -100,7 +100,7 @@ export function ConfirmDeleteDialog({
               }`}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span>{isDeleting ? 'Excluindo...' : 'Excluir Definitivamente'}</span>
+              <span>{isDeleting ? 'Deleting...' : 'Delete Permanently'}</span>
             </button>
           </div>
         </form>

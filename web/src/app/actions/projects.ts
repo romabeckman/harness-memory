@@ -19,7 +19,7 @@ export async function listProjectsAction(
     const data = await client.listProjects(tenantId, query, limit, offset)
     return { data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Falha ao listar projetos'
+    const msg = err instanceof Error ? err.message : 'Failed to list projects'
     return { error: msg }
   }
 }
@@ -53,10 +53,10 @@ export async function createProjectAction(
 ): Promise<{ success: boolean; data?: ProjectDto; error?: string }> {
   try {
     if (!payload.tenant_id?.trim()) {
-      return { success: false, error: 'Tenant é obrigatório' }
+      return { success: false, error: 'Tenant is required' }
     }
     if (!payload.key?.trim()) {
-      return { success: false, error: 'Chave do projeto é obrigatória' }
+      return { success: false, error: 'Project key is required' }
     }
     const client = ClientFactory.getHarnessClient()
     const data = await client.createProject({
@@ -68,7 +68,7 @@ export async function createProjectAction(
     revalidatePath('/projects')
     return { success: true, data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao criar projeto'
+    const msg = err instanceof Error ? err.message : 'Failed to create project'
     return { success: false, error: msg }
   }
 }
@@ -84,7 +84,7 @@ export async function updateProjectAction(
     revalidatePath('/projects')
     return { success: true, data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao atualizar projeto'
+    const msg = err instanceof Error ? err.message : 'Failed to update project'
     return { success: false, error: msg }
   }
 }
@@ -99,7 +99,7 @@ export async function deleteProjectAction(
     revalidatePath('/projects')
     return { success: true }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao excluir projeto'
+    const msg = err instanceof Error ? err.message : 'Failed to delete project'
     return { success: false, error: msg }
   }
 }

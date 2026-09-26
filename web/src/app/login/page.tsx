@@ -20,7 +20,7 @@ export default function LoginPage() {
         setError(res.error)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro na autenticação')
+      setError(err instanceof Error ? err.message : 'Authentication failed')
     } finally {
       setLoading(false)
     }
@@ -35,7 +35,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Harness Memory</h1>
           <p className="text-xs text-gray-400 uppercase tracking-widest font-semibold">
-            Console Administrativo [Alpha]
+            Admin Console [Alpha]
           </p>
         </div>
 
@@ -52,7 +52,7 @@ export default function LoginPage() {
               htmlFor="token"
               className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1.5"
             >
-              Chave de Administração (API_ADMIN_TOKEN)
+              Admin Key (API_ADMIN_TOKEN)
             </label>
             <input
               id="token"
@@ -60,13 +60,13 @@ export default function LoginPage() {
               type="password"
               required
               autoFocus
-              placeholder="Cole o API_ADMIN_TOKEN da infraestrutura"
+              placeholder="Paste the infrastructure API_ADMIN_TOKEN"
               className="w-full rounded-lg border border-border bg-black/40 px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <p className="text-xs text-gray-500 leading-relaxed">
-            O segredo é validado exclusivamente no servidor BFF e nunca é salvo no navegador.
+            The secret is validated on the BFF server and is never saved in the browser.
           </p>
 
           <button
@@ -75,10 +75,10 @@ export default function LoginPage() {
             className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-card transition disabled:opacity-50"
           >
             {loading ? (
-              'Autenticando...'
+              'Signing in...'
             ) : (
               <>
-                Acessar Painel <ArrowRight className="ml-2 h-4 w-4" />
+                Open Dashboard <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
           </button>
