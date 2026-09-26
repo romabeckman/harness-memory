@@ -79,6 +79,7 @@ def seed_database():
                 name=token_name,
                 token_hash=token_hash,
                 scopes=["memory:read"],
+                allowed_projects=["*"],
                 expires_at=datetime.now(UTC) + timedelta(days=90),
             )
             session.add(token)

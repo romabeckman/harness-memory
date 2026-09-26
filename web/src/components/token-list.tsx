@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { TokenMetadataDto } from '@/application/ports/harness-api-client.port'
 import { revokeTokenAction } from '@/app/actions/tokens'
-import { Trash2, Key, CheckCircle, Clock, Ban } from 'lucide-react'
+import { Trash2, Key, CheckCircle, Clock, Ban, FolderGit2 } from 'lucide-react'
 
 interface TokenListProps {
   tokens: TokenMetadataDto[]
@@ -29,8 +29,31 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
   const filteredTokens = tokens.filter(
     (t) =>
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.service_account_id && t.service_account_id.toLowerCase().includes(searchTerm.toLowerCase()))
+      (t.service_account_id && t.service_account_id.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (t.project_keys && t.project_keys.some((p) => p.toLowerCase().includes(searchTerm.toLowerCase())))
   )
+
+  const renderProjectBadges = (projects?: string[]) => {
+    if (!projects || projects.length === 0 || projects.includes('*')) {
+      return (
+        <span className="inline-flex items-center rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-400 border border-cyan-500/20">
+          <FolderGit2 className="mr-1 h-3 w-3" /> Todos (*)
+        </span>
+      )
+    }
+    return (
+      <div className="flex flex-wrap gap-1 max-w-[200px]">
+        {projects.map((p) => (
+          <span
+            key={p}
+            className="inline-flex items-center rounded-full bg-cyan-500/10 px-2 py-0.5 text-[11px] font-medium text-cyan-400 border border-cyan-500/20"
+          >
+            <FolderGit2 className="mr-1 h-3 w-3" /> {p}
+          </span>
+        ))}
+      </div>
+    )
+  }
 
   const renderScopeBadge = (scope: string) => {
     switch (scope) {
@@ -114,6 +137,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
             <tr>
               <th className="px-4 py-3">Nome da Credencial</th>
               <th className="px-4 py-3">Escopos Permitidos</th>
+              <th className="px-4 py-3">Projetos Autorizados</th>
               <th className="px-4 py-3">Criado em</th>
               <th className="px-4 py-3">Expiração</th>
               <th className="px-4 py-3">Status</th>
@@ -123,7 +147,7 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
           <tbody className="divide-y divide-border font-normal text-gray-300">
             {filteredTokens.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                   <Key className="mx-auto h-8 w-8 text-gray-600 mb-2 opacity-50" />
                   Nenhum token encontrado.
                 </td>
@@ -141,6 +165,9 @@ export function TokenList({ tokens, onTokenRevoked }: TokenListProps) {
                     <div className="flex flex-wrap gap-1">
                       {token.scopes.map(renderScopeBadge)}
                     </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    {renderProjectBadges(token.project_keys)}
                   </td>
                   <td className="px-4 py-3.5 text-gray-400">
                     {token.created_at ? new Date(token.created_at).toLocaleDateString('pt-BR') : '-'}

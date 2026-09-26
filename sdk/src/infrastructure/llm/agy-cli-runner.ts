@@ -8,14 +8,19 @@ export class AgyCliRunner implements LlmAgentRunner {
     process.platform === "win32" ? "cmd.exe /d /s /c agy" : "agy";
 
   public buildArgs(options: Pick<LlmInvocationOptions, "model" | "effort">): string[] {
-    const args = ["--output-format", "json"];
+    const args = [
+      "--dangerously-skip-permissions",
+      "--input-format",
+      "text",
+      "--output-format",
+      "json",
+    ];
     if (options.model) {
       args.push("--model", options.model);
     }
     if (options.effort) {
       args.push("--effort", options.effort);
     }
-    args.push("--print", "-");
     return args;
   }
 
@@ -42,7 +47,23 @@ export class AgyCliRunner implements LlmAgentRunner {
 
         const res = responseObj.response;
         if (typeof res === "string" && res.trim().length > 0) {
-          return res.trim();
+          const content = res.trim();
+          const fenceMatch = content.match(/```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```/i);
+          if (fenceMatch) {
+            return fenceMatch[1].trim();
+          }
+          const firstBrace = content.indexOf("{");
+          const lastBrace = content.lastIndexOf("}");
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            const candidate = content.slice(firstBrace, lastBrace + 1);
+            try {
+              JSON.parse(candidate);
+              return candidate.trim();
+            } catch {
+              // Not standalone JSON, fall through
+            }
+          }
+          return content;
         }
 
         if (
@@ -54,7 +75,7 @@ export class AgyCliRunner implements LlmAgentRunner {
           return trimmed;
         }
 
-        throw new LlmExecutionError("AGY CLI response omitted final response text");
+        throw new LlmExecutionError(`AGY CLI response omitted final response text. Output: ${trimmed.slice(0, 500)}`);
       }
     } catch (error) {
       if (error instanceof LlmExecutionError) throw error;

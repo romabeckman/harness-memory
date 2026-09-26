@@ -21,6 +21,7 @@ def test_issues_hashed_token_with_plaintext_returned_once():
     issued = TokenService(token_repository, user_repository).create(
         user_id=user_id,
         name="automation",
+        project_keys=["catalog"],
         expires_at=now + timedelta(days=30),
         now=now,
     )
@@ -28,6 +29,7 @@ def test_issues_hashed_token_with_plaintext_returned_once():
     assert issued.plaintext.startswith("hm_")
     assert issued.token.token_hash != issued.plaintext
     assert len(issued.token.token_hash) == 64
+    assert issued.token.allowed_project_keys == frozenset({"catalog"})
 
 
 def test_rejects_token_expiring_after_ninety_days():
@@ -40,6 +42,7 @@ def test_rejects_token_expiring_after_ninety_days():
         TokenService(Mock(), user_repository).create(
             user_id=user_id,
             name="automation",
+            project_keys=["catalog"],
             expires_at=now + timedelta(days=91),
             now=now,
         )
@@ -56,6 +59,7 @@ def test_rejects_update_that_extends_token_beyond_original_ninety_day_window():
         token_hash="a" * 64,
         expires_at=issued_at + timedelta(days=60),
         created_at=issued_at,
+        allowed_project_keys=frozenset({"catalog"}),
     )
 
     with pytest.raises(ValueError, match="between 1 second and 90 days"):
@@ -79,11 +83,17 @@ def test_issues_non_expiring_token_for_service_account():
         token_repository,
         Mock(),
         service_account_repository=service_account_repository,
-    ).create(service_account_id=account.id, name="automation", expires_at=None)
+    ).create(
+        service_account_id=account.id,
+        name="automation",
+        project_keys=["catalog"],
+        expires_at=None,
+    )
 
     assert issued.token.user_id is None
     assert issued.token.service_account_id == account.id
     assert issued.token.expires_at is None
+    assert issued.token.allowed_project_keys == frozenset({"catalog"})
 
 
 def test_user_token_still_requires_expiration():
@@ -93,7 +103,10 @@ def test_user_token_still_requires_expiration():
 
     with pytest.raises(ValueError, match="user tokens require an expiration"):
         TokenService(Mock(), user_repository).create(
-            user_id=user_id, name="automation", expires_at=None
+            user_id=user_id,
+            name="automation",
+            project_keys=["catalog"],
+            expires_at=None,
         )
 
 
@@ -101,4 +114,32 @@ def test_token_requires_exactly_one_owner():
     service = TokenService(Mock(), Mock(), service_account_repository=Mock())
 
     with pytest.raises(ValueError, match="exactly one token owner"):
-        service.create(name="automation", expires_at=None)
+        service.create(name="automation", project_keys=["catalog"], expires_at=None)
+
+
+def test_create_rejects_empty_project_keys():
+    user_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
+    service = TokenService(Mock(), user_repository)
+
+    with pytest.raises(ValueError, match="at least one project is required"):
+        service.create(user_id=user_id, name="automation", project_keys=[], expires_at=datetime(2026, 10, 1, tzinfo=UTC))
+
+
+def test_create_validates_projects_belong_to_tenant():
+    user_id = uuid4()
+    tenant_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com", tenant_id=tenant_id)
+    project_repo = Mock()
+    project_repo.get_project.return_value = None
+    service = TokenService(Mock(), user_repository, project_repository=project_repo)
+
+    with pytest.raises(LookupError, match="project 'missing' not found for tenant"):
+        service.create(
+            user_id=user_id,
+            name="automation",
+            project_keys=["missing"],
+            expires_at=datetime(2026, 10, 1, tzinfo=UTC),
+        )

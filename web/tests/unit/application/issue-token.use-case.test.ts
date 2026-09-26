@@ -12,6 +12,13 @@ describe('IssueTokenUseCase', () => {
     mockClient = {
       listTenants: vi.fn(),
       createTenant: vi.fn(),
+      updateTenant: vi.fn(),
+      deleteTenant: vi.fn(),
+      listProjects: vi.fn(),
+      getProject: vi.fn(),
+      createProject: vi.fn(),
+      updateProject: vi.fn(),
+      deleteProject: vi.fn(),
       listServiceAccounts: vi.fn(),
       createServiceAccount: vi.fn(),
       listTokens: vi.fn(),
@@ -28,6 +35,7 @@ describe('IssueTokenUseCase', () => {
       token: 'hm_secret_token_value_999',
       service_account_id: 'sa-uuid-1',
       scopes: ['memory:publish'],
+      project_keys: ['catalog'],
       created_at: '2026-09-23T20:00:00Z',
     }
 
@@ -37,6 +45,7 @@ describe('IssueTokenUseCase', () => {
       name: 'ci-runner',
       serviceAccountId: 'sa-uuid-1',
       scopes: [TokenScope.create('memory:publish')],
+      projectKeys: ['catalog'],
       lifetimeDays: 30,
     })
 
@@ -46,6 +55,7 @@ describe('IssueTokenUseCase', () => {
       name: 'ci-runner',
       service_account_id: 'sa-uuid-1',
       scopes: ['memory:publish'],
+      project_keys: ['catalog'],
       expires_at: expect.any(String),
     })
 

@@ -26,6 +26,11 @@ def create_knowledge_publication_router(
     @router.get("/knowledge-publications/latest")
     def latest_graph(project_key: str, environment: str, tenant_id: UUID | None = None,
         principal: AuthenticatedPrincipal = Depends(authenticate_reader or authenticate)):
+        if not principal.can_access_project(project_key):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"insufficient project permission: project '{project_key}' is not allowed for this token",
+            )
         if baseline_handler is None:
             raise HTTPException(status_code=503, detail="baseline reader unavailable")
         try:
@@ -45,6 +50,11 @@ def create_knowledge_publication_router(
         response: Response,
         principal: AuthenticatedPrincipal = Depends(authenticate),
     ) -> KnowledgePublicationResponse:
+        if not principal.can_access_project(request.project_key):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"insufficient project permission: project '{request.project_key}' is not allowed for this token",
+            )
         if principal.is_admin:
             if request.tenant_id is None:
                 raise HTTPException(status_code=400, detail="tenant_id is required for publication")

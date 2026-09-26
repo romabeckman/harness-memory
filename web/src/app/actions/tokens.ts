@@ -32,6 +32,7 @@ export interface CreateTokenInput {
   name: string
   serviceAccountId: string
   scopes: string[]
+  projectKeys: string[]
   lifetimeDays?: number
 }
 
@@ -46,6 +47,7 @@ export async function createTokenAction(
       name: input.name,
       serviceAccountId: input.serviceAccountId,
       scopes: domainScopes,
+      projectKeys: input.projectKeys,
       lifetimeDays: input.lifetimeDays,
     })
 

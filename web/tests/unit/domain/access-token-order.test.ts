@@ -12,12 +12,14 @@ describe('AccessTokenOrder', () => {
       name: 'github-ci-runner',
       serviceAccountId: VALID_SA_ID,
       scopes: [SCOPE_PUBLISH, SCOPE_READ],
+      projectKeys: ['catalog', 'billing'],
       lifetimeDays: 30,
     })
 
     expect(order.name).toBe('github-ci-runner')
     expect(order.serviceAccountId).toBe(VALID_SA_ID)
     expect(order.scopes).toHaveLength(2)
+    expect(order.projectKeys).toEqual(['catalog', 'billing'])
     expect(order.lifetimeDays).toBe(30)
   })
 
@@ -27,6 +29,7 @@ describe('AccessTokenOrder', () => {
         name: 'test-token',
         serviceAccountId: VALID_SA_ID,
         scopes: [],
+        projectKeys: ['catalog'],
       })
     ).toThrow('At least one scope must be selected')
   })
@@ -37,8 +40,40 @@ describe('AccessTokenOrder', () => {
         name: '   ',
         serviceAccountId: VALID_SA_ID,
         scopes: [SCOPE_READ],
+        projectKeys: ['catalog'],
       })
     ).toThrow('Token name cannot be empty')
+  })
+
+  it('should reject AccessTokenOrder when projectKeys is empty or only whitespace', () => {
+    expect(() =>
+      AccessTokenOrder.create({
+        name: 'test-token',
+        serviceAccountId: VALID_SA_ID,
+        scopes: [SCOPE_READ],
+        projectKeys: [],
+      })
+    ).toThrow('At least one project must be selected')
+
+    expect(() =>
+      AccessTokenOrder.create({
+        name: 'test-token',
+        serviceAccountId: VALID_SA_ID,
+        scopes: [SCOPE_READ],
+        projectKeys: ['   ', ''],
+      })
+    ).toThrow('At least one project must be selected')
+  })
+
+  it('should deduplicate and trim projectKeys', () => {
+    const order = AccessTokenOrder.create({
+      name: 'test-token',
+      serviceAccountId: VALID_SA_ID,
+      scopes: [SCOPE_READ],
+      projectKeys: ['  catalog ', 'catalog', 'billing  '],
+    })
+
+    expect(order.projectKeys).toEqual(['catalog', 'billing'])
   })
 
   it('SCN-06: should allow null/undefined expiration for Service Account token order', () => {
@@ -46,6 +81,7 @@ describe('AccessTokenOrder', () => {
       name: 'permanent-ci-token',
       serviceAccountId: VALID_SA_ID,
       scopes: [SCOPE_PUBLISH],
+      projectKeys: ['catalog'],
     })
 
     expect(order.lifetimeDays).toBeUndefined()
@@ -57,6 +93,7 @@ describe('AccessTokenOrder', () => {
       name: 'temp-token',
       serviceAccountId: VALID_SA_ID,
       scopes: [SCOPE_READ],
+      projectKeys: ['catalog'],
       lifetimeDays: 90,
     })
 
@@ -73,6 +110,7 @@ describe('AccessTokenOrder', () => {
         name: 'invalid-lifetime',
         serviceAccountId: VALID_SA_ID,
         scopes: [SCOPE_READ],
+        projectKeys: ['catalog'],
         lifetimeDays: 91,
       })
     ).toThrow('Lifetime cannot exceed 90 days')

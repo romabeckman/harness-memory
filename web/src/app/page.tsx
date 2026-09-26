@@ -146,6 +146,7 @@ export default function DashboardPage() {
           onSuccess={handleTokenCreated}
           serviceAccountId={data.bootstrap.serviceAccountId}
           serviceAccountName={data.bootstrap.serviceAccountName}
+          tenantId={data.bootstrap.tenantId}
           tenantName={data.bootstrap.tenantName}
         />
       )}

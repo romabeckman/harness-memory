@@ -128,6 +128,7 @@ class ApiSecurity:
             subject=str(owner.id),
             tenant_id=str(owner.tenant_id),
             scopes=token.scopes,
+            allowed_project_keys=token.allowed_project_keys,
         )
 
     def _find_active_token(

@@ -35,5 +35,8 @@ class ApiAccessToken(Base):
     scopes: Mapped[list[str]] = mapped_column(
         JSON, nullable=False, default=lambda: ["memory:read"]
     )
+    allowed_projects: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list
+    )
     user = relationship("ApiUser", back_populates="tokens")
     service_account = relationship("ApiServiceAccount", back_populates="tokens")

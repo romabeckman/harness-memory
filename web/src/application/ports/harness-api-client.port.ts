@@ -50,6 +50,7 @@ export interface TokenMetadataDto {
   user_id?: string | null
   service_account_id?: string | null
   scopes: string[]
+  project_keys?: string[]
   created_at: string
   expires_at?: string | null
   revoked_at?: string | null
@@ -61,6 +62,7 @@ export interface CreateTokenDto {
   service_account_id?: string
   user_id?: string
   scopes: string[]
+  project_keys: string[]
   expires_at?: string | null
 }
 
@@ -71,9 +73,11 @@ export interface CreatedTokenDto {
   service_account_id?: string | null
   user_id?: string | null
   scopes: string[]
+  project_keys?: string[]
   created_at: string
   expires_at?: string | null
 }
+
 
 export interface CreateTenantDto {
   name: string

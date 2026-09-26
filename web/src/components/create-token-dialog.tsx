@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { PlusCircle, X, ShieldAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { PlusCircle, X, ShieldAlert, FolderGit2, Search, CheckSquare, Square, AlertCircle } from 'lucide-react'
 import { createTokenAction } from '@/app/actions/tokens'
+import { listProjectsAction } from '@/app/actions/projects'
+import { ProjectDto } from '@/application/ports/harness-api-client.port'
 
 interface CreateTokenDialogProps {
   isOpen: boolean
@@ -10,6 +12,7 @@ interface CreateTokenDialogProps {
   onSuccess: (plaintext: string) => void
   serviceAccountId: string
   serviceAccountName: string
+  tenantId: string
   tenantName: string
 }
 
@@ -19,13 +22,44 @@ export function CreateTokenDialog({
   onSuccess,
   serviceAccountId,
   serviceAccountName,
+  tenantId,
   tenantName,
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
   const [scopes, setScopes] = useState<string[]>(['memory:read', 'memory:publish'])
+  const [projectKeys, setProjectKeys] = useState<string[]>([])
+  const [availableProjects, setAvailableProjects] = useState<ProjectDto[]>([])
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [projectSearch, setProjectSearch] = useState('')
   const [lifetime, setLifetime] = useState<'30' | '90' | 'never'>('30')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen || !tenantId) return
+    let active = true
+    setLoadingProjects(true)
+    listProjectsAction(tenantId)
+      .then((res) => {
+        if (!active) return
+        if (res.data) {
+          setAvailableProjects(res.data)
+          if (res.data.length > 0 && projectKeys.length === 0) {
+            setProjectKeys(res.data.map((p) => p.key))
+          }
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        setError(err instanceof Error ? err.message : 'Falha ao carregar projetos do tenant')
+      })
+      .finally(() => {
+        if (active) setLoadingProjects(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [isOpen, tenantId])
 
   if (!isOpen) return null
 
@@ -34,6 +68,26 @@ export function CreateTokenDialog({
       prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     )
   }
+
+  const handleToggleProject = (key: string) => {
+    setProjectKeys((prev) =>
+      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
+    )
+  }
+
+  const handleSelectAllProjects = () => {
+    if (projectKeys.length === availableProjects.length) {
+      setProjectKeys([])
+    } else {
+      setProjectKeys(availableProjects.map((p) => p.key))
+    }
+  }
+
+  const filteredProjects = availableProjects.filter(
+    (p) =>
+      p.key.toLowerCase().includes(projectSearch.toLowerCase()) ||
+      (p.name && p.name.toLowerCase().includes(projectSearch.toLowerCase()))
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,6 +103,11 @@ export function CreateTokenDialog({
       return
     }
 
+    if (projectKeys.length === 0) {
+      setError('Selecione pelo menos um projeto para autorizar o token.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -57,6 +116,7 @@ export function CreateTokenDialog({
         name: name.trim(),
         serviceAccountId,
         scopes,
+        projectKeys,
         lifetimeDays,
       })
 
@@ -75,7 +135,7 @@ export function CreateTokenDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center space-x-2 text-white">
             <PlusCircle className="h-5 w-5 text-blue-400" />
@@ -119,6 +179,91 @@ export function CreateTokenDialog({
               <span className="font-semibold text-gray-300">Titular (Service Account):</span>{' '}
               {serviceAccountName} ({serviceAccountId})
             </div>
+          </div>
+
+          {/* Project Permissions Selector */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
+                Projetos Autorizados (Obrigatório)
+              </label>
+              {availableProjects.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSelectAllProjects}
+                  className="text-xs text-blue-400 hover:text-blue-300 transition"
+                >
+                  {projectKeys.length === availableProjects.length
+                    ? 'Desmarcar Todos'
+                    : 'Selecionar Todos'}
+                </button>
+              )}
+            </div>
+
+            {loadingProjects ? (
+              <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
+                Carregando projetos do tenant...
+              </div>
+            ) : availableProjects.length === 0 ? (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Nenhum projeto encontrado neste tenant. Cadastre ao menos um projeto antes de emitir tokens de acesso.
+                </span>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {availableProjects.length > 4 && (
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Filtrar projetos..."
+                      value={projectSearch}
+                      onChange={(e) => setProjectSearch(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-black/30 pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                )}
+                <div className="max-h-36 overflow-y-auto space-y-1.5 rounded-lg border border-border bg-black/20 p-2">
+                  {filteredProjects.map((project) => {
+                    const isSelected = projectKeys.includes(project.key)
+                    return (
+                      <label
+                        key={project.id}
+                        className={`flex items-center space-x-2.5 p-2 rounded-md border cursor-pointer transition ${
+                          isSelected
+                            ? 'border-blue-500/40 bg-blue-500/10 text-white'
+                            : 'border-border/50 bg-black/20 text-gray-400 hover:bg-black/30'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleProject(project.key)}
+                          className="rounded border-gray-700 bg-gray-900 text-blue-600 focus:ring-blue-500"
+                        />
+                        <FolderGit2 className="h-3.5 w-3.5 text-cyan-400 flex-shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-medium text-white truncate">{project.key}</span>
+                          {project.name && (
+                            <span className="text-[10px] text-gray-400 truncate">{project.name}</span>
+                          )}
+                        </div>
+                      </label>
+                    )
+                  })}
+                  {filteredProjects.length === 0 && (
+                    <div className="p-2 text-center text-xs text-gray-500">
+                      Nenhum projeto corresponde ao filtro.
+                    </div>
+                  )}
+                </div>
+                <div className="text-[11px] text-gray-400">
+                  {projectKeys.length} de {availableProjects.length} projeto(s) selecionado(s).
+                </div>
+              </div>
+            )}
           </div>
 
           <div>

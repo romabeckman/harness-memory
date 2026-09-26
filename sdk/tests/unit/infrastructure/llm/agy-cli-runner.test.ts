@@ -6,23 +6,25 @@ describe("AgyCliRunner", () => {
 
   it("builds non-interactive agy CLI arguments using model and effort when supplied", () => {
     expect(runner.buildArgs({ model: "Gemini 3.8 Flash (High)", effort: "high" })).toEqual([
+      "--dangerously-skip-permissions",
+      "--input-format",
+      "text",
       "--output-format",
       "json",
       "--model",
       "Gemini 3.8 Flash (High)",
       "--effort",
       "high",
-      "--print",
-      "-",
     ]);
   });
 
   it("omits --model and --effort when not provided", () => {
     expect(runner.buildArgs({ model: "", effort: "" as any })).toEqual([
+      "--dangerously-skip-permissions",
+      "--input-format",
+      "text",
       "--output-format",
       "json",
-      "--print",
-      "-",
     ]);
   });
 
@@ -54,5 +56,12 @@ describe("AgyCliRunner", () => {
     expect(() =>
       runner.parseOutput(JSON.stringify({ status: "SUCCESS", response: "   " }))
     ).toThrow("AGY CLI response omitted final response text");
+  });
+
+  it("strips markdown code blocks from response", () => {
+    const graph = JSON.stringify({ schema_version: "1.0", entities: [], relations: [], evidence: [] });
+    const fenced = "```json\n" + graph + "\n```";
+
+    expect(runner.parseOutput(JSON.stringify({ status: "SUCCESS", response: fenced }))).toBe(graph);
   });
 });
