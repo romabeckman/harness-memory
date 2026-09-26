@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Building2, AlertCircle } from 'lucide-react'
 import { TenantDto } from '@/application/ports/harness-api-client.port'
 import { createTenantAction, updateTenantAction } from '@/app/actions/tenants'
@@ -19,6 +19,15 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
   const [status, setStatus] = useState<'active' | 'disabled'>(tenantToEdit?.status || 'active')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      setKey(tenantToEdit?.key || '')
+      setName(tenantToEdit?.name || '')
+      setStatus(tenantToEdit?.status || 'active')
+      setError(null)
+    }
+  }, [isOpen, tenantToEdit])
 
   if (!isOpen) return null
 

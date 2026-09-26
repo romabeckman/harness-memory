@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Layers, AlertCircle } from 'lucide-react'
 import { TenantDto, ProjectDto } from '@/application/ports/harness-api-client.port'
 import { createProjectAction, updateProjectAction } from '@/app/actions/projects'
@@ -30,6 +30,15 @@ export function ProjectDialog({
   const [name, setName] = useState(projectToEdit?.name || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      setTenantId(projectToEdit?.tenant_id || defaultTenantId || tenants[0]?.id || '')
+      setKey(projectToEdit?.key || '')
+      setName(projectToEdit?.name || '')
+      setError(null)
+    }
+  }, [isOpen, projectToEdit, defaultTenantId, tenants])
 
   if (!isOpen) return null
 

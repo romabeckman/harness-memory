@@ -80,7 +80,7 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.fill('input[placeholder="ex: Acme Corporation"]', tenantName)
 
     // 3. Submit
-    await page.click('button[type="submit"]:has-text("Salvar Organização")')
+    await page.click('button[type="submit"]:has-text("Criar Tenant")')
 
     // 4. Verify listed in table
     const tenantRow = page.locator(`tr:has-text("${tenantName}")`)
@@ -132,11 +132,11 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     const projectName = `Microservice E2E ${timestamp}`
 
     // 2. Fill form
-    await page.fill('input[placeholder="ex: payment-service"]', projectKey)
-    await page.fill('input[placeholder="ex: Serviço de Pagamentos"]', projectName)
+    await page.fill('input[placeholder="ex: core-service"]', projectKey)
+    await page.fill('input[placeholder="ex: Core Processing Service"]', projectName)
 
     // 3. Submit
-    await page.click('button[type="submit"]:has-text("Salvar Projeto")')
+    await page.click('button[type="submit"]:has-text("Criar Projeto")')
 
     // 4. Verify listed in table
     const projectRow = page.locator(`tr:has-text("${projectKey}")`)
@@ -158,10 +158,10 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await expect(page.locator('h2:has-text("Editar Projeto")')).toBeVisible()
 
     // Tenant and Key should be disabled when editing
-    await expect(page.locator('input[placeholder="ex: payment-service"]')).toBeDisabled()
+    await expect(page.locator('input[placeholder="ex: core-service"]')).toBeDisabled()
 
     const updatedProjectName = `${projectName} Updated`
-    await page.fill('input[placeholder="ex: Serviço de Pagamentos"]', updatedProjectName)
+    await page.fill('input[placeholder="ex: Core Processing Service"]', updatedProjectName)
     await page.click('button[type="submit"]:has-text("Salvar Alterações")')
 
     // Verify updated name
@@ -184,9 +184,9 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     const projectName = `Del Proj ${timestamp}`
 
     await page.click('button:has-text("Novo Projeto")')
-    await page.fill('input[placeholder="ex: payment-service"]', projectKey)
-    await page.fill('input[placeholder="ex: Serviço de Pagamentos"]', projectName)
-    await page.click('button[type="submit"]:has-text("Salvar Projeto")')
+    await page.fill('input[placeholder="ex: core-service"]', projectKey)
+    await page.fill('input[placeholder="ex: Core Processing Service"]', projectName)
+    await page.click('button[type="submit"]:has-text("Criar Projeto")')
 
     const projectRow = page.locator(`tr:has-text("${projectKey}")`)
     await expect(projectRow).toBeVisible()
@@ -226,7 +226,7 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.click('button:has-text("Novo Tenant")')
     await page.fill('input[placeholder="ex: acme-corp"]', tenantKey)
     await page.fill('input[placeholder="ex: Acme Corporation"]', tenantName)
-    await page.click('button[type="submit"]:has-text("Salvar Organização")')
+    await page.click('button[type="submit"]:has-text("Criar Tenant")')
 
     const tenantRow = page.locator(`tr:has-text("${tenantName}")`)
     await expect(tenantRow).toBeVisible()
