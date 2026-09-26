@@ -26,7 +26,7 @@ publication may create its environment. Dry runs skip API preflight.
 - npm.
 - A Git repository.
 - A complete `docs/` folder generated with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit).
-- The selected local LLM command (`codex` or `claude`).
+- The selected local LLM command (`codex`, `claude`, `agy`, or `copilot`).
 - A running Harness Memory API for a real publication.
 - An active user or service-account token with `memory:publish`.
 
@@ -163,7 +163,7 @@ When values are absent, the resolver uses these fallbacks:
 - `version`: `CI_COMMIT_SHA`, `GITHUB_SHA`, then `GIT_COMMIT`.
 - `base-ref`: `CI_MERGE_REQUEST_DIFF_BASE_SHA`, then `GITHUB_BASE_REF`.
 - `head-ref`: `HEAD`.
-- `llm-command`: selected runner command (`codex` or `claude`).
+- `llm-command`: selected runner command (`codex`, `claude`, `agy`, or `copilot`).
 - `token-env`: `HARNESS_MEMORY_API_KEY` by default.
 - `timeout`: 600 seconds.
 - `max-files`: 2,000.
@@ -174,7 +174,7 @@ When values are absent, the resolver uses these fallbacks:
 
 | Flag | Environment variable | Required | Description |
 | --- | --- | --- | --- |
-| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli` or `claude-cli`; JSON config may also supply `agent`. |
+| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | Select `codex-cli`, `claude-cli`, `antigravity-cli`, or `copilot-cli`; JSON config may also supply `agent`. |
 | `--model` | `HARNESS_MEMORY_MODEL` | Yes | Model passed to the selected runner. |
 | `--effort` | `HARNESS_MEMORY_EFFORT` | Yes | `low`, `medium`, `high`, or `xhigh`. |
 | `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target environment, for example `production`. |

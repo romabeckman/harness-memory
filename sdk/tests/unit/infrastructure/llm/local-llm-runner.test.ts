@@ -187,5 +187,37 @@ describe("LocalLlmRunner", () => {
 
     expect(doc.entities[0].key).toBe("file-count:3");
   });
+
+  it("passes the complete context as the Copilot prompt argument", async () => {
+    const script = `
+      const payload = JSON.parse(process.argv[1]);
+      const doc = {
+        schema_version: '1.0',
+        entities: [{ key: 'files:' + payload.context.files.length, type: 'service' }],
+        relations: [],
+        evidence: []
+      };
+      process.stdout.write(JSON.stringify(doc));
+    `;
+    const copilot = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "copilot-cli",
+      promptTransport: "argument",
+      command: process.execPath,
+      buildArgs: (_options, prompt) => ["-e", script, prompt ?? ""],
+      parseOutput: (stdout) => stdout,
+    }]));
+
+    const doc = await copilot.run({
+      agent: "copilot-cli",
+      model: "gpt-5",
+      effort: "high",
+      timeoutSeconds: 10,
+      projectKey: "catalog",
+      environment: "staging",
+      context: dummyContext,
+    });
+
+    expect(doc.entities[0].key).toBe("files:1");
+  });
 });
 

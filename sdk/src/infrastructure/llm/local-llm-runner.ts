@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import spawn from "cross-spawn";
 import { GraphDocument } from "../../domain/contracts.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
 import {
@@ -11,6 +11,7 @@ import { AgentRunnerFactory } from "./agent-runner-factory.js";
 const MAX_STDOUT_BYTES = 50 * 1024 * 1024;
 const MAX_STDERR_BYTES = 1 * 1024 * 1024;
 const MAX_CODEX_INPUT_CHARS = 1_048_576;
+const MAX_WINDOWS_ARGUMENT_PROMPT_CHARS = 30_000;
 
 export interface ExtendedLlmInvocationOptions extends LlmInvocationOptions {
   commandArgs?: string[];
@@ -47,7 +48,20 @@ export class LocalLlmRunner implements LlmRunnerPort {
       }
     }
 
-    const args = options.commandArgs ?? [...baseArgs, ...agentRunner.buildArgs(options)];
+    const prompt = agentRunner.promptTransport === "argument"
+      ? [...this.payloadChunks(options)].join("")
+      : undefined;
+    if (prompt && process.platform === "win32" && prompt.length > MAX_WINDOWS_ARGUMENT_PROMPT_CHARS) {
+      throw new LlmExecutionError(
+        `${agentRunner.type} prompt exceeds the Windows command-line limit. ` +
+        "Use --exclude-paths to reduce the repository context."
+      );
+    }
+
+    const args = options.commandArgs ?? [
+      ...baseArgs,
+      ...agentRunner.buildArgs({ ...options, timeoutSeconds: options.timeoutSeconds }, prompt),
+    ];
 
     // Minimal sanitized environment strictly excluding tokens and secrets
     const safeEnv: Record<string, string> = {};
@@ -188,7 +202,10 @@ export class LocalLlmRunner implements LlmRunnerPort {
       });
 
       // Stream payload chunks iteratively respecting backpressure
-      this.streamPayloadToStdin(child.stdin, options).catch((err: any) => {
+      const inputWrite = agentRunner.promptTransport === "argument"
+        ? Promise.resolve().then(() => child.stdin.end())
+        : this.streamPayloadToStdin(child.stdin, options);
+      inputWrite.catch((err: any) => {
         if (!child.killed) {
           clearTimeout(timer);
           child.kill("SIGKILL");

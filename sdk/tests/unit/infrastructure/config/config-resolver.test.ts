@@ -72,6 +72,11 @@ describe("ConfigResolver", () => {
     expect(config.model).toBe("gpt-5");
   });
 
+  it("accepts Antigravity and Copilot runner IDs", () => {
+    expect(resolver.resolve(["--agent", "antigravity-cli"], {}).agent).toBe("antigravity-cli");
+    expect(resolver.resolve(["--agent", "copilot-cli"], {}).agent).toBe("copilot-cli");
+  });
+
   it("resolves the agent runner from environment when CLI flag is absent", () => {
     const config = resolver.resolve(
       [

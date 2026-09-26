@@ -1,13 +1,12 @@
-import { LlmInvocationOptions } from "../../application/ports/llm-runner.port.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
-import { LlmAgentRunner } from "./llm-agent-runner.js";
+import { LlmAgentRunner, LlmAgentRunnerOptions } from "./llm-agent-runner.js";
 
 export class CodexCliRunner implements LlmAgentRunner {
   public readonly type = "codex-cli" as const;
   public readonly command =
     process.platform === "win32" ? "cmd.exe /d /s /c codex" : "codex";
 
-  public buildArgs(options: Pick<LlmInvocationOptions, "model" | "effort">): string[] {
+  public buildArgs(options: LlmAgentRunnerOptions): string[] {
     return [
       "exec",
       "--json",
