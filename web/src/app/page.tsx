@@ -11,6 +11,7 @@ import { AdminSidebar } from '@/components/admin-sidebar'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,7 +69,21 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-black/40 border border-border text-gray-300">
               <Database className="h-3.5 w-3.5 text-blue-400" />
               <span className="text-gray-500">Tenant:</span>
-              <span className="font-medium text-white">{data.bootstrap.tenantName}</span>
+              {data.tenants && data.tenants.length > 1 ? (
+                <select
+                  value={selectedTenantId || data.bootstrap.tenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  className="bg-transparent text-white font-medium focus:outline-none cursor-pointer pr-1"
+                >
+                  {data.tenants.map((t) => (
+                    <option key={t.id} value={t.id} className="bg-gray-900 text-white">
+                      {t.name} ({t.key})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="font-medium text-white">{data.bootstrap.tenantName}</span>
+              )}
             </div>
             <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-black/40 border border-border text-gray-300">
               <Shield className="h-3.5 w-3.5 text-emerald-400" />
@@ -146,8 +161,12 @@ export default function DashboardPage() {
           onSuccess={handleTokenCreated}
           serviceAccountId={data.bootstrap.serviceAccountId}
           serviceAccountName={data.bootstrap.serviceAccountName}
-          tenantId={data.bootstrap.tenantId}
-          tenantName={data.bootstrap.tenantName}
+          tenantId={selectedTenantId || data.bootstrap.tenantId}
+          tenantName={
+            data.tenants?.find((t) => t.id === (selectedTenantId || data.bootstrap.tenantId))?.name ||
+            data.bootstrap.tenantName
+          }
+          tenants={data.tenants || []}
         />
       )}
 

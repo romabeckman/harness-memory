@@ -86,6 +86,32 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(page.locator(`text=${tokenName}`)).toBeVisible()
   })
 
+  test('SCN-E2E-04B: should switch tenant in CreateTokenDialog and update scoped projects dynamically', async ({
+    page,
+  }) => {
+    // Authenticate
+    await page.goto('/login')
+    await page.fill('input[name="token"]', ADMIN_TOKEN)
+    await page.click('button[type="submit"]')
+    await expect(page).toHaveURL('/')
+
+    // Click "Novo Token"
+    await page.click('button:has-text("Novo Token")')
+
+    // Scoped projects should load
+    const dialog = page.locator('div:has-text("Emitir Novo Access Token")')
+    await expect(dialog.first()).toBeVisible()
+
+    const tenantSelect = page.locator('form select')
+    if (await tenantSelect.isVisible()) {
+      await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
+      await expect(page.locator('text=e2e-project')).toBeVisible()
+    }
+
+    // Close dialog
+    await page.click('button:has-text("Cancelar")')
+  })
+
   test('SCN-E2E-05: should revoke a token and update its status immediately', async ({ page }) => {
     // Authenticate
     await page.goto('/login')

@@ -1,31 +1,48 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { PlusCircle, X, ShieldAlert, FolderGit2, Search, CheckSquare, Square, AlertCircle } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import {
+  PlusCircle,
+  X,
+  ShieldAlert,
+  FolderGit2,
+  Search,
+  AlertCircle,
+  Shield,
+  Building2,
+} from 'lucide-react'
 import { createTokenAction } from '@/app/actions/tokens'
 import { listProjectsAction } from '@/app/actions/projects'
-import { ProjectDto } from '@/application/ports/harness-api-client.port'
+import { ensureServiceAccountAction } from '@/app/actions/service-accounts'
+import { ProjectDto, TenantDto } from '@/application/ports/harness-api-client.port'
 
 interface CreateTokenDialogProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: (plaintext: string) => void
-  serviceAccountId: string
-  serviceAccountName: string
-  tenantId: string
-  tenantName: string
+  serviceAccountId?: string
+  serviceAccountName?: string
+  tenantId?: string
+  tenantName?: string
+  tenants?: TenantDto[]
 }
 
 export function CreateTokenDialog({
   isOpen,
   onClose,
   onSuccess,
-  serviceAccountId,
-  serviceAccountName,
-  tenantId,
-  tenantName,
+  serviceAccountId: initialServiceAccountId,
+  serviceAccountName: initialServiceAccountName,
+  tenantId: initialTenantId,
+  tenantName: initialTenantName,
+  tenants = [],
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [currentServiceAccountId, setCurrentServiceAccountId] = useState<string>('')
+  const [currentServiceAccountName, setCurrentServiceAccountName] = useState<string>('')
+  const [loadingServiceAccount, setLoadingServiceAccount] = useState<boolean>(false)
+
   const [scopes, setScopes] = useState<string[]>(['memory:read', 'memory:publish'])
   const [projectKeys, setProjectKeys] = useState<string[]>([])
   const [availableProjects, setAvailableProjects] = useState<ProjectDto[]>([])
@@ -35,31 +52,61 @@ export function CreateTokenDialog({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Initialize selected tenant when dialog opens
   useEffect(() => {
-    if (!isOpen || !tenantId) return
-    let active = true
-    setLoadingProjects(true)
-    listProjectsAction(tenantId)
-      .then((res) => {
-        if (!active) return
-        if (res.data) {
-          setAvailableProjects(res.data)
-          if (res.data.length > 0 && projectKeys.length === 0) {
-            setProjectKeys(res.data.map((p) => p.key))
-          }
-        }
-      })
-      .catch((err) => {
-        if (!active) return
-        setError(err instanceof Error ? err.message : 'Falha ao carregar projetos do tenant')
-      })
-      .finally(() => {
-        if (active) setLoadingProjects(false)
-      })
-    return () => {
-      active = false
+    if (!isOpen) return
+    const defaultId =
+      initialTenantId ||
+      (tenants.length > 0 ? tenants[0].id : '')
+    setSelectedTenantId(defaultId)
+    if (initialServiceAccountId) {
+      setCurrentServiceAccountId(initialServiceAccountId)
     }
-  }, [isOpen, tenantId])
+    if (initialServiceAccountName) {
+      setCurrentServiceAccountName(initialServiceAccountName)
+    }
+  }, [isOpen, initialTenantId, initialServiceAccountId, initialServiceAccountName, tenants])
+
+  // Fetch Service Account and Projects when selected tenant changes
+  const loadTenantContext = useCallback(async (tId: string) => {
+    if (!tId) return
+    setLoadingProjects(true)
+    setLoadingServiceAccount(true)
+    setError(null)
+
+    try {
+      // 1. Resolve Service Account for this tenant
+      const saRes = await ensureServiceAccountAction(tId)
+      if (saRes.data) {
+        setCurrentServiceAccountId(saRes.data.id)
+        setCurrentServiceAccountName(saRes.data.name)
+      } else {
+        setError(saRes.error || 'Não foi possível resolver a Service Account do tenant.')
+      }
+
+      // 2. Fetch Projects for this tenant
+      const projRes = await listProjectsAction(tId, undefined, 100, 0)
+      if (projRes.data) {
+        setAvailableProjects(projRes.data)
+        // By default select all projects of the active tenant
+        setProjectKeys(projRes.data.map((p) => p.key))
+      } else {
+        setAvailableProjects([])
+        setProjectKeys([])
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Falha ao carregar dados do tenant')
+    } finally {
+      setLoadingProjects(false)
+      setLoadingServiceAccount(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isOpen && selectedTenantId) {
+      loadTenantContext(selectedTenantId)
+    }
+  }, [isOpen, selectedTenantId, loadTenantContext])
 
   if (!isOpen) return null
 
@@ -89,12 +136,22 @@ export function CreateTokenDialog({
       (p.name && p.name.toLowerCase().includes(projectSearch.toLowerCase()))
   )
 
+  const activeTenantName =
+    tenants.find((t) => t.id === selectedTenantId)?.name ||
+    initialTenantName ||
+    selectedTenantId
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!name.trim()) {
       setError('Por favor, defina um nome para o token.')
+      return
+    }
+
+    if (!currentServiceAccountId) {
+      setError('Nenhuma conta de serviço vinculada para este tenant.')
       return
     }
 
@@ -114,7 +171,7 @@ export function CreateTokenDialog({
       const lifetimeDays = lifetime === 'never' ? undefined : Number(lifetime)
       const res = await createTokenAction({
         name: name.trim(),
-        serviceAccountId,
+        serviceAccountId: currentServiceAccountId,
         scopes,
         projectKeys,
         lifetimeDays,
@@ -171,14 +228,50 @@ export function CreateTokenDialog({
             />
           </div>
 
-          <div className="rounded-lg border border-border bg-black/20 p-3 text-xs text-gray-400 space-y-1">
-            <div>
-              <span className="font-semibold text-gray-300">Tenant Destino:</span> {tenantName}
+          {/* Tenant Selector */}
+          <div>
+            <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
+              Organização Destino (Tenant)
+            </label>
+            {tenants.length > 0 ? (
+              <div className="relative">
+                <select
+                  value={selectedTenantId}
+                  onChange={(e) => setSelectedTenantId(e.target.value)}
+                  disabled={loading || loadingProjects || loadingServiceAccount}
+                  className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {tenants.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.key})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-xs text-gray-300 flex items-center space-x-2">
+                <Building2 className="h-3.5 w-3.5 text-blue-400" />
+                <span>{activeTenantName}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Service Account Context */}
+          <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Shield className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Titular (Service Account):</span>
+              <span className="font-semibold text-white">
+                {loadingServiceAccount
+                  ? 'Identificando...'
+                  : currentServiceAccountName || 'default-automation'}
+              </span>
             </div>
-            <div>
-              <span className="font-semibold text-gray-300">Titular (Service Account):</span>{' '}
-              {serviceAccountName} ({serviceAccountId})
-            </div>
+            {currentServiceAccountId && (
+              <span className="text-[10px] font-mono text-gray-500">
+                ID: {currentServiceAccountId.substring(0, 8)}...
+              </span>
+            )}
           </div>
 
           {/* Project Permissions Selector */}
@@ -202,13 +295,13 @@ export function CreateTokenDialog({
 
             {loadingProjects ? (
               <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
-                Carregando projetos do tenant...
+                Carregando projetos da organização...
               </div>
             ) : availableProjects.length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  Nenhum projeto encontrado neste tenant. Cadastre ao menos um projeto antes de emitir tokens de acesso.
+                  Nenhum projeto encontrado nesta organização ({activeTenantName}). Cadastre ao menos um projeto na aba Projetos antes de emitir tokens de acesso.
                 </span>
               </div>
             ) : (
@@ -370,7 +463,7 @@ export function CreateTokenDialog({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || loadingProjects || loadingServiceAccount}
               className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-50"
             >
               {loading ? 'Emitindo...' : 'Criar Token'}

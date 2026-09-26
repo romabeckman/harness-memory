@@ -7,11 +7,12 @@ import { IssueTokenUseCase } from '@/application/use-cases/issue-token.use-case'
 import { RevokeTokenUseCase } from '@/application/use-cases/revoke-token.use-case'
 import { AccessTokenOrder } from '@/domain/access-token-order'
 import { TokenScope } from '@/domain/token-scope'
-import { TokenMetadataDto } from '@/application/ports/harness-api-client.port'
+import { TokenMetadataDto, TenantDto } from '@/application/ports/harness-api-client.port'
 
 export interface DashboardData {
   bootstrap: BootstrapResult
   tokens: TokenMetadataDto[]
+  tenants: TenantDto[]
 }
 
 export async function loadDashboardDataAction(): Promise<{ data?: DashboardData; error?: string }> {
@@ -20,8 +21,9 @@ export async function loadDashboardDataAction(): Promise<{ data?: DashboardData;
     const bootstrapUseCase = new BootstrapTenantUseCase(client)
     const bootstrap = await bootstrapUseCase.execute()
     const tokens = await client.listTokens()
+    const tenants = await client.listTenants(undefined, 500, 0)
 
-    return { data: { bootstrap, tokens } }
+    return { data: { bootstrap, tokens, tenants } }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Falha ao carregar dados do dashboard'
     return { error: msg }
