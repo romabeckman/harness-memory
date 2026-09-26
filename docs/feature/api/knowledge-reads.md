@@ -14,45 +14,13 @@ edges:
   - relation: tested_by
     target: "adr:tests"
     read: must
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # API Knowledge Reads
 Read snapshot data with scoped bearer tokens or the admin token. Manage tenants and projects with the admin token.
 
 ```graph
-{
-  "node_id": "feature:api-knowledge-reads",
-  "domain": "api-knowledge-reads",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": [
-    "api/adapters/http/knowledge_read_routes.py",
-    "api/adapters/http/knowledge_search_routes.py",
-    "api/adapters/http/tenant_project_management_routes.py"
-  ],
-  "registration_files": ["api/server/app.py"],
-  "reference_files": [
-    "api/adapters/http/api_security.py",
-    "api/application/services/tenant_management_service.py",
-    "api/application/services/project_management_service.py"
-  ],
-  "code_files": [
-    "api/application/ports/tenant_project_management_repository.py",
-    "api/adapters/http/schemas/tenant_create.py",
-    "api/adapters/http/schemas/tenant_update.py",
-    "api/adapters/http/schemas/project_create.py",
-    "api/adapters/http/schemas/project_update.py",
-    "core/infrastructure/postgres/repositories/tenant_project_management_repository.py",
-    "core/infrastructure/postgres/repositories/knowledge_read_repository.py",
-    "core/infrastructure/postgres/repositories/snapshot_payload_reader.py"
-  ],
-  "test_files": [
-    "tests/unit/api/adapters/http/test_api_authentication.py",
-    "tests/unit/api/adapters/http/test_tenant_project_routes.py",
-    "tests/unit/api/adapters/http/test_knowledge_table_routes.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_snapshot_payload_reader.py"
-  ]
-}
+{"node_id":"feature:api-knowledge-reads","domain":"api-knowledge-reads","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["api/adapters/http/knowledge_read_routes.py","api/adapters/http/knowledge_search_routes.py","api/adapters/http/tenant_project_management_routes.py"],"registration_files":["api/server/app.py"],"reference_files":["api/adapters/http/api_security.py","api/application/services/tenant_management_service.py","api/application/services/project_management_service.py"],"code_files":["api/application/ports/tenant_project_management_repository.py","api/adapters/http/schemas/tenant_create.py","api/adapters/http/schemas/tenant_update.py","api/adapters/http/schemas/project_create.py","api/adapters/http/schemas/project_update.py","core/infrastructure/postgres/repositories/tenant_project_management_repository.py","core/infrastructure/postgres/repositories/knowledge_read_repository.py","core/infrastructure/postgres/repositories/snapshot_payload_reader.py"],"test_files":["tests/unit/api/adapters/http/test_api_authentication.py","tests/unit/api/adapters/http/test_tenant_project_routes.py","tests/unit/api/adapters/http/test_knowledge_table_routes.py","tests/unit/core/infrastructure/postgres/repositories/test_snapshot_payload_reader.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:read-snapshot-facts","type":"capability","label":"Read snapshot facts","definition":"Expose tenant-scoped REST reads for snapshots and normalized knowledge facts.","aliases":[]},{"id":"rule:scope-before-read","type":"rule","label":"Authorize before read","definition":"Require the applicable bearer scope before a protected knowledge query.","aliases":[]},{"id":"contract:snapshot-detail","type":"contract","label":"Snapshot detail","definition":"Reconstructed payload containing ordered entity, relation, and evidence facts.","aliases":[]}],"claims":[{"id":"claim:scope-before-query","subject":"capability:read-snapshot-facts","relation":"constrained_by","object":"rule:scope-before-read","statement":"Knowledge read routes require an authenticated principal; invalid credentials return 401 and insufficient scope returns 403.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/adapters/http/api_security.py","locator":"ApiSecurity.require_reader and _require_scope","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:snapshot-detail-reconstruction","subject":"capability:read-snapshot-facts","relation":"exposes","object":"contract:snapshot-detail","statement":"Snapshot payloads are reconstructed from normalized rows ordered by graph_position, with relation and evidence references mapped to graph keys.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/snapshot_payload_reader.py","locator":"SnapshotPayloadReader.read","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:snapshot-read-only","subject":"capability:read-snapshot-facts","relation":null,"object":null,"statement":"The snapshot detail route module exposes GET handlers and no snapshot write handler.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/adapters/http/knowledge_read_routes.py","locator":"create_knowledge_read_router: snapshot detail GET route","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -120,18 +88,6 @@ REQUIRED: Check the required scope before querying and apply any supplied tenant
 REQUIRED: Keep snapshots read-only for every credential, including admin.
 REQUIRED: Preserve the snapshot detail response by reconstructing its payload from normalized entity, relation, and evidence rows.
 PROHIBITED: Let non-admin tokens create, update, or delete tenant or project records.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    READS["API Knowledge Reads"] -->|implements| ARCH["Project Architecture"]
-    READS -->|references| API["API Architecture"]
-    READS -->|tested_by| TESTS["Testing Protocol"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click API "../../adr/API.md"
-    click TESTS "../../adr/TESTS.md"
-```
 
 ## REFERENCES
 

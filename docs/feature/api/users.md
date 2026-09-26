@@ -18,38 +18,13 @@ edges:
     target: "feature:api-tokens"
     read: optional
     when: "Read when changing user deletion, token ownership, or MCP tenant derivation."
-updated: 2026-09-21
+updated: 2026-09-26
 ---
 # API Users
 Manage human API identities whose tenant binding scopes user-owned tokens.
 
 ```graph
-{
-  "node_id": "feature:api-users",
-  "domain": "api-users",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["api/adapters/http/user_routes.py"],
-  "registration_files": ["api/server/app.py"],
-  "reference_files": [
-    "api/application/services/user_service.py",
-    "api/domain/entities/user.py",
-    "core/infrastructure/postgres/repositories/api_user_repository.py"
-  ],
-  "code_files": [
-    "api/adapters/http/schemas/user_create.py",
-    "api/adapters/http/schemas/user_update.py",
-    "api/adapters/http/schemas/user_response.py",
-    "api/application/ports/user_repository.py",
-    "core/infrastructure/postgres/models/api_user.py",
-    "migrations/versions/005_api_users_and_tokens.py"
-  ],
-  "test_files": [
-    "tests/unit/api/application/test_user_service.py",
-    "tests/integration/api/infrastructure/test_repositories.py",
-    "tests/e2e/api/test_user_token_crud.py"
-  ]
-}
+{"node_id":"feature:api-users","domain":"api-users","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["api/adapters/http/user_routes.py"],"registration_files":["api/server/app.py"],"reference_files":["api/application/services/user_service.py","api/domain/entities/user.py","core/infrastructure/postgres/repositories/api_user_repository.py"],"code_files":["api/adapters/http/schemas/user_create.py","api/adapters/http/schemas/user_update.py","api/adapters/http/schemas/user_response.py","api/application/ports/user_repository.py","core/infrastructure/postgres/models/api_user.py","migrations/versions/005_api_users_and_tokens.py"],"test_files":["tests/unit/api/application/test_user_service.py","tests/integration/api/infrastructure/test_repositories.py","tests/e2e/api/test_user_token_crud.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:manage-api-users","type":"capability","label":"Manage API users","definition":"Create, read, update, and delete API user identities.","aliases":[]},{"id":"rule:normalized-unique-email","type":"rule","label":"Normalized unique email","definition":"Trim and lowercase email before uniqueness checks and persistence.","aliases":[]},{"id":"contract:user-tenant-binding","type":"contract","label":"User tenant binding","definition":"A user without an explicit tenant binding uses its own UUID as tenant identity.","aliases":[]}],"claims":[{"id":"claim:email-normalization","subject":"capability:manage-api-users","relation":"constrained_by","object":"rule:normalized-unique-email","statement":"UserService trims and lowercases email on create and update, then rejects an email owned by another user.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/application/services/user_service.py","locator":"UserService.create, update, _normalize_email","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:user-tenant-identity","subject":"capability:manage-api-users","relation":"exposes","object":"contract:user-tenant-binding","statement":"User.__post_init__ defaults tenant_id to the user UUID; ApiUserRepository.add uses that identity when provisioning the tenant row.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/domain/entities/user.py","locator":"User.__post_init__","snapshot":null},{"kind":"code","source":"api/infrastructure/postgres/repositories/api_user_repository.py","locator":"ApiUserRepository.add and _ensure_tenant","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -95,20 +70,6 @@ PROHIBITED: Let a token request override the user's tenant binding.
 | `id` | Generated UUID | Not accepted | Included |
 
 Return HTTP 404 for missing users. Return HTTP 409 for duplicate email, blank normalized values, or invalid service-level values.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    USERS["API Users"] -->|implements| ARCH["Project Architecture"]
-    USERS -->|references| API["API Architecture"]
-    USERS -->|tested_by| TESTS["Testing Protocol"]
-    USERS -->|references| TOKENS["API Tokens"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click API "../../adr/API.md"
-    click TESTS "../../adr/TESTS.md"
-    click TOKENS "./tokens.md"
-```
 
 ## REFERENCES
 

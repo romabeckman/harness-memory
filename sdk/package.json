@@ -21,6 +21,9 @@
   "keywords": ["harness-memory", "sdk", "cli", "knowledge-graph"],
   "author": "",
   "license": "Apache-2.0",
+  "dependencies": {
+    "cross-spawn": "^7.0.6"
+  },
   "devDependencies": {
     "eslint": "^9.0.0",
     "@babel/core": "^7.0.0",

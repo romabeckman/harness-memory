@@ -16,26 +16,14 @@ edges:
   - relation: depends_on
     target: "feature:api-tokens"
     read: must
-updated: 2026-09-21
+updated: 2026-09-26
 ---
 # MCP Token Authentication
 
 Authenticate MCP clients with opaque bearer tokens issued by the REST API.
 
 ```graph
-{
-  "node_id": "feature:mcp-token-authentication",
-  "domain": "mcp-token-authentication",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "references": ["adr:mcp", "adr:api"],
-  "depends_on": ["feature:api-tokens"],
-  "entrypoints": ["harness_memory_mcp/server/app.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py", "docker-compose.yml"],
-  "reference_files": ["harness_memory_mcp/services/database_token_verifier.py", "harness_memory_mcp/services/admin_token_verifier.py", "core/infrastructure/postgres/repositories/api_token_repository.py", "core/infrastructure/postgres/repositories/api_service_account_repository.py"],
-  "code_files": ["harness_memory_mcp/config.py", "api/application/ports/token_repository.py", "api/domain/entities/service_account.py", "api/domain/entities/access_token.py", "core/infrastructure/postgres/models/api_service_account.py", "core/domain/tenant_security/types/memory_scope.py"],
-  "test_files": ["tests/unit/mcp/services/test_database_token_verifier.py", "tests/unit/mcp/services/test_admin_token_verifier.py", "tests/unit/mcp/server/test_factory.py", "tests/unit/mcp/test_config.py", "tests/integration/api/infrastructure/test_repositories.py", "tests/e2e/api/test_user_token_crud.py", "tests/e2e/mcp/test_api_token_authentication.py"]
-}
+{"node_id":"feature:mcp-token-authentication","domain":"mcp-token-authentication","implements":["adr:architecture"],"tested_by":["adr:tests"],"references":["adr:mcp","adr:api"],"depends_on":["feature:api-tokens"],"entrypoints":["harness_memory_mcp/server/app.py"],"registration_files":["harness_memory_mcp/server/factory.py","docker-compose.yml"],"reference_files":["harness_memory_mcp/services/database_token_verifier.py","harness_memory_mcp/services/admin_token_verifier.py","core/infrastructure/postgres/repositories/api_token_repository.py","core/infrastructure/postgres/repositories/api_service_account_repository.py"],"code_files":["harness_memory_mcp/config.py","api/application/ports/token_repository.py","api/domain/entities/service_account.py","api/domain/entities/access_token.py","core/infrastructure/postgres/models/api_service_account.py","core/domain/tenant_security/types/memory_scope.py"],"test_files":["tests/unit/mcp/services/test_database_token_verifier.py","tests/unit/mcp/services/test_admin_token_verifier.py","tests/unit/mcp/server/test_factory.py","tests/unit/mcp/test_config.py","tests/integration/api/infrastructure/test_repositories.py","tests/e2e/api/test_user_token_crud.py","tests/e2e/mcp/test_api_token_authentication.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:authenticate-mcp-tokens","type":"capability","label":"Authenticate MCP tokens","definition":"Verify API-issued opaque bearer tokens for MCP requests.","aliases":[]},{"id":"rule:token-owner-principal","type":"rule","label":"Token owner principal","definition":"Derive principal subject, tenant, and scopes from an active stored token and its owner.","aliases":[]},{"id":"contract:mcp-bearer-token","type":"contract","label":"MCP bearer token","definition":"An active opaque token maps to an authenticated principal; invalid or expired tokens are rejected.","aliases":[]}],"claims":[{"id":"claim:token-digest-lookup","subject":"capability:authenticate-mcp-tokens","relation":"constrained_by","object":"rule:token-owner-principal","statement":"Database verification hashes the presented token and queries only for an active matching digest.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"harness_memory_mcp/services/database_token_verifier.py","locator":"DatabaseTokenVerifier.verify_token","snapshot":null},{"kind":"code","source":"core/infrastructure/postgres/repositories/api_token_repository.py","locator":"ApiTokenRepository.find_active_by_hash","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:principal-from-token-owner","subject":"capability:authenticate-mcp-tokens","relation":"exposes","object":"contract:mcp-bearer-token","statement":"The verifier builds the principal from the stored token owner and persisted scopes; request payload identity is not used.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"harness_memory_mcp/services/database_token_verifier.py","locator":"DatabaseTokenVerifier.verify_token","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -86,21 +74,6 @@ REQUIRED: Reject active token records with missing token or owner data before cr
 PROHIBITED: Accept user or tenant identity from MCP request payloads.
 PROHIBITED: Use API tokens to authenticate REST management endpoints.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    AUTH["MCP Token Authentication"] -->|implements| ARCH["Project Architecture"]
-    AUTH -->|tested_by| TESTS["Testing Protocol"]
-    AUTH -->|references| MCP["MCP Interface"]
-    AUTH -->|references| APIARCH["API Architecture"]
-    AUTH -->|depends_on| API["API Tokens"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click APIARCH "../../adr/API.md"
-    click API "../api/tokens.md"
-```
 
 ## REFERENCES
 

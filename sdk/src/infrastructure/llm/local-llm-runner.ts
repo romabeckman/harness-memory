@@ -1,5 +1,8 @@
-import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
+import { constants as fsConstants, existsSync } from "node:fs";
+import { lstat, mkdtemp, open, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
+import spawn from "cross-spawn";
 import { GraphDocument } from "../../domain/contracts.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
 import {
@@ -11,6 +14,7 @@ import { AgentRunnerFactory } from "./agent-runner-factory.js";
 const MAX_STDOUT_BYTES = 50 * 1024 * 1024;
 const MAX_STDERR_BYTES = 1 * 1024 * 1024;
 const MAX_CODEX_INPUT_CHARS = 1_048_576;
+const MAX_WINDOWS_ARGUMENT_PROMPT_CHARS = 30_000;
 
 export interface ExtendedLlmInvocationOptions extends LlmInvocationOptions {
   commandArgs?: string[];
@@ -20,6 +24,27 @@ export class LocalLlmRunner implements LlmRunnerPort {
   constructor(private readonly agentRunnerFactory = new AgentRunnerFactory()) {}
 
   public async run(options: ExtendedLlmInvocationOptions): Promise<GraphDocument> {
+    const workingDirectory = await mkdtemp(join(resolve(tmpdir()), "harness-memory-llm-"));
+    const outputFile = join(workingDirectory, "graph-output.json");
+    const instruction = [
+      options.instruction ??
+        "Generate a complete environment knowledge graph for the given repository and project. Output strictly one JSON document matching schema_version 1.0.",
+      `<temporary_output_file>${JSON.stringify(outputFile)}</temporary_output_file>`,
+      "Write the complete graph JSON to this file using an available file-writing tool. Do not rely on stdout for the graph.",
+    ].join("\n\n");
+
+    try {
+      return await this.runWithTemporaryOutput({ ...options, instruction }, workingDirectory, outputFile);
+    } finally {
+      await rm(workingDirectory, { recursive: true, force: true });
+    }
+  }
+
+  private async runWithTemporaryOutput(
+    options: ExtendedLlmInvocationOptions,
+    workingDirectory: string,
+    outputFile: string,
+  ): Promise<GraphDocument> {
     const agentRunner = this.agentRunnerFactory.create(options.agent);
     if (options.agent === "codex-cli" &&
       (!options.llmCommand?.trim() || /(?:^|[\\/\s])codex(?:\.cmd|\.exe)?(?:\s|$)/i.test(options.llmCommand))) {
@@ -46,8 +71,24 @@ export class LocalLlmRunner implements LlmRunnerPort {
         baseArgs = parts.slice(1);
       }
     }
+    if (existsSync(execPath) && (isAbsolute(execPath) || execPath.includes("/") || execPath.includes("\\"))) {
+      execPath = resolve(execPath);
+    }
 
-    const args = options.commandArgs ?? [...baseArgs, ...agentRunner.buildArgs(options)];
+    const prompt = agentRunner.promptTransport === "argument"
+      ? [...this.payloadChunks(options)].join("")
+      : undefined;
+    if (prompt && process.platform === "win32" && prompt.length > MAX_WINDOWS_ARGUMENT_PROMPT_CHARS) {
+      throw new LlmExecutionError(
+        `${agentRunner.type} prompt exceeds the Windows command-line limit. ` +
+        "Use --exclude-paths to reduce the repository context."
+      );
+    }
+
+    const args = options.commandArgs ?? [
+      ...baseArgs,
+      ...agentRunner.buildArgs({ ...options, timeoutSeconds: options.timeoutSeconds }, prompt),
+    ];
 
     // Minimal sanitized environment strictly excluding tokens and secrets
     const safeEnv: Record<string, string> = {};
@@ -71,6 +112,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
       try {
         child = spawn(execPath, args, {
           shell: false,
+          cwd: workingDirectory,
           stdio: ["pipe", "pipe", "pipe"],
           env: safeEnv,
         });
@@ -136,7 +178,7 @@ export class LocalLlmRunner implements LlmRunnerPort {
         }
       });
 
-      child.on("close", (code: number | null, signal: string | null) => {
+      child.on("close", async (code: number | null, signal: string | null) => {
         clearTimeout(timer);
 
         if (killedDueToTimeout) {
@@ -157,6 +199,19 @@ export class LocalLlmRunner implements LlmRunnerPort {
               `LLM process ${reason}${redactedStderr ? `: ${redactedStderr}` : ""}`
             )
           );
+        }
+
+        try {
+          const fileOutput = await this.readTemporaryGraph(outputFile);
+          if (fileOutput !== undefined) {
+            resolve(fileOutput);
+            return;
+          }
+        } catch (err: any) {
+          reject(err instanceof LlmExecutionError
+            ? err
+            : new LlmExecutionError(`Failed to read LLM output file: ${this.redact(err.message)}`));
+          return;
         }
 
         let trimmed: string;
@@ -189,7 +244,10 @@ export class LocalLlmRunner implements LlmRunnerPort {
       });
 
       // Stream payload chunks iteratively respecting backpressure
-      this.streamPayloadToStdin(child.stdin, options).catch((err: any) => {
+      const inputWrite = agentRunner.promptTransport === "argument"
+        ? Promise.resolve().then(() => child.stdin.end())
+        : this.streamPayloadToStdin(child.stdin, options);
+      inputWrite.catch((err: any) => {
         setTimeout(() => {
           if (!child.killed && child.exitCode === null) {
             clearTimeout(timer);
@@ -203,6 +261,42 @@ export class LocalLlmRunner implements LlmRunnerPort {
         }, 150);
       });
     });
+  }
+
+  private async readTemporaryGraph(outputFile: string): Promise<GraphDocument | undefined> {
+    let outputHandle: Awaited<ReturnType<typeof open>> | undefined;
+    try {
+      const fileInfo = await lstat(outputFile);
+      if (!fileInfo.isFile() || fileInfo.isSymbolicLink()) {
+        throw new LlmExecutionError("LLM output file is not a regular file");
+      }
+      if (fileInfo.size > MAX_STDOUT_BYTES) {
+        throw new LlmExecutionError(`LLM output file exceeded maximum limit of ${MAX_STDOUT_BYTES} bytes`);
+      }
+
+      outputHandle = await open(outputFile, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+      const openedFileInfo = await outputHandle.stat();
+      if (!openedFileInfo.isFile()) {
+        throw new LlmExecutionError("LLM output file is not a regular file");
+      }
+      if (openedFileInfo.size > MAX_STDOUT_BYTES) {
+        throw new LlmExecutionError(`LLM output file exceeded maximum limit of ${MAX_STDOUT_BYTES} bytes`);
+      }
+
+      const content = (await outputHandle.readFile("utf8")).trim();
+      if (!content) throw new LlmExecutionError("LLM output is not valid JSON: output file is empty");
+      try {
+        return JSON.parse(content) as GraphDocument;
+      } catch (err: any) {
+        throw new LlmExecutionError(`LLM output is not valid JSON: ${this.redact(err.message)}`);
+      }
+    } catch (err: any) {
+      if (err.code === "ENOENT") return undefined;
+      if (err instanceof LlmExecutionError) throw err;
+      throw new LlmExecutionError(`Failed to read LLM output file: ${this.redact(err.message)}`);
+    } finally {
+      await outputHandle?.close();
+    }
   }
 
   private async streamPayloadToStdin(

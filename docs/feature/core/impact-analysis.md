@@ -14,45 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:integration-paths"
     read: must
-updated: 2026-09-20
+updated: 2026-09-26
 ---
 # Impact Analysis
 Analyze structured changes against active tenant graph relationships through `analyze_impact`.
 
 ```graph
-{
-  "node_id": "feature:impact-analysis",
-  "domain": "impact_analysis",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/tools/analyze_impact.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
-  "reference_files": [
-    "core/application/impact_analysis/use_cases/analyze_impact/handler.py",
-    "core/infrastructure/postgres/repositories/impact_analysis_repository.py"
-  ],
-  "code_files": [
-    "core/application/impact_analysis/contracts/change_description.py",
-    "core/application/impact_analysis/contracts/dependency_path_view.py",
-    "core/application/impact_analysis/contracts/impact_consumer_view.py",
-    "core/application/impact_analysis/errors/impact_entity_not_found.py",
-    "core/application/impact_analysis/errors/impact_query_failure.py",
-    "core/application/impact_analysis/ports/impact_analysis_repository.py",
-    "core/application/impact_analysis/types/impact_analysis_bounds.py",
-    "core/application/impact_analysis/use_cases/analyze_impact/inbound.py",
-    "core/application/impact_analysis/use_cases/analyze_impact/outbound.py",
-    "migrations/versions/003_canonical_impact_identity.py",
-    "harness_memory_mcp/services/impact_response_mapper.py"
-  ],
-  "test_files": [
-    "tests/unit/core/application/impact_analysis/contracts/test_contracts.py",
-    "tests/unit/core/application/impact_analysis/use_cases/test_analyze_impact.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py",
-    "tests/unit/mcp/services/test_impact_response_mapper.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_impact_analysis_repository.py",
-    "tests/e2e/mcp/test_analyze_impact.py"
-  ]
-}
+{"node_id":"feature:impact-analysis","domain":"impact_analysis","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/tools/analyze_impact.py"],"registration_files":["harness_memory_mcp/server/factory.py"],"reference_files":["core/application/impact_analysis/use_cases/analyze_impact/handler.py","core/infrastructure/postgres/repositories/impact_analysis_repository.py"],"code_files":["core/application/impact_analysis/contracts/change_description.py","core/application/impact_analysis/contracts/dependency_path_view.py","core/application/impact_analysis/contracts/impact_consumer_view.py","core/application/impact_analysis/errors/impact_entity_not_found.py","core/application/impact_analysis/errors/impact_query_failure.py","core/application/impact_analysis/ports/impact_analysis_repository.py","core/application/impact_analysis/types/impact_analysis_bounds.py","core/application/impact_analysis/use_cases/analyze_impact/inbound.py","core/application/impact_analysis/use_cases/analyze_impact/outbound.py","migrations/versions/003_canonical_impact_identity.py","harness_memory_mcp/services/impact_response_mapper.py"],"test_files":["tests/unit/core/application/impact_analysis/contracts/test_contracts.py","tests/unit/core/application/impact_analysis/use_cases/test_analyze_impact.py","tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py","tests/unit/mcp/services/test_impact_response_mapper.py","tests/integration/core/infrastructure/postgres/repositories/test_impact_analysis_repository.py","tests/e2e/mcp/test_analyze_impact.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:analyze-impact","type":"capability","label":"Analyze change impact","definition":"Return active graph consumers and bounded context for one changed entity.","aliases":[]},{"id":"rule:trusted-impact-scope","type":"rule","label":"Trusted impact scope","definition":"Require tenant scope from authenticated request context before repository access.","aliases":[]},{"id":"contract:impact-report","type":"contract","label":"Impact report","definition":"Disjoint direct and indirect consumer sets with paths, context, and explicit unknowns.","aliases":[]}],"claims":[{"id":"claim:impact-trusted-scope","subject":"capability:analyze-impact","relation":"constrained_by","object":"rule:trusted-impact-scope","statement":"AnalyzeImpactHandler rejects missing or invalid trusted tenant context before calling the repository.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/application/impact_analysis/use_cases/analyze_impact/handler.py","locator":"AnalyzeImpactHandler.execute","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:impact-bounds-and-unknowns","subject":"capability:analyze-impact","relation":"exposes","object":"contract:impact-report","statement":"The repository bounds traversal and response bytes; omitted consumers, evidence, or truncated traversal are reported through unknowns.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/impact_analysis_repository.py","locator":"PostgresImpactAnalysisRepository._traverse, _fit_result_to_budget, and _unknowns","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -112,19 +80,6 @@ REQUIRED: Return `INVALID_IMPACT_CONTRACT` with a precise required or ambiguous 
 
 Set `evidence_limit=0` when the caller needs topology without evidence-gap reporting.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Impact Analysis"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| PATHS["Integration Paths"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click PATHS "./integration-paths.md"
-```
 
 ## REFERENCES
 

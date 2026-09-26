@@ -14,64 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:tenant-security"
     read: must
-updated: 2026-09-21
+updated: 2026-09-26
 ---
 # Production Delivery
 Package and operate Harness Memory as a non-root, migration-gated, observable MCP HTTP service.
 
 ```graph
-{
-  "node_id": "feature:production-delivery",
-  "domain": "production_delivery",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/server/app.py"],
-  "registration_files": [],
-  "reference_files": [
-    "core/infrastructure/postgres/schema_compatibility_checker.py",
-    "core/infrastructure/postgres/verify_startup_schema.py",
-    "core/infrastructure/telemetry/telemetry_tracer.py",
-    "harness_memory_mcp/server/server_lifespan_manager.py"
-  ],
-  "code_files": [
-    ".dockerignore",
-    "Dockerfile",
-    "docker-compose.yml",
-    ".github/workflows/ci.yml",
-    "pyproject.toml",
-    "core/domain/platform/schema_compatibility_error.py",
-    "core/domain/platform/schema_compatibility_status.py",
-    "core/domain/platform/schema_incompatible_error.py",
-    "core/domain/platform/trace_correlation_id.py",
-    "core/infrastructure/telemetry/telemetry_span_sanitizer.py",
-    "core/infrastructure/telemetry/tracer_provider.py",
-    "harness_memory_mcp/config.py",
-    "harness_memory_mcp/docker_config.py",
-    "harness_memory_mcp/server/factory.py",
-    "harness_memory_mcp/services/telemetry_middleware.py",
-    "harness_memory_mcp/services/trace_context_extractor.py",
-    "harness_memory_mcp/services/trace_context_holder.py"
-  ],
-  "test_files": [
-    "tests/e2e/docker/test_dockerfile.py",
-    "tests/integration/core/infrastructure/postgres/test_startup_schema_compatibility.py",
-    "tests/integration/mcp/services/test_telemetry_integration.py",
-    "tests/integration/mcp/test_production_config.py",
-    "tests/unit/core/domain/platform/test_schema_compatibility_status.py",
-    "tests/unit/core/infrastructure/postgres/test_schema_compatibility_checker.py",
-    "tests/unit/core/infrastructure/telemetry/test_telemetry_span_sanitizer.py",
-    "tests/unit/core/infrastructure/telemetry/test_tracer_provider.py",
-    "tests/unit/mcp/server/test_server_lifespan_manager.py",
-    "tests/unit/mcp/server/test_server_lifespan_registration.py",
-    "tests/unit/mcp/server/test_server_startup_schema.py",
-    "tests/unit/mcp/services/test_telemetry_middleware.py",
-    "tests/unit/mcp/services/test_trace_context_extractor.py",
-    "tests/unit/mcp/test_docker_config.py",
-    "tests/unit/architecture/test_rules.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py",
-    "tests/unit/production_delivery/test_ci_workflow.py"
-  ]
-}
+{"node_id":"feature:production-delivery","domain":"production_delivery","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/server/app.py"],"registration_files":[],"reference_files":["core/infrastructure/postgres/schema_compatibility_checker.py","core/infrastructure/postgres/verify_startup_schema.py","core/infrastructure/telemetry/telemetry_tracer.py","harness_memory_mcp/server/server_lifespan_manager.py"],"code_files":[".dockerignore","Dockerfile","docker-compose.yml",".github/workflows/ci.yml","pyproject.toml","core/domain/platform/schema_compatibility_error.py","core/domain/platform/schema_compatibility_status.py","core/domain/platform/schema_incompatible_error.py","core/domain/platform/trace_correlation_id.py","core/infrastructure/telemetry/telemetry_span_sanitizer.py","core/infrastructure/telemetry/tracer_provider.py","harness_memory_mcp/config.py","harness_memory_mcp/docker_config.py","harness_memory_mcp/server/factory.py","harness_memory_mcp/services/telemetry_middleware.py","harness_memory_mcp/services/trace_context_extractor.py","harness_memory_mcp/services/trace_context_holder.py"],"test_files":["tests/e2e/docker/test_dockerfile.py","tests/integration/core/infrastructure/postgres/test_startup_schema_compatibility.py","tests/integration/mcp/services/test_telemetry_integration.py","tests/integration/mcp/test_production_config.py","tests/unit/core/domain/platform/test_schema_compatibility_status.py","tests/unit/core/infrastructure/postgres/test_schema_compatibility_checker.py","tests/unit/core/infrastructure/telemetry/test_telemetry_span_sanitizer.py","tests/unit/core/infrastructure/telemetry/test_tracer_provider.py","tests/unit/mcp/server/test_server_lifespan_manager.py","tests/unit/mcp/server/test_server_lifespan_registration.py","tests/unit/mcp/server/test_server_startup_schema.py","tests/unit/mcp/services/test_telemetry_middleware.py","tests/unit/mcp/services/test_trace_context_extractor.py","tests/unit/mcp/test_docker_config.py","tests/unit/architecture/test_rules.py","tests/unit/core/infrastructure/postgres/repositories/test_impact_result_budget.py","tests/unit/production_delivery/test_ci_workflow.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:gate-service-startup","type":"capability","label":"Gate service startup","definition":"Check database schema compatibility before the MCP service starts serving requests.","aliases":[]},{"id":"rule:fail-closed-schema-gate","type":"rule","label":"Fail-closed schema gate","definition":"Do not serve when the database schema is incompatible with the runtime.","aliases":[]},{"id":"contract:startup-readiness","type":"contract","label":"Startup readiness","definition":"Startup succeeds only after schema compatibility verification completes.","aliases":[]}],"claims":[{"id":"claim:startup-schema-verification","subject":"capability:gate-service-startup","relation":"constrained_by","object":"rule:fail-closed-schema-gate","statement":"ServerLifespanManager runs VerifyStartupSchema before serving and propagates incompatible schema failures; it does not upgrade the schema.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"harness_memory_mcp/server/server_lifespan_manager.py","locator":"ServerLifespanManager.on_startup","snapshot":null},{"kind":"code","source":"core/infrastructure/postgres/verify_startup_schema.py","locator":"VerifyStartupSchema.execute","snapshot":null},{"kind":"code","source":"core/infrastructure/postgres/schema_compatibility_checker.py","locator":"SchemaCompatibilityChecker.check","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:startup-readiness-contract","subject":"capability:gate-service-startup","relation":"exposes","object":"contract:startup-readiness","statement":"The lifespan startup path completes schema verification before yielding the running server context.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"harness_memory_mcp/server/server_lifespan_manager.py","locator":"ServerLifespanManager.lifespan","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -129,19 +78,6 @@ PROHIBITED: Export bearer tokens, claims, payloads, evidence, credentials, or da
 
 Use `harness-memory migrate --status` when diagnosing a startup schema mismatch.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Production Delivery"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| SECURITY["Tenant Security"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click SECURITY "../mcp/tenant-security.md"
-```
 
 ## REFERENCES
 

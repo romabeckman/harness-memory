@@ -241,7 +241,7 @@ describe("ProjectMemoryWorkflow", () => {
 
     expect(llm.run).toHaveBeenCalledTimes(2);
   });
-  it("retries a prose response with explicit JSON-only and no-file-write instructions", async () => {
+  it("retries a prose response with explicit temporary-output instructions", async () => {
     const llm = { run: vi.fn()
       .mockRejectedValueOnce(new LlmExecutionError("LLM output is not valid JSON: Unexpected token 'I'"))
       .mockResolvedValueOnce(generated()) };
@@ -253,7 +253,8 @@ describe("ProjectMemoryWorkflow", () => {
 
     expect(outcome.graph.entities.some(entity => entity.key === "feature:orders")).toBe(true);
     expect(llm.run).toHaveBeenCalledTimes(2);
-    expect(llm.run.mock.calls[0][0].instruction).toContain("Do not call tools, read or write workspace files");
+    expect(llm.run.mock.calls[0][0].instruction).toContain("Do not read workspace files or use tools except to write the final graph JSON");
+    expect(llm.run.mock.calls[0][0].instruction).toContain("Do not create documentation or modify other files");
     expect(llm.run.mock.calls[0][0].instruction).toContain("SDK publishes graph data without writing documentation files");
     expect(llm.run.mock.calls[1][0].instruction).toContain("previous response was not valid JSON");
     expect(debug).toHaveBeenCalledWith(expect.stringContaining("retrying graph synthesis"));

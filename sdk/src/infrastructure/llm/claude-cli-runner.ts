@@ -1,12 +1,11 @@
-import { LlmInvocationOptions } from "../../application/ports/llm-runner.port.js";
 import { LlmExecutionError } from "../../domain/llm-execution-error.js";
-import { LlmAgentRunner } from "./llm-agent-runner.js";
+import { LlmAgentRunner, LlmAgentRunnerOptions } from "./llm-agent-runner.js";
 
 export class ClaudeCliRunner implements LlmAgentRunner {
   public readonly type = "claude-cli" as const;
   public readonly command = "claude";
 
-  public buildArgs(options: Pick<LlmInvocationOptions, "model" | "effort">): string[] {
+  public buildArgs(options: LlmAgentRunnerOptions): string[] {
     return [
       "--print",
       "--output-format",

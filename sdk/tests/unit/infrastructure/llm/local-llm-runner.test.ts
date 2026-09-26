@@ -4,6 +4,8 @@ import { LlmExecutionError } from "../../../../src/domain/llm-execution-error.js
 import { RepositoryContext } from "../../../../src/application/ports/git-context-collector.port.js";
 import { Writable } from "node:stream";
 import { AgentRunnerFactory } from "../../../../src/infrastructure/llm/agent-runner-factory.js";
+import { existsSync } from "node:fs";
+import { dirname } from "node:path";
 
 describe("LocalLlmRunner", () => {
   it("removes backpressure listeners after every drained write", async () => {
@@ -105,6 +107,47 @@ describe("LocalLlmRunner", () => {
     expect(doc.entities[0].key).toBe("service:api");
   });
 
+  it("reads the graph from the prompted temporary JSON file when stdout has no graph", async () => {
+    const script = `
+      const fs = require('node:fs');
+      let input = '';
+      process.stdin.on('data', chunk => { input += chunk; });
+      process.stdin.on('end', () => {
+        const payload = JSON.parse(input);
+        const match = payload.instruction.match(/<temporary_output_file>([\\s\\S]*?)<\\/temporary_output_file>/);
+        if (!match) process.exit(13);
+        const outputFile = JSON.parse(match[1]);
+        if (!outputFile.endsWith('graph-output.json')) process.exit(14);
+        const doc = {
+          schema_version: '1.0',
+          entities: [{ key: 'service:file-output', type: 'service' }],
+          relations: [],
+          evidence: [],
+          metadata: { test_output_file: outputFile }
+        };
+        fs.writeFileSync(outputFile, JSON.stringify(doc));
+      });
+    `;
+
+    const doc = await runner.run({
+      agent: "codex-cli",
+      model: "test-model",
+      effort: "medium",
+      llmCommand: process.execPath,
+      timeoutSeconds: 10,
+      projectKey: "catalog",
+      environment: "staging",
+      context: dummyContext,
+      commandArgs: ["-e", script],
+    });
+
+    const outputFile = doc.metadata?.test_output_file as string;
+    expect(outputFile).toMatch(/[\\/]graph-output\.json$/);
+    expect(doc.entities[0].key).toBe("service:file-output");
+    expect(existsSync(outputFile)).toBe(false);
+    expect(existsSync(dirname(outputFile))).toBe(false);
+  });
+
   it("fails with LlmExecutionError when process outputs invalid json", async () => {
     const script = `
       process.stdout.write("not valid json at all");
@@ -186,6 +229,38 @@ describe("LocalLlmRunner", () => {
     });
 
     expect(doc.entities[0].key).toBe("file-count:3");
+  });
+
+  it("passes the complete context as the Copilot prompt argument", async () => {
+    const script = `
+      const payload = JSON.parse(process.argv[1]);
+      const doc = {
+        schema_version: '1.0',
+        entities: [{ key: 'files:' + payload.context.files.length, type: 'service' }],
+        relations: [],
+        evidence: []
+      };
+      process.stdout.write(JSON.stringify(doc));
+    `;
+    const copilot = new LocalLlmRunner(new AgentRunnerFactory([{
+      type: "copilot-cli",
+      promptTransport: "argument",
+      command: process.execPath,
+      buildArgs: (_options, prompt) => ["-e", script, prompt ?? ""],
+      parseOutput: (stdout) => stdout,
+    }]));
+
+    const doc = await copilot.run({
+      agent: "copilot-cli",
+      model: "gpt-5",
+      effort: "high",
+      timeoutSeconds: 10,
+      projectKey: "catalog",
+      environment: "staging",
+      context: dummyContext,
+    });
+
+    expect(doc.entities[0].key).toBe("files:1");
   });
 });
 

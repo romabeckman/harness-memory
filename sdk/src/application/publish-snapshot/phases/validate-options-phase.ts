@@ -16,7 +16,9 @@ export class ValidateOptionsPhase extends AbstractPublicationPhase {
     }
     if (!options.agent) throw new ConfigurationError("agent is required");
     if (!isLlmAgentType(options.agent)) {
-      throw new ConfigurationError(`agent must be one of: ${LLM_AGENT_TYPES.join(", ")}; received '${options.agent}'`);
+      throw new ConfigurationError(
+        `agent must be one of: ${LLM_AGENT_TYPES.join(", ")}; received '${options.agent}'`
+      );
     }
     context.token = options.token || process.env.HARNESS_MEMORY_API_KEY;
   }

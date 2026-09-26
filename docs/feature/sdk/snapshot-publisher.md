@@ -15,207 +15,48 @@ edges:
     target: "feature:environment-snapshots"
   - relation: references
     target: "adr:security"
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # Snapshot Publisher SDK
-Extract repository context, synthesize knowledge graph via local LLM, validate schema, and publish snapshots over REST.
+Collect repository context, validate graphs, and publish snapshots through REST.
 
 ```graph
-{
-  "node_id": "feature:snapshot-publisher",
-  "domain": "snapshot_publisher",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["sdk/src/cli/index.ts", "sdk/src/index.ts"],
-  "registration_files": [
-    "sdk/package.json",
-    "sdk/src/cli/cli-app.ts",
-    "sdk/src/infrastructure/llm/agent-runner-factory.ts"
-  ],
-  "reference_files": [
-    "sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts",
-    "sdk/src/application/publish-snapshot/phases/abstract-publication-phase.ts",
-    "sdk/src/infrastructure/api/rest-publication-client.ts",
-    "sdk/src/infrastructure/validator/graph-validator.ts"
-  ],
-  "code_files": [
-    "sdk/src/application/publish-snapshot/phases/publication-phase-context.ts",
-    "sdk/src/application/publish-snapshot/phases/validate-options-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/validate-publication-target-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/collect-context-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/generate-with-docs-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/route-documentation-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts",
-    "sdk/src/application/publish-snapshot/phases/publish-phase.ts",
-    "sdk/src/application/memory/project-memory-workflow.ts",
-    "sdk/src/application/memory/project-memory-completeness.ts",
-    "sdk/src/application/memory/project-memory-prompt.ts",
-    "sdk/src/application/memory/memory-graph.ts",
-    "sdk/src/application/memory/memory-document-validator.ts",
-    "sdk/src/application/memory/document-content-codec.ts",
-    "sdk/src/application/ports/docs-store.port.ts",
-    "sdk/src/application/ports/documentation-directory.port.ts",
-    "sdk/src/application/ports/memory-workflow.port.ts",
-    "sdk/src/application/ports/publication-baseline.port.ts",
-    "sdk/src/infrastructure/memory/local-docs-store.ts",
-    "sdk/src/infrastructure/memory/local-docs-directory.ts",
-    "sdk/src/infrastructure/api/publication-baseline-client.ts",
-    "sdk/src/application/ports/llm-runner.port.ts",
-    "sdk/src/application/ports/publication-client.port.ts",
-    "sdk/src/domain/contracts.ts",
-    "sdk/src/domain/exit-code.ts",
-    "sdk/src/domain/llm-agent.ts",
-    "sdk/src/domain/publisher-error.ts",
-    "sdk/src/infrastructure/config/config-resolver.ts",
-    "sdk/src/infrastructure/git/git-context-collector.ts",
-    "sdk/src/infrastructure/llm/llm-agent-runner.ts",
-    "sdk/src/infrastructure/llm/codex-cli-runner.ts",
-    "sdk/src/infrastructure/llm/claude-cli-runner.ts",
-    "sdk/src/infrastructure/llm/agy-cli-runner.ts",
-    "sdk/src/infrastructure/llm/local-llm-runner.ts"
-  ],
-  "test_files": [
-    "sdk/tests/unit/infrastructure/llm/agy-cli-runner.test.ts",
-    "sdk/tests/unit/application/publish-snapshot/publish-snapshot-phases.test.ts",
-    "sdk/tests/unit/application/memory/memory-graph.test.ts",
-    "sdk/tests/unit/application/memory/memory-document-validator.test.ts",
-    "sdk/tests/unit/application/memory/document-content-codec.test.ts",
-    "sdk/tests/unit/application/memory/project-memory-workflow.test.ts",
-    "sdk/tests/unit/infrastructure/api/publication-baseline-client.test.ts",
-    "sdk/tests/integration/infrastructure/memory/local-docs-store.test.ts",
-    "sdk/tests/unit/application/publish-snapshot.use-case.test.ts",
-    "sdk/tests/unit/cli/cli-app.test.ts",
-    "sdk/tests/unit/infrastructure/api/rest-publication-client.test.ts",
-    "sdk/tests/unit/infrastructure/git/git-context-collector.test.ts",
-    "sdk/tests/unit/infrastructure/llm/agent-runner-factory.test.ts",
-    "sdk/tests/unit/infrastructure/llm/codex-cli-runner.test.ts",
-    "sdk/tests/unit/infrastructure/llm/claude-cli-runner.test.ts",
-    "sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts",
-    "sdk/tests/unit/infrastructure/validator/graph-validator.test.ts",
-    "sdk/tests/integration/child-process-llm.test.ts",
-    "sdk/tests/integration/http-publication-boundary.test.ts",
-    "sdk/tests/e2e/cli-publish.test.ts"
-  ]
-}
+{"node_id":"feature:snapshot-publisher","domain":"snapshot_publisher","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["sdk/src/cli/index.ts","sdk/src/index.ts"],"registration_files":["sdk/package.json","sdk/src/cli/cli-app.ts","sdk/src/infrastructure/llm/agent-runner-factory.ts"],"reference_files":["sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts","sdk/src/application/publish-snapshot/phases/abstract-publication-phase.ts","sdk/src/infrastructure/api/rest-publication-client.ts","sdk/src/infrastructure/validator/graph-validator.ts"],"code_files":["sdk/src/application/publish-snapshot/phases/validate-options-phase.ts","sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts","sdk/src/application/publish-snapshot/phases/publish-phase.ts","sdk/src/application/memory/project-memory-workflow.ts","sdk/src/application/ports/llm-runner.port.ts","sdk/src/domain/llm-agent.ts","sdk/src/infrastructure/config/config-resolver.ts","sdk/src/infrastructure/llm/llm-agent-runner.ts","sdk/src/infrastructure/llm/codex-cli-runner.ts","sdk/src/infrastructure/llm/claude-cli-runner.ts","sdk/src/infrastructure/llm/antigravity-cli-runner.ts","sdk/src/infrastructure/llm/copilot-cli-runner.ts","sdk/src/infrastructure/llm/agy-cli-runner.ts","sdk/src/infrastructure/llm/local-llm-runner.ts"],"test_files":["sdk/tests/unit/infrastructure/config/config-resolver.test.ts","sdk/tests/unit/infrastructure/llm/agent-runner-factory.test.ts","sdk/tests/unit/infrastructure/llm/codex-cli-runner.test.ts","sdk/tests/unit/infrastructure/llm/claude-cli-runner.test.ts","sdk/tests/unit/infrastructure/llm/antigravity-cli-runner.test.ts","sdk/tests/unit/infrastructure/llm/copilot-cli-runner.test.ts","sdk/tests/unit/infrastructure/llm/agy-cli-runner.test.ts","sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts","sdk/tests/integration/child-process-llm.test.ts"],"knowledge":{"schema_version":1,"entities":[{"id":"contract:temporary-llm-graph-output","type":"contract","label":"Temporary LLM graph output","definition":"Per-invocation JSON file requested for generated graph output.","aliases":[]},{"id":"rule:temporary-output-cleanup","type":"rule","label":"Temporary output cleanup","definition":"Remove the invocation's temporary output directory after the LLM process ends.","aliases":[]},{"id":"capability:publish-snapshots","type":"capability","label":"Publish snapshots","definition":"Collect repository docs, validate a graph, and publish it through REST.","aliases":[]},{"id":"rule:validate-before-publish","type":"rule","label":"Validate before publish","definition":"Preflight live targets and validate graphs before publication.","aliases":[]},{"id":"contract:sdk-publication","type":"contract","label":"SDK publication","definition":"Publish a validated graph with deployment identity and an expected snapshot baseline.","aliases":[]},{"id":"contract:llm-prompt-transport","type":"contract","label":"LLM prompt transport","definition":"Pass generated repository context to the selected local LLM process.","aliases":[]}],"claims":[{"id":"claim:llm-graph-file-contract","subject":"contract:temporary-llm-graph-output","relation":null,"object":null,"statement":"Prompt the selected CLI with an absolute per-run graph-output.json path; read it when present and fall back to stdout when absent.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"sdk/src/infrastructure/llm/local-llm-runner.ts","locator":"LocalLlmRunner.run, runWithTemporaryOutput, readTemporaryGraph","snapshot":null},{"kind":"test_definition","source":"sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts","locator":"temporary JSON output and stdout fallback cases","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:temporary-output-cleanup","subject":"rule:temporary-output-cleanup","relation":null,"object":null,"statement":"Remove the temporary output directory after child-process success or failure.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"sdk/src/infrastructure/llm/local-llm-runner.ts","locator":"LocalLlmRunner.run finally block","snapshot":null},{"kind":"test_definition","source":"sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts","locator":"asserts output file and directory removal","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:provider-file-write-compatibility","subject":"contract:temporary-llm-graph-output","relation":null,"object":null,"statement":"Supported provider CLIs can write the requested file under their actual permission settings.","kind":"hypothesis","status":"unresolved","evidence":[{"kind":"test_definition","source":"sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts","locator":"temporary-file response is simulated by a Node child process","snapshot":null}],"derived_from":[],"gap":"Run integration checks with installed Codex, Claude, Antigravity, Copilot, and AGY CLIs."},{"id":"claim:sdk-preflight-and-validation","subject":"capability:publish-snapshots","relation":"constrained_by","object":"rule:validate-before-publish","statement":"Preflight live targets before collection and validate graphs before publishing; dry runs skip target preflight.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"sdk/src/application/publish-snapshot/publish-snapshot.use-case.ts","locator":"PublishSnapshotUseCase.execute","snapshot":null},{"kind":"code","source":"sdk/src/application/publish-snapshot/phases/validate-graph-phase.ts","locator":"ValidateGraphPhase.execute","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:sdk-baseline-publication","subject":"capability:publish-snapshots","relation":"exposes","object":"contract:sdk-publication","statement":"Return NO_CHANGES only when ADR/feature text and publishable graph content plus metadata match baseline; otherwise publish with tenant and expected snapshot ID.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"sdk/src/application/publish-snapshot/phases/publish-phase.ts","locator":"PublishPhase.execute","snapshot":null},{"kind":"code","source":"sdk/src/application/memory/project-memory-workflow.ts","locator":"unchanged-document and baseline comparison branches","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:runner-prompt-transport","subject":"capability:publish-snapshots","relation":"exposes","object":"contract:llm-prompt-transport","statement":"Use argument transport when a runner configures it; otherwise stream JSON context to stdin with backpressure.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"sdk/src/infrastructure/llm/local-llm-runner.ts","locator":"prompt construction and inputWrite branch","snapshot":null},{"kind":"code","source":"sdk/src/infrastructure/llm/copilot-cli-runner.ts","locator":"promptTransport = argument","snapshot":null},{"kind":"test_definition","source":"sdk/tests/unit/infrastructure/llm/local-llm-runner.test.ts","locator":"passes complete context as Copilot prompt argument","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
-## OVERVIEW
+## PUBLISHING FLOW
 
-The SDK collects Git context, validates generated graphs, and publishes through REST.
+1. Validate target, credentials, agent, and deployment identity; resolve a memory:publish token.
+2. For live runs, preflight project, environment, and deployment before Git collection. Reject ambiguous targets; allow a new environment.
+3. Collect bounded context. Synthesize when ADR or feature text changes; reconcile other docs without model execution.
+4. Validate the graph and compare baseline text plus publishable content and metadata. Return NO_CHANGES only when unchanged; otherwise publish with expected snapshot ID.
 
-## FOLDER STRUCTURE
+## LLM ADAPTERS AND SAFETY
 
-```text
-sdk/
-  src/{domain,application,infrastructure,cli}/
-  tests/{unit,integration,e2e}/
-```
+Use separate runners for codex-cli, claude-cli, antigravity-cli, copilot-cli, and agy-cli. Copilot sends prompts as arguments; other runners use stdin. Read per-run JSON output or fall back to stdout.
 
-## MAIN CONCEPTS / COMPONENTS
+REQUIRED: Strip token, key, secret, password, and auth variables from child environments. Use a unique temporary directory and remove it after process success or failure.
+REQUIRED: Accept regular JSON files only. Limit output to 50 MiB, Codex input to 1,048,576 characters, and Windows argument prompts to 30,000 characters.
+REQUIRED: Retry timeouts and HTTP 408, 429, or 5xx with bounded backoff; do not retry authorization, validation, or conflict responses.
+PROHIBITED: Publish through MCP; accept raw --tenant or --token options.
 
-- **Publication phases**: Validate options and the live API target before Git collection, then route docs, validate the graph, and publish. Dry runs skip target checks.
-- **Memory workflow**: Require complete local docs. Synthesize when ADR/feature text changes beyond whitespace. Return `NO_CHANGES` without a snapshot when publishable docs and graph index match the active baseline; reconcile other docs without model execution.
-- **Deployment identity**: Reuse an explicit CLI, config, environment, or CI ID for retries; otherwise generate project key + UTC timestamp + UUID.
-- **Dry run**: Returns validation metadata without REST. A failed phase preserves its error.
-- **Git collector**: Collect files and diffs within limits; `--exclude-paths` skips paths. Keep `docs/` included.
-- **Agent runners**: Select `codex-cli`, `claude-cli`, or `agy-cli`; sanitize child environments, honor backpressure, use `cmd.exe` for Windows shims, and cap Codex input at 1,048,576 characters.
-- **Validator**: Check Schema 1.0, canonicalize `canonical_key`, and compute SHA-256.
-- **REST client**: Preflight project, environment, deployment identity, and current snapshot with `memory:publish`; publish with a baseline precondition after graph validation and retry 429/5xx with jitter.
-- **CLI progress**: Send phases to stderr and JSON to stdout. `--debug` adds redacted timings; `--verbose` prints repository and target.
-- **Exit codes**: Map domain failures to stable CLI statuses.
+## CONFIGURATION
 
-## HOW TO PUBLISH SNAPSHOTS
+| Option | Environment variable | Use |
+|---|---|---|
+| --agent | HARNESS_MEMORY_AGENT | Required runner ID. |
+| --tenant-id | HARNESS_MEMORY_TENANT_ID | Select tenant for ambiguous project keys. |
+| --token-env | HARNESS_MEMORY_TOKEN_ENV | Token variable; defaults to HARNESS_MEMORY_API_KEY. |
+| --dry-run | HARNESS_MEMORY_DRY_RUN | Skip target preflight and publication. |
 
-### Preflight validation
+## DOCUMENT HISTORY
 
-1. Validate target field formats and query the API for the exact project key before collecting repository context. Stop with setup guidance when the project does not exist. Select `--tenant-id` when the key exists in multiple tenants.
-2. Check matching environments and publications. Allow a missing environment because the first publication may provision it; reject ambiguous matches.
-3. Reject a deployment ID already associated with another version. Allow same-version retries; the API still detects changed content under that deployment identity.
-4. Use a `memory:publish` token. This scope can read project, environment, and publication target metadata across tenants for preflight; dry runs skip API checks. Pass the resolved tenant ID through baseline and publication requests.
-
-### Project memory process
-
-1. Generate project documentation with the [harness-kit `project-memory` skill](https://github.com/romabeckman/harness-kit) before publishing.
-2. Collect Git context and require `docs/`. If missing, stop and show the documentation setup guidance.
-3. Load the authenticated baseline (HTTP 404 means none) and local docs, including untracked files. Docs are authoritative; source content is not sent to Codex.
-4. Compare `docs/adr/` and `docs/feature/` text with the baseline. Ignore whitespace; any other text or document-set change triggers synthesis.
-5. Publish ADR/feature Markdown and `docs/.digest.md` as document entities. Store `docs/.graph.json` in snapshot metadata.
-6. Store initial docs in `document_revision.metadata.content`; store later changed lines in `content` with Git conflict markers in `metadata.conflict_marker`. Mark locally deleted documents `metadata.lifecycle=removed`, preserving their history while excluding them from default search.
-7. Validate the graph before publishing. `--dry-run` skips publication.
-### Storage and history
-
-REQUIRED: Store docs as **entities, relations, and evidence**, never `project_memory`. Preserve path, Markdown, SHA-256, source commit, and change state. Split large docs into ordered `document_section` entities with checksums and `part_of` edges; decode content exactly.
-
-Publish only `adr`, `feature`, `document`, `document_revision`, and `document_section` entities. Exclude README, BUSINESS, specs, and extracted rules. Immutable snapshots and line revisions preserve both document versions.
-
-REQUIRED: Filter unsupported legacy entities and dangling relations before republishing.
-
-### Prerequisites
-Use Node.js 20+, the selected CLI (`codex`, `claude`, or `agy`) in `PATH`, and a `memory:publish` token.
-
-### Steps
-1. Set `--agent` and publication options.
-2. Run the CLI or `PublishSnapshotUseCase` with `ProjectMemoryWorkflow` and `LocalDocsDirectory`.
-
-## PARAMETERS / CONFIGURATIONS
-
-| Option | Env Var | Required | Description | Default |
-|--------|---------|----------|-------------|---------|
-| `--agent` | `HARNESS_MEMORY_AGENT` | Yes | `codex-cli`, `claude-cli`, or `agy-cli`; JSON config may supply it | — |
-
-| `--environment` | `HARNESS_MEMORY_ENVIRONMENT` | Yes | Target deployment environment | — |
-| `--project-key` | `HARNESS_MEMORY_PROJECT_KEY` | Yes | Target project identifier | — |
-| `--deployment-id` | `HARNESS_MEMORY_DEPLOYMENT_ID` | No | Deployment execution ID; explicit and CI values take precedence | Project key + UTC timestamp + UUID |
-| `--version` | `HARNESS_MEMORY_VERSION` | Yes | Release version / git SHA | CI fallback |
-| `--api-url` | `HARNESS_MEMORY_API_URL` | Yes | Harness Memory API endpoint | — |
-| `--token-env` | `HARNESS_MEMORY_TOKEN_ENV` | No | Token env var name | `HARNESS_MEMORY_API_KEY` |
-| `--dry-run` | `HARNESS_MEMORY_DRY_RUN` | No | Synthesize without publish | `false` |
-| `--exclude-paths` | `HARNESS_MEMORY_EXCLUDE_PATHS` | No | Repository-relative paths; JSON config and SDK accept `excludePaths` arrays | — |
-| `--output` | `HARNESS_MEMORY_OUTPUT` | No | Format: `json` or `text` | `json` in CI |
-| `--verbose` | `HARNESS_MEMORY_VERBOSE` | No | Print repository and target to stderr | `false` |
-| `--debug` | `HARNESS_MEMORY_DEBUG` | No | Print timings and redacted diagnostics to stderr | `false` |
-
-## EXIT CODES
-
-| Code | Name | Cause |
-|------|------|-------|
-| `0` | `SUCCESS` | Published or validated |
-| `0` | `NO_CHANGES` | Documentation matches the active baseline; no snapshot was created |
-| `2` | `USAGE_OR_CONFIG` | Invalid options |
-| `3` | `CONTEXT_COLLECTION` | Git, path, or budget failure |
-| `4` | `LLM_EXECUTION` | Runner failure |
-| `5` | `VALIDATION` | Invalid graph |
-| `6` | `API_AUTH` | 401/403 |
-| `7` | `CONFLICT` | 409 |
-| `8` | `API_SERVER_OR_RETRY_EXHAUSTED` | Server failure |
-| `130` | `INTERRUPTED` | Signal |
-
-## BEST PRACTICES
-
-REQUIRED: Default to `HARNESS_MEMORY_API_KEY`; pass alternatives through `--token-env` or programmatic `token`. Reject `--tenant` and `--token` with exit code 2.
-REQUIRED: Sanitize child LLM environments, keep symlinks inside the repository, and honor stdin backpressure.
-PROHIBITED: Publish snapshots through MCP or retry HTTP 400, 401, 403, or 409 responses.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Snapshot Publisher SDK"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|depends_on| APIPUB["API Knowledge Publication"]
-    THIS -->|references| ENVSNAP["Environment Snapshots"]
-    THIS -->|references| SEC["Security Architecture"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click APIPUB "../api/knowledge-publication.md"
-    click ENVSNAP "../core/environment-snapshots.md"
-    click SEC "../../adr/SECURITY.md"
-```
+Persist docs as entities, relations, and evidence with path, content, checksum, commit, and change state; retain removed revisions.
 
 ## REFERENCES
 
-- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): Global module map and hexagonal architecture boundaries.
-- [**TESTS.md**](../../adr/TESTS.md): Vitest and pytest test tiers and coverage thresholds.
-- [**knowledge-publication.md**](../api/knowledge-publication.md): REST contract for `POST /v1/knowledge-publications`.
-- [**environment-snapshots.md**](../core/environment-snapshots.md): Environment lifecycle and immutable snapshot rules.
-- [**SECURITY.md**](../../adr/SECURITY.md): Scope policy, service-account authentication, and secret sanitization.
+- [**ARCHITECTURE.md**](../../adr/ARCHITECTURE.md): SDK boundary.
+- [**TESTS.md**](../../adr/TESTS.md): Test tiers.
+- [**knowledge-publication.md**](../api/knowledge-publication.md): REST contract.
+- [**environment-snapshots.md**](../core/environment-snapshots.md): Snapshot lifecycle.
+- [**SECURITY.md**](../../adr/SECURITY.md): Token scopes.

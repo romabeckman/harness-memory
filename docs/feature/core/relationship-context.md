@@ -14,60 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:entity-discovery"
     read: must
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # Relationship Context
 Return bounded context for selected entities and direct dependency views for one entity.
 
 ```graph
-{
-  "node_id": "feature:relationship-context",
-  "domain": "relationship_context",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/tools/get_context.py", "harness_memory_mcp/tools/get_dependencies.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
-  "reference_files": [
-  ],
-  "code_files": [
-    "harness_memory_mcp/services/tenant_context.py",
-    "harness_memory_mcp/services/relationship_response_mapper.py",
-    "core/application/entity_discovery/contracts/tenant_scope.py",
-    "core/application/relationship_context/contracts/entity_context_item.py",
-    "core/application/relationship_context/contracts/project_context_item.py",
-    "core/application/relationship_context/contracts/evidence_view.py",
-    "core/application/relationship_context/contracts/relation_view.py",
-    "core/application/relationship_context/contracts/dependency_view.py",
-    "core/application/relationship_context/types/dependency_relation_type.py",
-    "core/application/relationship_context/types/relationship_direction.py",
-    "core/application/relationship_context/types/relationship_query_bounds.py",
-    "core/application/relationship_context/ports/relationship_query_repository.py",
-    "core/application/relationship_context/errors/entity_context_not_found.py",
-    "core/application/relationship_context/errors/relationship_query_failure.py",
-    "core/application/relationship_context/use_cases/get_context/inbound.py",
-    "core/application/relationship_context/use_cases/get_context/handler.py",
-    "core/application/relationship_context/use_cases/get_context/outbound.py",
-    "core/application/relationship_context/use_cases/get_context/page.py",
-    "core/application/relationship_context/use_cases/get_dependencies/inbound.py",
-    "core/application/relationship_context/use_cases/get_dependencies/handler.py",
-    "core/application/relationship_context/use_cases/get_dependencies/outbound.py",
-    "core/infrastructure/postgres/repositories/current_snapshot_predicate.py",
-    "core/infrastructure/postgres/repositories/relationship_query_repository.py"
-  ],
-  "test_files": [
-    "tests/unit/core/application/relationship_context/contracts/test_contracts.py",
-    "tests/unit/core/application/relationship_context/ports/test_relationship_query_repository.py",
-    "tests/unit/core/application/relationship_context/use_cases/test_get_context.py",
-    "tests/unit/core/application/relationship_context/use_cases/test_get_dependencies.py",
-    "tests/unit/mcp/services/test_relationship_response_mapper.py",
-    "tests/unit/mcp/server/test_relationship_factory.py",
-    "tests/unit/mcp/tools/test_get_context.py",
-    "tests/unit/mcp/tools/test_get_dependencies.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_relationship_context_query.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_relationship_query_plans.py",
-    "tests/e2e/mcp/test_relationship_queries.py"
-  ]
-}
+{"node_id":"feature:relationship-context","domain":"relationship_context","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/tools/get_context.py","harness_memory_mcp/tools/get_dependencies.py"],"registration_files":["harness_memory_mcp/server/factory.py"],"reference_files":[],"code_files":["harness_memory_mcp/services/tenant_context.py","harness_memory_mcp/services/relationship_response_mapper.py","core/application/entity_discovery/contracts/tenant_scope.py","core/application/relationship_context/contracts/entity_context_item.py","core/application/relationship_context/contracts/project_context_item.py","core/application/relationship_context/contracts/evidence_view.py","core/application/relationship_context/contracts/relation_view.py","core/application/relationship_context/contracts/dependency_view.py","core/application/relationship_context/types/dependency_relation_type.py","core/application/relationship_context/types/relationship_direction.py","core/application/relationship_context/types/relationship_query_bounds.py","core/application/relationship_context/ports/relationship_query_repository.py","core/application/relationship_context/errors/entity_context_not_found.py","core/application/relationship_context/errors/relationship_query_failure.py","core/application/relationship_context/use_cases/get_context/inbound.py","core/application/relationship_context/use_cases/get_context/handler.py","core/application/relationship_context/use_cases/get_context/outbound.py","core/application/relationship_context/use_cases/get_context/page.py","core/application/relationship_context/use_cases/get_dependencies/inbound.py","core/application/relationship_context/use_cases/get_dependencies/handler.py","core/application/relationship_context/use_cases/get_dependencies/outbound.py","core/infrastructure/postgres/repositories/current_snapshot_predicate.py","core/infrastructure/postgres/repositories/relationship_query_repository.py"],"test_files":["tests/unit/core/application/relationship_context/contracts/test_contracts.py","tests/unit/core/application/relationship_context/ports/test_relationship_query_repository.py","tests/unit/core/application/relationship_context/use_cases/test_get_context.py","tests/unit/core/application/relationship_context/use_cases/test_get_dependencies.py","tests/unit/mcp/services/test_relationship_response_mapper.py","tests/unit/mcp/server/test_relationship_factory.py","tests/unit/mcp/tools/test_get_context.py","tests/unit/mcp/tools/test_get_dependencies.py","tests/integration/core/infrastructure/postgres/repositories/test_relationship_context_query.py","tests/integration/core/infrastructure/postgres/repositories/test_relationship_query_plans.py","tests/e2e/mcp/test_relationship_queries.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:read-relationship-context","type":"capability","label":"Read relationship context","definition":"Return bounded entity context, direct relations, and dependency views.","aliases":[]},{"id":"rule:tenant-snapshot-context","type":"rule","label":"Tenant snapshot context","definition":"Resolve requested entity context within trusted tenant and selected snapshot scope.","aliases":[]},{"id":"contract:relationship-context","type":"contract","label":"Relationship context","definition":"A bounded entity page with direct relations and relation-linked evidence.","aliases":[]}],"claims":[{"id":"claim:context-scope-and-resolution","subject":"capability:read-relationship-context","relation":"constrained_by","object":"rule:tenant-snapshot-context","statement":"The repository resolves entity identity under TenantScope and uses the selected snapshot or current environment context.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/relationship_query_repository.py","locator":"PostgresRelationshipQueryRepository.load_context, list_contexts, and _resolve_entity","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:context-evidence-contract","subject":"capability:read-relationship-context","relation":"exposes","object":"contract:relationship-context","statement":"Context results attach bounded evidence to returned relations and exclude snapshot-level evidence.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/relationship_query_repository.py","locator":"PostgresRelationshipQueryRepository._load_relations and _load_evidence","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -76,42 +29,32 @@ Return bounded context for selected entities and direct dependency views for one
 
 ## FOLDER STRUCTURE
 
-```text
-harness_memory_mcp/tools/                                  # Thin context and dependency adapters
-harness_memory_mcp/services/                               # Tenant and safe response mapping
-core/application/relationship_context/      # Contracts, ports, and handlers
-core/infrastructure/postgres/repositories/  # Environment-current relationship reads
-tests/{unit,integration,e2e}/               # Contract, repository, and MCP tests
-```
+- `harness_memory_mcp/tools/` and `services/`: thin adapters and safe response mapping.
+- `core/application/relationship_context/`: contracts, ports, and handlers.
+- `core/infrastructure/postgres/`: scoped snapshot reads.
+- `tests/{unit,integration,e2e}/`: module-aligned checks.
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Pinned context**: Resolve a stable identity or row UUID in the requested immutable snapshot. Without `snapshot_id`, resolve the newest matching occurrence among current environment snapshots; use the legacy project pointer only when no environment records exist. Apply trusted scope and reject ambiguous project identities.
-- **Scope listing**: Supply `snapshot_id`, `project_id`, or `tenant_id` without `entity_id` to receive a bounded page. Default listing includes every current environment snapshot. Sort by snapshot creation time, revision, then entity creation time, newest first; use IDs to break ties.
-- **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
-- **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
-- **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
+- **Pinned context**: Resolve an entity in the requested snapshot. Without one, use the newest occurrence in current environment snapshots; reject ambiguous identities.
+- **Scope listing**: Select by snapshot, project, or tenant; otherwise list current environment snapshots, newest first, with bounded paging.
+- **Direct relations**: Return one-hop relations, owners from outbound `owned_by` edges, and only `depends_on`, `consumes`, or `subscribes_to` as dependency views.
+- **Evidence**: Attach evidence linked to returned relations; exclude snapshot-level evidence.
 
 ## HOW TO QUERY
 
-1. Discover an entity with `search_entities` and retain its `entity_id`, `snapshot_id`, and `project_id`.
-2. Call `get_context` with `entity_id` and `snapshot_id` from the same result to pin its exact environment context. Supply only `snapshot_id`, `project_id`, or `tenant_id` to list matching contexts, newest first.
-3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
-4. Use `tenant_id` and `project_id` to narrow ambiguous global identities. An ambiguous canonical identity returns `AMBIGUOUS_ENTITY`.
+1. Discover an entity and retain its `entity_id`, `snapshot_id`, and `project_id`.
+2. Pin `get_context` to that snapshot, or select a bounded context listing with tenant, project, or snapshot ID.
+3. Use `get_dependencies` for inbound, outbound, or both direct directions. Use tenant/project selectors to resolve ambiguous identities.
 
 ## PARAMETERS / CONFIGURATIONS
 
-| Name | Type | Required | Description | Default |
-|------|------|----------|-------------|---------|
-| `entity_id` | UUID | One of four selectors for `get_context`; required for `get_dependencies` | Stable entity identity from discovery; legacy row UUIDs remain accepted. | unset |
-| `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
-| `tenant_id` / `project_id` | string / UUID | One of four selectors for `get_context` | Narrow resolution or list contexts within a known tenant or project. | unset |
-| `snapshot_id` | UUID | One of four selectors for `get_context` | Pin one entity or list contexts in an immutable snapshot, including historical snapshots. | all current environment snapshots for lists; newest current occurrence for an entity |
-| `get_context.limit` | strict integer | No | Entity contexts per page from 1 through 500. | `100` |
-| `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
-| `result_limit` | strict integer | No | Relations and dependencies within each context, from 1 through 25. | `25` |
-| `get_dependencies.limit` | strict integer | No | Relationships in one entity result, from 1 through 100. Not a page limit. | `25` |
-| `offset` | strict integer | No | Matching contexts to skip, from 0 through 10,000. | `0` |
+| Parameters | Contract |
+|------------|----------|
+| `entity_id`, `snapshot_id`, `project_id`, `tenant_id` | Required selector set for context; `entity_id` required for dependency queries. |
+| `direction` | `inbound`, `outbound`, or `both`; dependencies only. |
+| `limit`, `offset` | Context page size 1?500; offset 0?10,000. Dependency limit 1?100. |
+| `result_limit`, `evidence_limit` | Relations 1?25; evidence per relation 0?20. |
 
 ## BEST PRACTICES
 
@@ -128,19 +71,6 @@ PROHIBITED: Treat a supplied tenant selector as authorization or disclose whethe
 
 Use `evidence_limit=0` when only relation identity, direction, provenance, and peer data are needed.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Relationship Context"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| ENTITY["Entity Discovery"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click ENTITY "./entity-discovery.md"
-```
 
 ## REFERENCES
 

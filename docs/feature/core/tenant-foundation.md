@@ -13,39 +13,13 @@ edges:
     target: "feature:platform-foundation"
   - relation: references
     target: "adr:security"
-updated: 2026-09-22
+updated: 2026-09-26
 ---
 # Tenant Foundation
 Provide first-class tenant persistence, strict UUID foreign keys, deterministic legacy slug compatibility, and isolated provisioning savepoints.
 
 ```graph
-{
-  "node_id": "feature:tenant-foundation",
-  "domain": "tenant_foundation",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": [
-    "core/infrastructure/postgres/models/tenant.py"
-  ],
-  "registration_files": [
-    "core/infrastructure/postgres/models/__init__.py"
-  ],
-  "reference_files": [
-    "core/infrastructure/postgres/models/tenant_id.py",
-    "core/infrastructure/postgres/models/tenant_uuid.py"
-  ],
-  "code_files": [
-    "core/infrastructure/postgres/repositories/api_user_repository.py",
-    "migrations/versions/010_tenant_foundation_forward.py"
-  ],
-  "test_files": [
-    "tests/unit/core/infrastructure/postgres/migrations/test_tenant_foundation_forward.py",
-    "tests/unit/core/infrastructure/postgres/models/test_tenant_id.py",
-    "tests/unit/core/infrastructure/postgres/models/test_tenant_schema.py",
-    "tests/unit/core/infrastructure/postgres/models/test_tenant_uuid.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_api_user_repository.py"
-  ]
-}
+{"node_id":"feature:tenant-foundation","domain":"tenant_foundation","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["core/infrastructure/postgres/models/tenant.py"],"registration_files":["core/infrastructure/postgres/models/__init__.py"],"reference_files":["core/infrastructure/postgres/models/tenant_id.py","core/infrastructure/postgres/models/tenant_uuid.py"],"code_files":["core/infrastructure/postgres/repositories/api_user_repository.py","migrations/versions/010_tenant_foundation_forward.py"],"test_files":["tests/unit/core/infrastructure/postgres/migrations/test_tenant_foundation_forward.py","tests/unit/core/infrastructure/postgres/models/test_tenant_id.py","tests/unit/core/infrastructure/postgres/models/test_tenant_schema.py","tests/unit/core/infrastructure/postgres/models/test_tenant_uuid.py","tests/unit/core/infrastructure/postgres/repositories/test_api_user_repository.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:persist-tenant-identity","type":"capability","label":"Persist tenant identity","definition":"Store tenant records and enforce tenant ownership through UUID foreign keys.","aliases":[]},{"id":"rule:strict-tenant-identity","type":"rule","label":"Strict tenant identity","definition":"Reject blank tenant identifiers and map supported legacy slugs deterministically.","aliases":[]},{"id":"contract:tenant-id-mapping","type":"contract","label":"Tenant ID mapping","definition":"Convert UUID values or legacy slug strings to the database UUID representation.","aliases":[]}],"claims":[{"id":"claim:tenant-id-coercion","subject":"capability:persist-tenant-identity","relation":"constrained_by","object":"rule:strict-tenant-identity","statement":"TenantId rejects blank strings, accepts UUID values, and maps valid legacy slugs with UUID5.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/models/tenant_id.py","locator":"TenantId.bind_processor","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:tenant-id-mapping-contract","subject":"capability:persist-tenant-identity","relation":"exposes","object":"contract:tenant-id-mapping","statement":"TenantId binds UUID values and valid slugs to UUID columns and rejects other string formats.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/models/tenant_id.py","locator":"TenantId.bind_processor","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:savepoint-tenant-provisioning","subject":"capability:persist-tenant-identity","relation":null,"object":null,"statement":"ApiUserRepository provisions a missing tenant inside a nested transaction and catches duplicate-tenant failures without aborting the outer transaction.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/api_user_repository.py","locator":"ApiUserRepository._ensure_tenant","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -134,19 +108,6 @@ PROHIBITED: Inserting tenants with status other than `active` or `disabled`.
 
 When writing tests with legacy tenant strings, pass the string directly to queries; the `TenantId` processor automatically generates the deterministic `TenantUUID` representation.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Tenant Foundation"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|depends_on| PLATFORM["Platform Foundation"]
-    THIS -->|references| SEC["Security Architecture"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click PLATFORM "./platform-foundation.md"
-    click SEC "../../adr/SECURITY.md"
-```
 
 ## REFERENCES
 

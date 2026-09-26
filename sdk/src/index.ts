@@ -23,6 +23,8 @@ export * from "./infrastructure/llm/llm-agent-runner.js";
 export * from "./infrastructure/llm/agent-runner-factory.js";
 export * from "./infrastructure/llm/codex-cli-runner.js";
 export * from "./infrastructure/llm/claude-cli-runner.js";
+export * from "./infrastructure/llm/antigravity-cli-runner.js";
+export * from "./infrastructure/llm/copilot-cli-runner.js";
 export * from "./infrastructure/llm/agy-cli-runner.js";
 export * from "./infrastructure/api/rest-publication-client.js";
 export * from "./infrastructure/config/config-resolver.js";
