@@ -35,7 +35,7 @@ def _seed(session_factory):
         project = Project(tenant_id="tenant-a", key="payments", name="Payments")
         session.add(project)
         session.flush()
-        other_project = Project(tenant_id="tenant-b", key="payments", name="Payments")
+        other_project = Project(tenant_id="tenant-b", key="other-payments", name="Payments")
         session.add(other_project)
         session.flush()
         old = Snapshot(

@@ -59,6 +59,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("id", "tenant_id", name="uq_projects_id_tenant"),
+        sa.UniqueConstraint("key", name="uq_projects_key"),
         sa.UniqueConstraint("tenant_id", "key", name="uq_projects_tenant_key"),
         sa.ForeignKeyConstraint(
             ["tenant_id"], ["tenants.id"], name="fk_projects_tenant_id", ondelete="RESTRICT"

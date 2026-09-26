@@ -24,13 +24,13 @@ def test_metadata_contains_all_registered_tables():
     }
 
 
-def test_project_and_snapshot_constraints_are_scoped_and_deferred():
+def test_project_key_is_global_and_snapshot_constraints_are_scoped_and_deferred():
     project = Project.__table__
     snapshot = Snapshot.__table__
 
     assert any(
         isinstance(constraint, UniqueConstraint)
-        and {column.name for column in constraint.columns} == {"tenant_id", "key"}
+        and {column.name for column in constraint.columns} == {"key"}
         for constraint in project.constraints
     )
     assert any(
