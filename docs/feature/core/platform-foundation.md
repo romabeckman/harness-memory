@@ -13,68 +13,13 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "feature:tenant-foundation"
-updated: 2026-09-23
+updated: 2026-09-26
 ---
 # Platform Foundation
 Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
 
 ```graph
-{
-  "node_id": "feature:platform-foundation",
-  "domain": "platform_foundation",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/cli.py", "harness_memory_mcp/server/app.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py", "pyproject.toml"],
-  "reference_files": ["core/infrastructure/postgres/engine_factory.py", "core/infrastructure/architecture/validator.py"],
-  "code_files": [
-    "harness_memory_mcp/config.py",
-    "harness_memory_mcp/migration_cli.py",
-    "harness_memory_mcp/migration_mode.py",
-    "core/infrastructure/architecture/rules.py",
-    "core/infrastructure/architecture/violation.py",
-    "core/infrastructure/postgres/alembic_runtime.py",
-    "core/infrastructure/postgres/config.py",
-    "core/infrastructure/postgres/create_postgres_engine.py",
-    "core/infrastructure/postgres/inspect_migration_status.py",
-    "core/infrastructure/postgres/migrations.py",
-    "core/infrastructure/postgres/migrations_status.py",
-    "core/infrastructure/postgres/upgrade_database.py",
-    "core/infrastructure/postgres/models/base.py",
-    "core/infrastructure/postgres/models/entity.py",
-    "core/infrastructure/postgres/models/evidence.py",
-    "core/infrastructure/postgres/models/foundation_id.py",
-    "core/infrastructure/postgres/models/metadata.py",
-    "core/infrastructure/postgres/models/metadata_type.py",
-    "core/infrastructure/postgres/models/project.py",
-    "core/infrastructure/postgres/models/relation.py",
-    "core/infrastructure/postgres/models/snapshot.py",
-    "core/infrastructure/postgres/models/types.py",
-    "migrations/env.py",
-    "migrations/versions/001_foundation.py",
-    "migrations/versions/006_default_workspace.py",
-    "migrations/versions/007_service_accounts.py",
-    "migrations/versions/011_snapshot_payload_removal.py"
-  ],
-  "test_files": [
-    "tests/unit/architecture/test_rules.py",
-    "tests/unit/core/infrastructure/postgres/test_config.py",
-    "tests/unit/core/infrastructure/postgres/test_engine_factory.py",
-    "tests/unit/core/infrastructure/postgres/test_migrations.py",
-    "tests/unit/core/infrastructure/postgres/models/test_schema.py",
-    "tests/unit/core/infrastructure/postgres/models/test_types.py",
-    "tests/unit/mcp/test_cli.py",
-    "tests/unit/mcp/test_config.py",
-    "tests/unit/mcp/server/test_factory.py",
-    "tests/unit/core/infrastructure/postgres/migrations/test_default_workspace.py",
-    "tests/unit/core/infrastructure/postgres/migrations/test_snapshot_payload_removal.py",
-    "tests/integration/migrations/test_initial_foundation.py",
-    "tests/integration/migrations/test_default_workspace.py",
-    "tests/integration/migrations/test_service_accounts.py",
-    "tests/e2e/mcp/test_catalog.py",
-    "tests/e2e/mcp/test_import.py"
-  ]
-}
+{"node_id":"feature:platform-foundation","domain":"platform_foundation","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/cli.py","harness_memory_mcp/server/app.py"],"registration_files":["harness_memory_mcp/server/factory.py","pyproject.toml"],"reference_files":["core/infrastructure/postgres/engine_factory.py","core/infrastructure/architecture/validator.py"],"code_files":["harness_memory_mcp/config.py","harness_memory_mcp/migration_cli.py","harness_memory_mcp/migration_mode.py","core/infrastructure/architecture/rules.py","core/infrastructure/architecture/violation.py","core/infrastructure/postgres/alembic_runtime.py","core/infrastructure/postgres/config.py","core/infrastructure/postgres/create_postgres_engine.py","core/infrastructure/postgres/inspect_migration_status.py","core/infrastructure/postgres/migrations.py","core/infrastructure/postgres/migrations_status.py","core/infrastructure/postgres/upgrade_database.py","core/infrastructure/postgres/models/base.py","core/infrastructure/postgres/models/entity.py","core/infrastructure/postgres/models/evidence.py","core/infrastructure/postgres/models/foundation_id.py","core/infrastructure/postgres/models/metadata.py","core/infrastructure/postgres/models/metadata_type.py","core/infrastructure/postgres/models/project.py","core/infrastructure/postgres/models/relation.py","core/infrastructure/postgres/models/snapshot.py","core/infrastructure/postgres/models/types.py","migrations/env.py","migrations/versions/001_foundation.py","migrations/versions/006_default_workspace.py","migrations/versions/007_service_accounts.py","migrations/versions/011_snapshot_payload_removal.py"],"test_files":["tests/unit/architecture/test_rules.py","tests/unit/core/infrastructure/postgres/test_config.py","tests/unit/core/infrastructure/postgres/test_engine_factory.py","tests/unit/core/infrastructure/postgres/test_migrations.py","tests/unit/core/infrastructure/postgres/models/test_schema.py","tests/unit/core/infrastructure/postgres/models/test_types.py","tests/unit/mcp/test_cli.py","tests/unit/mcp/test_config.py","tests/unit/mcp/server/test_factory.py","tests/unit/core/infrastructure/postgres/migrations/test_default_workspace.py","tests/unit/core/infrastructure/postgres/migrations/test_snapshot_payload_removal.py","tests/integration/migrations/test_initial_foundation.py","tests/integration/migrations/test_default_workspace.py","tests/integration/migrations/test_service_accounts.py","tests/e2e/mcp/test_catalog.py","tests/e2e/mcp/test_import.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:manage-platform-schema","type":"capability","label":"Manage platform schema","definition":"Configure PostgreSQL persistence and apply versioned Alembic revisions.","aliases":[]},{"id":"rule:explicit-migrations","type":"rule","label":"Explicit migrations","definition":"Run schema upgrades through the migration command rather than server construction.","aliases":[]},{"id":"contract:migration-status","type":"contract","label":"Migration status","definition":"Inspect current and head revisions without mutating the database.","aliases":[]}],"claims":[{"id":"claim:explicit-schema-upgrade","subject":"capability:manage-platform-schema","relation":"constrained_by","object":"rule:explicit-migrations","statement":"The migration CLI dispatches schema upgrades to Alembic; server construction composes the MCP runtime without calling the upgrade operation.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"harness_memory_mcp/migration_cli.py","locator":"MigrationCLI.dispatch","snapshot":null},{"kind":"code","source":"core/infrastructure/postgres/upgrade_database.py","locator":"UpgradeDatabase.execute","snapshot":null},{"kind":"code","source":"harness_memory_mcp/server/factory.py","locator":"create_mcp_server composition","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:read-only-migration-status","subject":"capability:manage-platform-schema","relation":"exposes","object":"contract:migration-status","statement":"The migration status path reports current and head revisions without issuing an upgrade.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/inspect_migration_status.py","locator":"migration status inspection","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -131,19 +76,6 @@ PROHIBITED: Import FastMCP, SQLAlchemy, or PostgreSQL drivers into domain code.
 
 Use `--status` before an upgrade when diagnosing a deployment database; it performs read-only revision inspection.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Platform Foundation"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|references| TF["Tenant Foundation"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click TF "./tenant-foundation.md"
-```
 
 ## REFERENCES
 

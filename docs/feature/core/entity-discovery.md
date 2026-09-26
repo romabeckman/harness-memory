@@ -14,77 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # Entity Discovery
 Find projects and bounded Entity identities through tenant-scoped MCP search tools.
 
 ```graph
-{
-  "node_id": "feature:entity-discovery",
-  "domain": "entity_discovery",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": [
-    "harness_memory_mcp/tools/search_entities.py",
-    "harness_memory_mcp/tools/search_projects.py"
-  ],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
-  "reference_files": [
-    "core/application/entity_discovery/use_cases/search_entities/handler.py",
-    "core/infrastructure/postgres/repositories/entity_search_repository.py",
-    "core/infrastructure/postgres/repositories/knowledge_read_repository.py"
-  ],
-  "code_files": [
-    "core/application/entity_discovery/contracts/entity_search_criteria.py",
-    "core/application/entity_discovery/contracts/entity_search_item.py",
-    "core/application/entity_discovery/contracts/entity_search_page.py",
-    "core/application/entity_discovery/contracts/project_environment_item.py",
-    "core/application/entity_discovery/contracts/project_search_item.py",
-    "core/application/entity_discovery/contracts/project_search_page.py",
-    "core/application/entity_discovery/contracts/tenant_scope.py",
-    "core/application/entity_discovery/errors/cursor_validation.py",
-    "core/application/entity_discovery/errors/search_failure.py",
-    "core/application/entity_discovery/errors/project_search_failure.py",
-    "core/application/entity_discovery/ports/entity_search_repository.py",
-    "core/application/entity_discovery/ports/project_search_repository.py",
-    "core/application/entity_discovery/services/search_criteria_normalizer.py",
-    "core/application/entity_discovery/services/search_cursor_codec.py",
-    "core/application/entity_discovery/use_cases/search_entities/inbound.py",
-    "core/application/entity_discovery/use_cases/search_entities/outbound.py",
-    "core/application/entity_discovery/use_cases/search_projects/__init__.py",
-    "core/application/entity_discovery/use_cases/search_projects/handler.py",
-    "core/application/entity_discovery/use_cases/search_projects/inbound.py",
-    "core/application/entity_discovery/value_objects/filter_fingerprint.py",
-    "core/application/entity_discovery/value_objects/search_cursor.py",
-    "core/application/snapshot_publication/errors/missing_tenant_context.py",
-    "core/domain/snapshot_publication/types/entity_type.py",
-    "core/infrastructure/postgres/models/entity.py",
-    "core/infrastructure/postgres/models/environment.py",
-    "core/infrastructure/postgres/models/project.py",
-    "core/infrastructure/postgres/models/snapshot.py",
-    "core/infrastructure/postgres/repositories/current_snapshot_predicate.py",
-    "migrations/versions/002_entity_search_indexes.py",
-    "harness_memory_mcp/services/entity_search_response_mapper.py",
-    "harness_memory_mcp/services/tenant_context.py"
-  ],
-  "test_files": [
-    "tests/unit/core/application/entity_discovery/contracts/test_contracts.py",
-    "tests/unit/core/application/entity_discovery/services/test_cursor_and_criteria.py",
-    "tests/unit/core/application/entity_discovery/use_cases/test_search_entities.py",
-    "tests/unit/core/application/entity_discovery/use_cases/test_search_projects.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_entity_search_sql.py",
-    "tests/unit/core/infrastructure/postgres/models/test_entity_search_indexes.py",
-    "tests/unit/core/infrastructure/postgres/migrations/test_entity_search_indexes.py",
-    "tests/unit/mcp/tools/test_search_entities.py",
-    "tests/unit/mcp/tools/test_search_projects.py",
-    "tests/unit/core/infrastructure/postgres/repositories/test_knowledge_read_repository.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_entity_search_repository.py",
-    "tests/integration/migrations/test_entity_search_indexes.py",
-    "tests/e2e/mcp/test_search_entities.py",
-    "tests/e2e/mcp/test_tool_descriptions.py"
-  ]
-}
+{"node_id":"feature:entity-discovery","domain":"entity_discovery","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/tools/search_entities.py","harness_memory_mcp/tools/search_projects.py"],"registration_files":["harness_memory_mcp/server/factory.py"],"reference_files":["core/application/entity_discovery/use_cases/search_entities/handler.py","core/infrastructure/postgres/repositories/entity_search_repository.py","core/infrastructure/postgres/repositories/knowledge_read_repository.py"],"code_files":["core/application/entity_discovery/contracts/entity_search_criteria.py","core/application/entity_discovery/contracts/entity_search_item.py","core/application/entity_discovery/contracts/entity_search_page.py","core/application/entity_discovery/contracts/project_environment_item.py","core/application/entity_discovery/contracts/project_search_item.py","core/application/entity_discovery/contracts/project_search_page.py","core/application/entity_discovery/contracts/tenant_scope.py","core/application/entity_discovery/errors/cursor_validation.py","core/application/entity_discovery/errors/search_failure.py","core/application/entity_discovery/errors/project_search_failure.py","core/application/entity_discovery/ports/entity_search_repository.py","core/application/entity_discovery/ports/project_search_repository.py","core/application/entity_discovery/services/search_criteria_normalizer.py","core/application/entity_discovery/services/search_cursor_codec.py","core/application/entity_discovery/use_cases/search_entities/inbound.py","core/application/entity_discovery/use_cases/search_entities/outbound.py","core/application/entity_discovery/use_cases/search_projects/__init__.py","core/application/entity_discovery/use_cases/search_projects/handler.py","core/application/entity_discovery/use_cases/search_projects/inbound.py","core/application/entity_discovery/value_objects/filter_fingerprint.py","core/application/entity_discovery/value_objects/search_cursor.py","core/application/snapshot_publication/errors/missing_tenant_context.py","core/domain/snapshot_publication/types/entity_type.py","core/infrastructure/postgres/models/entity.py","core/infrastructure/postgres/models/environment.py","core/infrastructure/postgres/models/project.py","core/infrastructure/postgres/models/snapshot.py","core/infrastructure/postgres/repositories/current_snapshot_predicate.py","migrations/versions/002_entity_search_indexes.py","harness_memory_mcp/services/entity_search_response_mapper.py","harness_memory_mcp/services/tenant_context.py"],"test_files":["tests/unit/core/application/entity_discovery/contracts/test_contracts.py","tests/unit/core/application/entity_discovery/services/test_cursor_and_criteria.py","tests/unit/core/application/entity_discovery/use_cases/test_search_entities.py","tests/unit/core/application/entity_discovery/use_cases/test_search_projects.py","tests/unit/core/infrastructure/postgres/repositories/test_entity_search_sql.py","tests/unit/core/infrastructure/postgres/models/test_entity_search_indexes.py","tests/unit/core/infrastructure/postgres/migrations/test_entity_search_indexes.py","tests/unit/mcp/tools/test_search_entities.py","tests/unit/mcp/tools/test_search_projects.py","tests/unit/core/infrastructure/postgres/repositories/test_knowledge_read_repository.py","tests/integration/core/infrastructure/postgres/repositories/test_entity_search_repository.py","tests/integration/migrations/test_entity_search_indexes.py","tests/e2e/mcp/test_search_entities.py","tests/e2e/mcp/test_tool_descriptions.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:discover-entities","type":"capability","label":"Discover entities","definition":"Find projects and entity identities in published knowledge snapshots.","aliases":[]},{"id":"rule:cursor-context-binding","type":"rule","label":"Cursor context binding","definition":"Continue a page only with the same filters, trusted scope, and snapshot context.","aliases":[]},{"id":"contract:entity-search-page","type":"contract","label":"Entity search page","definition":"Bounded entity results with occurrence identity, snapshot context, and an optional continuation cursor.","aliases":[]}],"claims":[{"id":"claim:current-snapshot-selection","subject":"capability:discover-entities","relation":"exposes","object":"contract:entity-search-page","statement":"Return bounded identity and revision pages; default to current environment snapshots and use the project pointer only when no environment records exist.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/entity_search_repository.py","locator":"PostgresEntitySearchRepository._selected_snapshots and _statement","snapshot":null},{"kind":"code","source":"core/application/entity_discovery/contracts/entity_search_item.py","locator":"EntitySearchItem fields","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:search-cursor-binding","subject":"capability:discover-entities","relation":"constrained_by","object":"rule:cursor-context-binding","statement":"Reject cursors when trusted scope or the selected snapshot set changes; history requests also bind to a snapshot manifest.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/entity_search_repository.py","locator":"PostgresEntitySearchRepository.search: scope_hash and context_hash checks","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:search-publication-dependency","subject":"capability:discover-entities","relation":"depends_on","object":"feature:snapshot-publication#capability:publish-snapshot","statement":"Entity discovery reads facts from snapshots and current pointers created by snapshot publication.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/entity_search_repository.py","locator":"PostgresEntitySearchRepository._selected_snapshots and _statement","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -100,17 +36,14 @@ Find projects and bounded Entity identities through tenant-scoped MCP search too
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Snapshot scope**: Select one explicit snapshot, one environment's current snapshot, or every current environment snapshot. Use the project pointer only when no environment records exist. `include_past_snapshots` selects history; `include_history` adds document revisions and retired documents within selected snapshots.
-- **Project and entity results**: Project search returns environment names and current snapshot IDs. Entity filters combine key, name, type, project, and a case-insensitive literal content query.
-- **Identity and cursor**: Return canonical identity and physical occurrence ID with snapshot and publication context. Bind cursors to filters, trusted scope, selected snapshot set, and last row; reject changed context.
-- **Bounded output**: Return scalar identity and revision fields. Omit metadata, relations, evidence, and total count.
+- **Snapshot scope**: Pin one snapshot, select current environment snapshots by default, and include history only when requested. `include_history` adds document revisions and retired documents.
+- **Results**: Project search returns environment names and current snapshot IDs; entity filters combine key, name, type, project, and literal content. Entity pages return scalar identity and revision fields, not metadata, relations, or evidence.
 
 ## HOW TO SEARCH
 
 1. Use `search_projects` to confirm project identity and inspect current environment snapshots.
-2. Search entities with at least one filter or tenant, project, snapshot, or environment selector. Search older snapshots only when history or comparison is requested.
-3. Match keys, project keys, and types exactly. Use `name` for a case-insensitive prefix and `query` for a case-insensitive literal phrase; wildcard characters remain literal.
-4. Continue with the same cursor filters. Restart when selected snapshots change. Pass `entity_id` and `snapshot_id` together to `get_context`.
+2. Search with a filter or scope selector; match keys/types exactly and use `name` for prefixes or `query` for literal phrases.
+3. Continue with unchanged cursor filters; restart when snapshots change. Pass `entity_id` and `snapshot_id` together to `get_context`.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -130,24 +63,6 @@ REQUIRED: Narrow metadata searches by exact project key when known.
 REQUIRED: Fetch one extra row to decide whether to emit `next_cursor`; bind cursor validity to scope and snapshot context.
 REQUIRED: Search history only when requested; label historical matches.
 PROHIBITED: Treat an empty entity result as proof that a project does not exist or a fact is false.
-
-## TIPS
-
-An empty default entity list means no current entity matched. Do not infer that a fact never existed. Search history only when the user asks for it. Check project existence separately with `search_projects`.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Entity Discovery"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| SNAPSHOT["Snapshot Publication"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click SNAPSHOT "./snapshot-publication.md"
-```
 
 ## REFERENCES
 

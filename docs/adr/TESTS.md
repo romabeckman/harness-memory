@@ -1,17 +1,17 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, TypeScript 7.x, Node.js 20+, Vitest 1.x, FastAPI, FastMCP 4.x, PostgreSQL]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, TypeScript 7.x, Node.js 20+, Vitest 4.x, FastAPI, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
-updated: 2026-09-23
+updated: 2026-09-26
 ---
 # Testing Protocol
 
 ## OVERVIEW
 
-Use **pytest 9.x** for Python unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Use **Vitest 1.x** for SDK unit, integration, and CLI E2E tiers. Enforce the configured Python branch-coverage gate.
+Use **pytest 9.x** for Python unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Use **Vitest 4.x** for SDK unit, integration, and CLI E2E tiers. Enforce the configured Python branch-coverage gate.
 
 ## COMMANDS
 
@@ -49,7 +49,7 @@ PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence b
 
 ## TOOLING
 
-- **Framework:** pytest 9.x, pytest-asyncio, FastMCP 4.x; Vitest 1.x for the TypeScript SDK.
+- **Framework:** pytest 9.x, pytest-asyncio, FastMCP 4.x; Vitest 4.x for the TypeScript SDK.
 - **Assertions:** pytest and Vitest built-in assertions.
 - **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no mocking library configured.
 - **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.

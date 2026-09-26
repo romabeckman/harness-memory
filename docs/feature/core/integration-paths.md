@@ -14,57 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:relationship-context"
     read: must
-updated: 2026-09-20
+updated: 2026-09-26
 ---
 # Integration Paths
 Find bounded, tenant-scoped paths between active graph entities through `find_integration_paths`.
 
 ```graph
-{
-  "node_id": "feature:integration-paths",
-  "domain": "integration_paths",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["harness_memory_mcp/tools/find_integration_paths.py"],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
-  "reference_files": [
-    "core/application/integration_paths/use_cases/find_integration_paths/handler.py",
-    "core/infrastructure/postgres/repositories/integration_path_repository.py"
-  ],
-  "code_files": [
-    "core/application/relationship_context/contracts/entity_context_item.py",
-    "core/application/integration_paths/contracts/integration_path_view.py",
-    "core/application/integration_paths/contracts/ownership_view.py",
-    "core/application/integration_paths/contracts/path_entity_view.py",
-    "core/application/integration_paths/contracts/path_hop_view.py",
-    "core/application/integration_paths/errors/integration_path_endpoint_not_found.py",
-    "core/application/integration_paths/errors/integration_path_query_failure.py",
-    "core/application/integration_paths/ports/integration_path_repository.py",
-    "core/application/integration_paths/services/path_traversal_policy.py",
-    "core/application/integration_paths/types/integration_path_bounds.py",
-    "core/application/integration_paths/types/path_termination_reason.py",
-    "core/application/integration_paths/types/path_traversal_direction.py",
-    "core/application/integration_paths/use_cases/find_integration_paths/inbound.py",
-    "core/application/integration_paths/use_cases/find_integration_paths/outbound.py",
-    "harness_memory_mcp/services/integration_path_response_mapper.py",
-    "harness_memory_mcp/services/tenant_context.py"
-  ],
-  "test_files": [
-    "tests/unit/core/application/integration_paths/ports/test_integration_path_repository.py",
-    "tests/unit/core/application/integration_paths/services/test_path_traversal_policy.py",
-    "tests/unit/core/application/integration_paths/types/test_contracts.py",
-    "tests/unit/core/application/integration_paths/use_cases/test_find_integration_paths.py",
-    "tests/unit/mcp/server/test_integration_path_factory.py",
-    "tests/unit/mcp/services/test_integration_path_response_mapper.py",
-    "tests/unit/mcp/tools/test_find_integration_paths.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_integration_path_limits.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_integration_path_plans.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_integration_path_rework.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_integration_path_traversal.py",
-    "tests/e2e/mcp/test_find_integration_paths.py",
-    "tests/e2e/mcp/test_find_integration_paths_catalog.py"
-  ]
-}
+{"node_id":"feature:integration-paths","domain":"integration_paths","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/tools/find_integration_paths.py"],"registration_files":["harness_memory_mcp/server/factory.py"],"reference_files":["core/application/integration_paths/use_cases/find_integration_paths/handler.py","core/infrastructure/postgres/repositories/integration_path_repository.py"],"code_files":["core/application/relationship_context/contracts/entity_context_item.py","core/application/integration_paths/contracts/integration_path_view.py","core/application/integration_paths/contracts/ownership_view.py","core/application/integration_paths/contracts/path_entity_view.py","core/application/integration_paths/contracts/path_hop_view.py","core/application/integration_paths/errors/integration_path_endpoint_not_found.py","core/application/integration_paths/errors/integration_path_query_failure.py","core/application/integration_paths/ports/integration_path_repository.py","core/application/integration_paths/services/path_traversal_policy.py","core/application/integration_paths/types/integration_path_bounds.py","core/application/integration_paths/types/path_termination_reason.py","core/application/integration_paths/types/path_traversal_direction.py","core/application/integration_paths/use_cases/find_integration_paths/inbound.py","core/application/integration_paths/use_cases/find_integration_paths/outbound.py","harness_memory_mcp/services/integration_path_response_mapper.py","harness_memory_mcp/services/tenant_context.py"],"test_files":["tests/unit/core/application/integration_paths/ports/test_integration_path_repository.py","tests/unit/core/application/integration_paths/services/test_path_traversal_policy.py","tests/unit/core/application/integration_paths/types/test_contracts.py","tests/unit/core/application/integration_paths/use_cases/test_find_integration_paths.py","tests/unit/mcp/server/test_integration_path_factory.py","tests/unit/mcp/services/test_integration_path_response_mapper.py","tests/unit/mcp/tools/test_find_integration_paths.py","tests/integration/core/infrastructure/postgres/repositories/test_integration_path_limits.py","tests/integration/core/infrastructure/postgres/repositories/test_integration_path_plans.py","tests/integration/core/infrastructure/postgres/repositories/test_integration_path_rework.py","tests/integration/core/infrastructure/postgres/repositories/test_integration_path_traversal.py","tests/e2e/mcp/test_find_integration_paths.py","tests/e2e/mcp/test_find_integration_paths_catalog.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:find-integration-paths","type":"capability","label":"Find integration paths","definition":"Find bounded relation paths between active tenant graph entities.","aliases":[]},{"id":"rule:active-tenant-graph","type":"rule","label":"Active tenant graph","definition":"Resolve endpoints and traverse only relations belonging to the trusted tenant's active snapshots.","aliases":[]},{"id":"contract:bounded-integration-paths","type":"contract","label":"Bounded integration paths","definition":"Return ordered paths with hop, owner, provenance, evidence, and termination context.","aliases":[]}],"claims":[{"id":"claim:active-tenant-path-traversal","subject":"capability:find-integration-paths","relation":"constrained_by","object":"rule:active-tenant-graph","statement":"The repository resolves endpoints under TenantScope and joins traversed relations to active snapshots in that tenant.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/integration_path_repository.py","locator":"PostgresIntegrationPathRepository._resolve_endpoint and _load_active_relations","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:path-expansion-bounds","subject":"capability:find-integration-paths","relation":"exposes","object":"contract:bounded-integration-paths","statement":"Traversal stops at the requested depth or path limit and reports expansion or path truncation.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/integration_path_repository.py","locator":"PostgresIntegrationPathRepository._load_recursive_paths and find_paths","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -118,19 +74,6 @@ PROHIBITED: Put recursive SQL, ownership inference, or tenant selection in the M
 
 Use `evidence_limit=0` and `owner_limit=0` when path topology is enough for the caller.
 
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["Integration Paths"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| CONTEXT["Relationship Context"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click CONTEXT "./relationship-context.md"
-```
 
 ## REFERENCES
 

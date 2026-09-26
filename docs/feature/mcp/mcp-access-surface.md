@@ -14,65 +14,13 @@ edges:
   - relation: depends_on
     target: "feature:impact-analysis"
     read: must
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # MCP Access Surface
 Expose bounded memory resources and deterministic workflow prompts through the FastMCP catalog.
 
 ```graph
-{
-  "node_id": "feature:mcp-access-surface",
-  "domain": "mcp_access_surface",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": [
-    "harness_memory_mcp/resources/entity_resource.py",
-    "harness_memory_mcp/resources/project_resource.py",
-    "harness_memory_mcp/resources/snapshot_resource.py",
-    "harness_memory_mcp/prompts/load_corporate_context.py",
-    "harness_memory_mcp/prompts/analyze_integration.py",
-    "harness_memory_mcp/prompts/review_change_impact.py"
-  ],
-  "registration_files": ["harness_memory_mcp/server/factory.py"],
-  "reference_files": [
-    "core/application/mcp_access_surface/use_cases/get_project_resource/handler.py",
-    "core/infrastructure/postgres/repositories/memory_resource_repository.py"
-  ],
-  "code_files": [
-    "core/application/mcp_access_surface/contracts/project_resource_input.py",
-    "core/application/mcp_access_surface/contracts/project_resource_output.py",
-    "core/application/mcp_access_surface/contracts/snapshot_context_item.py",
-    "core/application/mcp_access_surface/contracts/snapshot_fact_page.py",
-    "core/application/mcp_access_surface/contracts/snapshot_resource_input.py",
-    "core/application/mcp_access_surface/contracts/snapshot_resource_output.py",
-    "core/application/mcp_access_surface/errors/resource_not_found.py",
-    "core/application/mcp_access_surface/errors/resource_query_failure.py",
-    "core/application/mcp_access_surface/ports/memory_resource_repository.py",
-    "core/application/mcp_access_surface/types/resource_read_bounds.py",
-    "core/application/mcp_access_surface/use_cases/get_project_resource/inbound.py",
-    "core/application/mcp_access_surface/use_cases/get_project_resource/outbound.py",
-    "core/application/mcp_access_surface/use_cases/get_snapshot_resource/handler.py",
-    "core/application/mcp_access_surface/use_cases/get_snapshot_resource/inbound.py",
-    "core/application/mcp_access_surface/use_cases/get_snapshot_resource/outbound.py",
-    "harness_memory_mcp/prompts/_guidance.py",
-    "harness_memory_mcp/services/resource_error_mapper.py"
-  ],
-  "test_files": [
-    "tests/unit/core/application/mcp_access_surface/contracts/test_contracts.py",
-    "tests/unit/core/application/mcp_access_surface/use_cases/test_get_project_resource.py",
-    "tests/unit/core/application/mcp_access_surface/use_cases/test_get_snapshot_resource.py",
-    "tests/unit/mcp/prompts/test_prompts.py",
-    "tests/unit/mcp/resources/test_entity_resource.py",
-    "tests/unit/mcp/resources/test_project_resource.py",
-    "tests/unit/mcp/resources/test_snapshot_resource.py",
-    "tests/unit/mcp/server/test_factory.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_project_resource.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_snapshot_resource.py",
-    "tests/e2e/mcp/test_resource_catalog.py",
-    "tests/e2e/mcp/test_resources.py",
-    "tests/e2e/mcp/test_prompts.py"
-  ]
-}
+{"node_id":"feature:mcp-access-surface","domain":"mcp_access_surface","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["harness_memory_mcp/resources/entity_resource.py","harness_memory_mcp/resources/project_resource.py","harness_memory_mcp/resources/snapshot_resource.py","harness_memory_mcp/prompts/load_corporate_context.py","harness_memory_mcp/prompts/analyze_integration.py","harness_memory_mcp/prompts/review_change_impact.py"],"registration_files":["harness_memory_mcp/server/factory.py"],"reference_files":["core/application/mcp_access_surface/use_cases/get_project_resource/handler.py","core/infrastructure/postgres/repositories/memory_resource_repository.py"],"code_files":["core/application/mcp_access_surface/contracts/project_resource_input.py","core/application/mcp_access_surface/contracts/project_resource_output.py","core/application/mcp_access_surface/contracts/snapshot_context_item.py","core/application/mcp_access_surface/contracts/snapshot_fact_page.py","core/application/mcp_access_surface/contracts/snapshot_resource_input.py","core/application/mcp_access_surface/contracts/snapshot_resource_output.py","core/application/mcp_access_surface/errors/resource_not_found.py","core/application/mcp_access_surface/errors/resource_query_failure.py","core/application/mcp_access_surface/ports/memory_resource_repository.py","core/application/mcp_access_surface/types/resource_read_bounds.py","core/application/mcp_access_surface/use_cases/get_project_resource/inbound.py","core/application/mcp_access_surface/use_cases/get_project_resource/outbound.py","core/application/mcp_access_surface/use_cases/get_snapshot_resource/handler.py","core/application/mcp_access_surface/use_cases/get_snapshot_resource/inbound.py","core/application/mcp_access_surface/use_cases/get_snapshot_resource/outbound.py","harness_memory_mcp/prompts/_guidance.py","harness_memory_mcp/services/resource_error_mapper.py"],"test_files":["tests/unit/core/application/mcp_access_surface/contracts/test_contracts.py","tests/unit/core/application/mcp_access_surface/use_cases/test_get_project_resource.py","tests/unit/core/application/mcp_access_surface/use_cases/test_get_snapshot_resource.py","tests/unit/mcp/prompts/test_prompts.py","tests/unit/mcp/resources/test_entity_resource.py","tests/unit/mcp/resources/test_project_resource.py","tests/unit/mcp/resources/test_snapshot_resource.py","tests/unit/mcp/server/test_factory.py","tests/integration/core/infrastructure/postgres/repositories/test_project_resource.py","tests/integration/core/infrastructure/postgres/repositories/test_snapshot_resource.py","tests/e2e/mcp/test_resource_catalog.py","tests/e2e/mcp/test_resources.py","tests/e2e/mcp/test_prompts.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:read-mcp-resources","type":"capability","label":"Read MCP resources","definition":"Expose bounded entity, project, and snapshot context through MCP resource URIs.","aliases":[]},{"id":"rule:bounded-resource-reads","type":"rule","label":"Bounded resource reads","definition":"Apply trusted tenant scope and fixed fact and evidence limits to resource reads.","aliases":[]},{"id":"contract:mcp-resource-content","type":"contract","label":"MCP resource content","definition":"Read-only resource output with bounded normalized facts and explicit truncation.","aliases":[]}],"claims":[{"id":"claim:resource-scope-and-bounds","subject":"capability:read-mcp-resources","relation":"constrained_by","object":"rule:bounded-resource-reads","statement":"Resource handlers pass trusted tenant context to repositories and enforce fixed fact and evidence bounds.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/application/mcp_access_surface/use_cases/get_snapshot_resource/handler.py","locator":"GetSnapshotResourceHandler.execute","snapshot":null},{"kind":"code","source":"core/application/mcp_access_surface/types/resource_read_bounds.py","locator":"ResourceReadBounds","snapshot":null},{"kind":"code","source":"core/infrastructure/postgres/repositories/memory_resource_repository.py","locator":"tenant-scoped bounded resource queries","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:normalized-read-contract","subject":"capability:read-mcp-resources","relation":"exposes","object":"contract:mcp-resource-content","statement":"Snapshot resources read normalized entity, relation, and evidence rows without exposing raw snapshot payloads or a write operation.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"core/infrastructure/postgres/repositories/memory_resource_repository.py","locator":"snapshot resource query","snapshot":null},{"kind":"code","source":"harness_memory_mcp/resources/snapshot_resource.py","locator":"snapshot resource registration","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -83,32 +31,22 @@ projections; prompts render guidance only.
 
 ## FOLDER STRUCTURE
 
-```text
-harness_memory_mcp/resources/                           # Entity, project, and snapshot URI adapters
-harness_memory_mcp/prompts/                              # Three deterministic workflow renderers
-core/application/mcp_access_surface/     # Resource contracts, bounds, handlers, port
-core/infrastructure/postgres/repositories/ # Bounded tenant-filtered resource reads
-tests/{unit,integration,e2e}/             # Contract, persistence, catalog, and read tests
-```
+- `harness_memory_mcp/`: resource and prompt adapters; `core/application/mcp_access_surface/`: contracts and handlers; `core/infrastructure/postgres/`: bounded tenant reads.
+- `tests/{unit,integration,e2e}/`: contract, persistence, catalog, and read checks.
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Entity resource**: Read context from the newest current environment occurrence at `memory://entities/{entity_id}`; use `get_context` with `snapshot_id` to pin one environment.
-- **Project resource**: Read only the project's active snapshot at `memory://projects/{project_key}`; decode one URI segment once.
+- **Entity resource**: Read the newest current environment occurrence at `memory://entities/{entity_id}`; pin one environment with `get_context` and `snapshot_id`.
+- **Project resource**: Read the active snapshot at `memory://projects/{project_key}` and decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
-- **Normalized content**: Keep document text in `entities.metadata`; entity search and bounded MCP resources read entities, relations, and evidence directly.
-- **Prompt surface**: Confirm project keys with `search_projects`, guide content queries with `search_entities`, and keep business decisions in existing capabilities.
-- **Current-first guidance**: Use each `Environment.current_snapshot_id` for generic project facts and label findings by environment. Use `Project.active_snapshot_id` as current only when no environment records exist. Search historical snapshots only when the user explicitly asks for history, past state, comparison, or changes.
-- **Environment surface**: Read active environment snapshots and compare added, removed,
-  modified, and unchanged entity fingerprints without exposing a write operation.
+- **Prompt and environment surfaces**: Confirm projects with `search_projects`; prompts guide existing tools. Environment comparisons return added, removed, modified, and unchanged entity fingerprints.
+- **Current-first guidance**: Use each environment's `current_snapshot_id`; use `Project.active_snapshot_id` only when no environment records exist. Search history only on request.
 
 ## HOW TO READ
 
-1. Require trusted tenant context and `memory:read` for every resource.
-2. Apply fixed bounds of 25 facts and 5 evidence items; expose truncation flags.
-3. Return identical sanitized not-found results for missing and foreign-tenant identifiers.
-4. Guide agents to confirm project keys with `search_projects` before interpreting empty entity results.
-5. Validate prompt arguments as bounded data and render deterministic text without I/O.
+1. Require trusted tenant context and `memory:read`; cap resources at 25 facts and 5 evidence items.
+2. Expose truncation flags and identical sanitized not-found results for missing or foreign-tenant identifiers.
+3. Confirm project keys with `search_projects`; validate prompt arguments and render deterministic text without I/O.
 
 ## TOOL CALL ORDER
 
@@ -132,31 +70,11 @@ PROHIBITED: Register the legacy `publish_project_snapshot` adapter in the defaul
 
 ## BEST PRACTICES
 
-REQUIRED: Keep resource outputs bounded, deterministic, scope-authorized, and free of raw snapshot payloads.
-REQUIRED: Read searchable document content from normalized entity metadata; snapshot reads must not depend on `snapshots.payload`.
+REQUIRED: Read searchable document content from normalized entity metadata; never expose raw snapshot payloads.
 REQUIRED: Keep prompt renderers data-free; mention existing public tools instead of duplicating business logic.
-REQUIRED: Enforce authorization on catalog listing and direct read/get operations.
 PROHIBITED: Register snapshot publication or any other graph mutation as an MCP tool.
 PROHIBITED: Treat tenant identity from URI or prompt arguments as authorization, or expose repository errors.
 PROHIBITED: Let resource adapters own SQL, traversal, activation, or impact classification.
-
-## TIPS
-
-Percent-encode project keys containing `/` as one URI segment before calling the project resource. Use that resource for the active project execution; use environment snapshot IDs for generic current facts.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    THIS["MCP Access Surface"] -->|implements| ARCH["Project Architecture"]
-    THIS -->|tested_by| TESTS["Testing Protocol"]
-    THIS -->|references| MCP["MCP Interface"]
-    THIS -->|depends_on| IMPACT["Impact Analysis"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click TESTS "../../adr/TESTS.md"
-    click MCP "../../adr/MCP.md"
-    click IMPACT "../core/impact-analysis.md"
-```
 
 ## REFERENCES
 
