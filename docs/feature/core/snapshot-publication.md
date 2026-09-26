@@ -104,13 +104,11 @@ Validate a complete schema `1.0` payload, build an immutable domain aggregate, c
 
 ## FOLDER STRUCTURE
 
-```text
-core/domain/snapshot_publication/        # Snapshot invariants and revision policy
-core/application/snapshot_publication/  # Contracts, hashing, and publication use case
-core/infrastructure/postgres/            # Graph mapping and atomic persistence
-api/adapters/http/                       # Authenticated publication boundary
-tests/{unit,integration,e2e}/            # Domain, persistence, API, and read-only MCP contracts
-```
+- `core/domain/`: snapshot facts, schema, and revision invariants.
+- `core/application/`: publication contracts, hashing, and use case.
+- `core/infrastructure/postgres/`: normalized mapping and transactions.
+- `api/adapters/http/`: authenticated publication boundary.
+- `tests/{unit,integration,e2e}/`: domain, persistence, API, and MCP checks.
 
 ## MAIN CONCEPTS / COMPONENTS
 
@@ -122,26 +120,23 @@ tests/{unit,integration,e2e}/            # Domain, persistence, API, and read-on
 
 ## HOW TO PUBLISH
 
-1. Submit schema `1.0` with positive revision, offset-aware timestamp, bounded metadata, and supported fact types.
-2. Supply tenant context through the adapter boundary; exclude `tenant_id` from the snapshot payload.
-3. Resolve relation endpoints and evidence references within the same snapshot.
-4. Treat `ACTIVATED` as a new active snapshot and `ALREADY_PUBLISHED` as an idempotent retry.
-5. Treat retryable uniqueness, serialization, and deadlock races as bounded retries; map other persistence failures safely.
+1. Submit schema `1.0`, positive revision, offset-aware timestamp, and bounded supported facts.
+2. Resolve tenant from trusted context; validate relation endpoints and evidence references within the snapshot.
+3. Treat `ACTIVATED` as new state and `ALREADY_PUBLISHED` as an idempotent retry. Retry transient uniqueness, serialization, or deadlock races within the configured bound.
 
 ## PERSISTENCE AND MCP CONTINUITY
 
-Snapshot document content remains in `entities.metadata`; entity search and MCP resources continue reading normalized rows. Snapshot payload reconstruction also preserves canonical entity keys, relation references, evidence links, and input order for REST detail responses and the SDK baseline. Migration `011` verifies each normalized graph against its stored payload before removing that column; a mismatch aborts the migration so operators can repair the affected snapshot without silent data loss.
+Keep document content in normalized `entities.metadata`; REST details and SDK baselines reconstruct the payload from entity, relation, and evidence rows. Migration `011` verifies normalized facts against each stored payload before dropping `snapshots.payload`; mismatches abort migration for repair.
 
 ## PARAMETERS / CONFIGURATIONS
 
-| Name | Type | Required | Description | Default |
-|------|------|----------|-------------|---------|
-| `schema_version` | string | Yes | Supported publication schema. | `1.0` |
-| `revision` | positive integer | Yes | Project publication revision. | — |
-| `generated_at` | datetime | Yes | Offset-aware timestamp normalized to UTC. | — |
-| `entities` | array | Yes | Maximum 10,000 entity facts. | `[]` |
-| `relations` | array | Yes | Maximum 50,000 relation facts. | `[]` |
-| `evidence` | array | Yes | Maximum 50,000 evidence facts. | `[]` |
+| Field | Contract |
+|-------|----------|
+| `schema_version` | `1.0` |
+| `revision` | Positive integer. |
+| `generated_at` | Offset-aware timestamp normalized to UTC. |
+| `entities` | Up to 10,000 facts. |
+| `relations`, `evidence` | Up to 50,000 facts each. |
 
 ## BEST PRACTICES
 

@@ -18,34 +18,13 @@ edges:
   - relation: tested_by
     target: "adr:tests"
     read: must
-updated: 2026-09-23
+updated: 2026-09-26
 ---
 # API and MCP Scopes
 Compare bearer permissions across REST and MCP without treating token ownership as a permission.
 
 ```graph
-{
-  "node_id": "feature:api-scopes",
-  "domain": "api-scopes",
-  "implements": ["adr:architecture"],
-  "tested_by": ["adr:tests"],
-  "entrypoints": ["api/adapters/http/knowledge_publication_routes.py"],
-  "registration_files": ["api/server/app.py"],
-  "reference_files": [
-    "api/adapters/http/api_security.py",
-    "harness_memory_mcp/services/component_scope_policy.py"
-  ],
-  "code_files": [
-    "core/domain/tenant_security/types/memory_scope.py",
-    "harness_memory_mcp/services/tenant_context.py",
-    "api/adapters/http/service_account_routes.py"
-  ],
-  "test_files": [
-    "tests/unit/api/adapters/http/test_api_authentication.py",
-    "tests/unit/mcp/services/test_tenant_security_services.py",
-    "tests/e2e/mcp/test_http_security.py"
-  ]
-}
+{"node_id":"feature:api-scopes","domain":"api-scopes","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["api/adapters/http/knowledge_publication_routes.py"],"registration_files":["api/server/app.py"],"reference_files":["api/adapters/http/api_security.py","harness_memory_mcp/services/component_scope_policy.py"],"code_files":["core/domain/tenant_security/types/memory_scope.py","harness_memory_mcp/services/tenant_context.py","api/adapters/http/service_account_routes.py"],"test_files":["tests/unit/api/adapters/http/test_api_authentication.py","tests/unit/mcp/services/test_tenant_security_services.py","tests/e2e/mcp/test_http_security.py"],"knowledge":{"schema_version":1,"entities":[{"id":"capability:enforce-memory-scopes","type":"capability","label":"Enforce memory scopes","definition":"Authorize REST and MCP access using configured credentials and persisted token scopes.","aliases":[]},{"id":"rule:independent-scopes","type":"rule","label":"Independent scopes","definition":"Grant each requested permission only when its scope is present; one scope does not imply another.","aliases":[]},{"id":"contract:scope-denial","type":"contract","label":"Scope denial","definition":"Distinguish invalid credentials from authenticated principals lacking permission.","aliases":[]}],"claims":[{"id":"claim:scope-membership","subject":"capability:enforce-memory-scopes","relation":"constrained_by","object":"rule:independent-scopes","statement":"ApiSecurity checks persisted token scopes against requested scopes; the configured read key receives memory:read only.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/adapters/http/api_security.py","locator":"ApiSecurity._require_scope: read-key and token scope checks","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:scope-response","subject":"capability:enforce-memory-scopes","relation":"exposes","object":"contract:scope-denial","statement":"Missing or unknown credentials return 401; a recognized credential without a requested scope returns 403.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/adapters/http/api_security.py","locator":"ApiSecurity._require_scope: invalid identity and insufficient-scope branches","snapshot":null}],"derived_from":[],"gap":null},{"id":"claim:token-scope-dependency","subject":"capability:enforce-memory-scopes","relation":"depends_on","object":"feature:api-tokens#capability:issue-api-tokens","statement":"Database authorization reads scopes from the active token record returned by the token repository.","kind":"observation","status":"supported","evidence":[{"kind":"code","source":"api/adapters/http/api_security.py","locator":"ApiSecurity._find_active_token and _require_scope","snapshot":null}],"derived_from":[],"gap":null}]}}
 ```
 
 ## OVERVIEW
@@ -110,20 +89,6 @@ credential without permission. Keep user and token CRUD admin-only.
 the admin-only management router. `memory:read` cannot access them, although
 service-account metadata is separate from user and token metadata. Change this router
 policy separately if service-account reads should follow the broader read rule.
-
-## DOCUMENT MAP
-
-```mermaid
-graph TD
-    SCOPES["API and MCP Scopes"] -->|implements| ARCH["Project Architecture"]
-    SCOPES -->|references| SECURITY["Security Architecture"]
-    SCOPES -->|references| TOKENS["API Tokens"]
-    SCOPES -->|tested_by| TESTS["Testing Protocol"]
-    click ARCH "../../adr/ARCHITECTURE.md"
-    click SECURITY "../../adr/SECURITY.md"
-    click TOKENS "./tokens.md"
-    click TESTS "../../adr/TESTS.md"
-```
 
 ## REFERENCES
 

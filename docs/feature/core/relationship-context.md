@@ -76,42 +76,32 @@ Return bounded context for selected entities and direct dependency views for one
 
 ## FOLDER STRUCTURE
 
-```text
-harness_memory_mcp/tools/                                  # Thin context and dependency adapters
-harness_memory_mcp/services/                               # Tenant and safe response mapping
-core/application/relationship_context/      # Contracts, ports, and handlers
-core/infrastructure/postgres/repositories/  # Environment-current relationship reads
-tests/{unit,integration,e2e}/               # Contract, repository, and MCP tests
-```
+- `harness_memory_mcp/tools/` and `services/`: thin adapters and safe response mapping.
+- `core/application/relationship_context/`: contracts, ports, and handlers.
+- `core/infrastructure/postgres/`: scoped snapshot reads.
+- `tests/{unit,integration,e2e}/`: module-aligned checks.
 
 ## MAIN CONCEPTS / COMPONENTS
 
-- **Pinned context**: Resolve a stable identity or row UUID in the requested immutable snapshot. Without `snapshot_id`, resolve the newest matching occurrence among current environment snapshots; use the legacy project pointer only when no environment records exist. Apply trusted scope and reject ambiguous project identities.
-- **Scope listing**: Supply `snapshot_id`, `project_id`, or `tenant_id` without `entity_id` to receive a bounded page. Default listing includes every current environment snapshot. Sort by snapshot creation time, revision, then entity creation time, newest first; use IDs to break ties.
-- **Direct relation**: Return one-hop relations; derive owners from outbound `owned_by` relations targeting teams.
-- **Dependency relation**: Limit dependency views to `depends_on`, `consumes`, and `subscribes_to`; support inbound, outbound, and both directions.
-- **Evidence**: Attach only evidence linked to returned relations; exclude snapshot-level evidence from entity context.
+- **Pinned context**: Resolve an entity in the requested snapshot. Without one, use the newest occurrence in current environment snapshots; reject ambiguous identities.
+- **Scope listing**: Select by snapshot, project, or tenant; otherwise list current environment snapshots, newest first, with bounded paging.
+- **Direct relations**: Return one-hop relations, owners from outbound `owned_by` edges, and only `depends_on`, `consumes`, or `subscribes_to` as dependency views.
+- **Evidence**: Attach evidence linked to returned relations; exclude snapshot-level evidence.
 
 ## HOW TO QUERY
 
-1. Discover an entity with `search_entities` and retain its `entity_id`, `snapshot_id`, and `project_id`.
-2. Call `get_context` with `entity_id` and `snapshot_id` from the same result to pin its exact environment context. Supply only `snapshot_id`, `project_id`, or `tenant_id` to list matching contexts, newest first.
-3. Call `get_dependencies` with `inbound`, `outbound`, or `both` for one-hop dependency views.
-4. Use `tenant_id` and `project_id` to narrow ambiguous global identities. An ambiguous canonical identity returns `AMBIGUOUS_ENTITY`.
+1. Discover an entity and retain its `entity_id`, `snapshot_id`, and `project_id`.
+2. Pin `get_context` to that snapshot, or select a bounded context listing with tenant, project, or snapshot ID.
+3. Use `get_dependencies` for inbound, outbound, or both direct directions. Use tenant/project selectors to resolve ambiguous identities.
 
 ## PARAMETERS / CONFIGURATIONS
 
-| Name | Type | Required | Description | Default |
-|------|------|----------|-------------|---------|
-| `entity_id` | UUID | One of four selectors for `get_context`; required for `get_dependencies` | Stable entity identity from discovery; legacy row UUIDs remain accepted. | unset |
-| `direction` | enum | No | `inbound`, `outbound`, or `both`; dependencies only. | `both` |
-| `tenant_id` / `project_id` | string / UUID | One of four selectors for `get_context` | Narrow resolution or list contexts within a known tenant or project. | unset |
-| `snapshot_id` | UUID | One of four selectors for `get_context` | Pin one entity or list contexts in an immutable snapshot, including historical snapshots. | all current environment snapshots for lists; newest current occurrence for an entity |
-| `get_context.limit` | strict integer | No | Entity contexts per page from 1 through 500. | `100` |
-| `evidence_limit` | strict integer | No | Evidence bound per relation from 0 through 20. | `5` |
-| `result_limit` | strict integer | No | Relations and dependencies within each context, from 1 through 25. | `25` |
-| `get_dependencies.limit` | strict integer | No | Relationships in one entity result, from 1 through 100. Not a page limit. | `25` |
-| `offset` | strict integer | No | Matching contexts to skip, from 0 through 10,000. | `0` |
+| Parameters | Contract |
+|------------|----------|
+| `entity_id`, `snapshot_id`, `project_id`, `tenant_id` | Required selector set for context; `entity_id` required for dependency queries. |
+| `direction` | `inbound`, `outbound`, or `both`; dependencies only. |
+| `limit`, `offset` | Context page size 1?500; offset 0?10,000. Dependency limit 1?100. |
+| `result_limit`, `evidence_limit` | Relations 1?25; evidence per relation 0?20. |
 
 ## BEST PRACTICES
 
