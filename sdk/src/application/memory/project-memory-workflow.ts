@@ -73,9 +73,10 @@ export class ProjectMemoryWorkflow implements MemoryWorkflowPort {
       invocation = {
         ...invocation,
         instruction: `${invocation.instruction ?? PROJECT_MEMORY_PROMPT}\n\n` +
-          `<format_feedback>The previous response was not valid JSON. This task requires no workspace writes. ` +
-          `All documentation input is already supplied. Return exactly one schema_version 1.0 JSON graph with complete ` +
-          `Markdown in document metadata.content. The SDK publishes graph data without writing documentation files. Do not add prose or Markdown fences.` +
+          `<format_feedback>The previous response was not valid JSON. This task requires no documentation or repository writes. ` +
+          `Write the complete schema_version 1.0 JSON graph to the temporary output file specified in the invocation. ` +
+          `All documentation input is already supplied. Preserve complete Markdown in document metadata.content. ` +
+          `The SDK publishes graph data without writing documentation files. Do not add prose or Markdown fences to the file.` +
           `</format_feedback>`,
       };
       proposed = await this.llm.run(invocation);
