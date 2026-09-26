@@ -258,7 +258,7 @@ def upgrade() -> None:
     op.create_table(
         "service_accounts",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),

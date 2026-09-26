@@ -36,10 +36,12 @@ def test_list_tenants_and_projects_repository():
     # Test create_project, get_project, list_projects
     p1 = repo.create_project(t1["id"], "proj-alpha", "Alpha", {"tier": 1})
     p2 = repo.create_project(t1["id"], "proj-beta", "Beta", {})
+    p3 = repo.create_project(t2["id"], "proj-global", "Global", {})
 
     found = repo.get_project(t1["id"], "proj-alpha")
     assert found is not None
     assert found["name"] == "Alpha"
+    assert repo.get_project_by_key("proj-global") == p3
 
     proj_list = repo.list_projects(tenant_id=t1["id"])
     assert proj_list["total"] == 2

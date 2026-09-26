@@ -60,6 +60,9 @@ def test_foundation_creates_final_tables_without_indexes_relationships_or_data(m
     assert tables["tokens"].c.user_id.nullable
     assert tables["tokens"].c.service_account_id.nullable
     assert tables["tokens"].c.expires_at.nullable
+    assert tables["service_accounts"].c.tenant_id.nullable
+    assert not tables["users"].c.tenant_id.nullable
+    assert not tables["projects"].c.tenant_id.nullable
     operations.reset_mock()
     migration.downgrade()
     assert {call.args[0] for call in operations.drop_table.call_args_list} == TABLES

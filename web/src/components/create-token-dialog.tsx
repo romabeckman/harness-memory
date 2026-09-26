@@ -12,9 +12,12 @@ import {
   Building2,
 } from 'lucide-react'
 import { createTokenAction } from '@/app/actions/tokens'
-import { listProjectsAction } from '@/app/actions/projects'
+import { listAllProjectsAction, listProjectsAction } from '@/app/actions/projects'
 import { ensureServiceAccountAction } from '@/app/actions/service-accounts'
 import { ProjectDto, TenantDto } from '@/application/ports/harness-api-client.port'
+
+const ALL_TENANTS_VALUE = '__all_tenants__'
+const NO_TENANTS: TenantDto[] = []
 
 interface CreateTokenDialogProps {
   isOpen: boolean
@@ -35,10 +38,11 @@ export function CreateTokenDialog({
   serviceAccountName: initialServiceAccountName,
   tenantId: initialTenantId,
   tenantName: initialTenantName,
-  tenants = [],
+  tenants = NO_TENANTS,
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [tenantSelectionInitialized, setTenantSelectionInitialized] = useState(false)
   const [currentServiceAccountId, setCurrentServiceAccountId] = useState<string>('')
   const [currentServiceAccountName, setCurrentServiceAccountName] = useState<string>('')
   const [loadingServiceAccount, setLoadingServiceAccount] = useState<boolean>(false)
@@ -52,31 +56,44 @@ export function CreateTokenDialog({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Initialize selected tenant when dialog opens
+  // Default token destination to all tenants when dialog opens.
   useEffect(() => {
-    if (!isOpen) return
-    const defaultId =
-      initialTenantId ||
-      (tenants.length > 0 ? tenants[0].id : '')
-    setSelectedTenantId(defaultId)
+    if (!isOpen) {
+      setTenantSelectionInitialized(false)
+      return
+    }
+    setSelectedTenantId(ALL_TENANTS_VALUE)
+    setProjectKeys([])
     if (initialServiceAccountId) {
       setCurrentServiceAccountId(initialServiceAccountId)
     }
     if (initialServiceAccountName) {
       setCurrentServiceAccountName(initialServiceAccountName)
     }
-  }, [isOpen, initialTenantId, initialServiceAccountId, initialServiceAccountName, tenants])
+    setTenantSelectionInitialized(true)
+  }, [isOpen, initialServiceAccountId, initialServiceAccountName])
 
   // Fetch Service Account and Projects when selected tenant changes
   const loadTenantContext = useCallback(async (tId: string) => {
-    if (!tId) return
+    const serviceAccountTenantId =
+      tId === ALL_TENANTS_VALUE ? initialTenantId || tenants[0]?.id : tId
+    if (!serviceAccountTenantId) {
+      setLoadingProjects(false)
+      setLoadingServiceAccount(false)
+      setCurrentServiceAccountId('')
+      setCurrentServiceAccountName('')
+      setAvailableProjects([])
+      setProjectKeys([])
+      setError('Nenhum tenant disponível para titular do token.')
+      return
+    }
     setLoadingProjects(true)
     setLoadingServiceAccount(true)
     setError(null)
 
     try {
       // 1. Resolve Service Account for this tenant
-      const saRes = await ensureServiceAccountAction(tId)
+      const saRes = await ensureServiceAccountAction(serviceAccountTenantId)
       if (saRes.data) {
         setCurrentServiceAccountId(saRes.data.id)
         setCurrentServiceAccountName(saRes.data.name)
@@ -85,10 +102,13 @@ export function CreateTokenDialog({
       }
 
       // 2. Fetch Projects for this tenant
-      const projRes = await listProjectsAction(tId, undefined, 100, 0)
+      const projRes =
+        tId === ALL_TENANTS_VALUE
+          ? await listAllProjectsAction()
+          : await listProjectsAction(tId, undefined, 100, 0)
       if (projRes.data) {
         setAvailableProjects(projRes.data)
-        // By default select all projects of the active tenant
+        // Default to every project in the selected tenant scope.
         setProjectKeys(projRes.data.map((p) => p.key))
       } else {
         setAvailableProjects([])
@@ -100,13 +120,13 @@ export function CreateTokenDialog({
       setLoadingProjects(false)
       setLoadingServiceAccount(false)
     }
-  }, [])
+  }, [initialTenantId, tenants])
 
   useEffect(() => {
-    if (isOpen && selectedTenantId) {
+    if (isOpen && tenantSelectionInitialized && selectedTenantId) {
       loadTenantContext(selectedTenantId)
     }
-  }, [isOpen, selectedTenantId, loadTenantContext])
+  }, [isOpen, tenantSelectionInitialized, selectedTenantId, loadTenantContext])
 
   if (!isOpen) return null
 
@@ -137,9 +157,11 @@ export function CreateTokenDialog({
   )
 
   const activeTenantName =
-    tenants.find((t) => t.id === selectedTenantId)?.name ||
-    initialTenantName ||
-    selectedTenantId
+    selectedTenantId === ALL_TENANTS_VALUE
+      ? 'Todos os tenants'
+      : tenants.find((t) => t.id === selectedTenantId)?.name ||
+        initialTenantName ||
+        selectedTenantId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -169,11 +191,16 @@ export function CreateTokenDialog({
 
     try {
       const lifetimeDays = lifetime === 'never' ? undefined : Number(lifetime)
+      const tokenProjectKeys =
+        selectedTenantId === ALL_TENANTS_VALUE &&
+        projectKeys.length === availableProjects.length
+          ? ['*']
+          : projectKeys
       const res = await createTokenAction({
         name: name.trim(),
         serviceAccountId: currentServiceAccountId,
         scopes,
-        projectKeys,
+        projectKeys: tokenProjectKeys,
         lifetimeDays,
       })
 
@@ -241,6 +268,9 @@ export function CreateTokenDialog({
                   disabled={loading || loadingProjects || loadingServiceAccount}
                   className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
+                  <option value={ALL_TENANTS_VALUE}>
+                    Todos os projetos (todos os tenants)
+                  </option>
                   {tenants.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.key})
@@ -276,32 +306,35 @@ export function CreateTokenDialog({
 
           {/* Project Permissions Selector */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
-                Projetos Autorizados (Obrigatório)
-              </label>
-              {availableProjects.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleSelectAllProjects}
-                  className="text-xs text-blue-400 hover:text-blue-300 transition"
-                >
-                  {projectKeys.length === availableProjects.length
-                    ? 'Desmarcar Todos'
-                    : 'Selecionar Todos'}
-                </button>
-              )}
-            </div>
+            {selectedTenantId !== ALL_TENANTS_VALUE && (
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Projetos Autorizados (Obrigatório)
+                </label>
+                {availableProjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllProjects}
+                    disabled={loading || loadingProjects || loadingServiceAccount}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                  >
+                    {projectKeys.length === availableProjects.length
+                      ? 'Desmarcar Todos'
+                      : 'Selecionar Todos'}
+                  </button>
+                )}
+              </div>
+            )}
 
             {loadingProjects ? (
               <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
-                Carregando projetos da organização...
+                Carregando projetos...
               </div>
             ) : availableProjects.length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  Nenhum projeto encontrado nesta organização ({activeTenantName}). Cadastre ao menos um projeto na aba Projetos antes de emitir tokens de acesso.
+                  Nenhum projeto encontrado em {activeTenantName}. Cadastre ao menos um projeto antes de emitir tokens de acesso.
                 </span>
               </div>
             ) : (

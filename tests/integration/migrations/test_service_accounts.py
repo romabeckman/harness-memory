@@ -22,6 +22,10 @@ def test_migration_adds_service_accounts_and_optional_token_expiration():
         token_columns = {column["name"]: column for column in inspector.get_columns("tokens")}
 
         assert "service_accounts" in inspector.get_table_names()
+        account_columns = {
+            column["name"]: column for column in inspector.get_columns("service_accounts")
+        }
+        assert account_columns["tenant_id"]["nullable"] is True
         assert token_columns["user_id"]["nullable"] is True
         assert token_columns["service_account_id"]["nullable"] is True
         assert token_columns["expires_at"]["nullable"] is True

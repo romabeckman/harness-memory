@@ -18,7 +18,7 @@ python3 -m venv venv
 
 Rules: 
 
-- Always respond, write code, and create documentation in English.
+- CRITICAL: Always respond, write code, and create documentation in English.
 - CRITICAL: Do not narrate progress or emit interim status updates. Use tools and internal reasoning normally. After completing all required work, return only the final output explicitly required by the current prompt. If a final result is not required, return the summary exactly, limited to 1000 characters.
 - Read `docs\BUSINESS.md` document.
 - If is a development task read `docs/.digest.md` and `docs/.graph.json`
@@ -42,6 +42,7 @@ Rules:
 - Coverage, with disposable PostgreSQL: `./venv/bin/python -m pytest tests/unit tests/integration tests/e2e --cov=api --cov=core --cov=harness_memory_mcp --cov-report=term-missing --cov-fail-under=80`.
 - If `sdk/` changes, run in this order: `npm install`, `npm run lint`, `npm run build`, `npm run typecheck`, `npm run test`.
 - Run `git diff --check` at the end. Never use production or valuable development data for migration, integration, or coverage checks. Report skipped or unrun gates; do not mark them as passing.
+- If you update the `endpoints`, update the Swagger in `api/`; check `api/server/app.py`.
 
 ---
 

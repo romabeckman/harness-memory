@@ -25,6 +25,8 @@ class TenantProjectManagementRepository(Protocol):
 
     def get_project(self, tenant_id: UUID, key: str) -> dict | None: ...
 
+    def get_project_by_key(self, key: str) -> dict | None: ...
+
     def list_projects(
         self,
         tenant_id: UUID | None = None,

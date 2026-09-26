@@ -15,63 +15,13 @@ edges:
     target: "adr:security"
   - relation: tested_by
     target: "adr:tests"
-updated: 2026-09-24
+updated: 2026-09-26
 ---
 # Web Admin Token Management
 Admin console interface for operator session authentication, tenant bootstrapping, and scoped access token lifecycle management.
 
 ```graph
-{
-  "node_id": "feature:web-admin-token-management",
-  "domain": "admin-token-management",
-  "implements": [
-    "adr:architecture"
-  ],
-  "tested_by": [
-    "adr:tests"
-  ],
-  "entrypoints": [
-    "web/src/middleware.ts",
-    "web/src/app/page.tsx",
-    "web/src/app/login/page.tsx"
-  ],
-  "registration_files": [
-    "web/src/infrastructure/api/client-factory.ts"
-  ],
-  "reference_files": [
-    "web/src/application/use-cases/issue-token.use-case.ts"
-  ],
-  "code_files": [
-    "web/src/app/actions/auth.ts",
-    "web/src/app/actions/tokens.ts",
-    "web/src/application/ports/harness-api-client.port.ts",
-    "web/src/application/use-cases/bootstrap-tenant.use-case.ts",
-    "web/src/application/use-cases/revoke-token.use-case.ts",
-    "web/src/components/create-token-dialog.tsx",
-    "web/src/components/secret-reveal-modal.tsx",
-    "web/src/components/token-list.tsx",
-    "web/src/domain/access-token-order.ts",
-    "web/src/domain/admin-session.ts",
-    "web/src/domain/secret-reveal-view.ts",
-    "web/src/domain/token-scope.ts",
-    "web/src/infrastructure/api/rest-harness-api-client.ts",
-    "web/src/infrastructure/auth/auth-service.ts",
-    "web/src/infrastructure/auth/session-manager.ts"
-  ],
-  "test_files": [
-    "web/tests/unit/application/bootstrap-tenant.use-case.test.ts",
-    "web/tests/unit/application/issue-token.use-case.test.ts",
-    "web/tests/unit/application/revoke-token.use-case.test.ts",
-    "web/tests/unit/domain/access-token-order.test.ts",
-    "web/tests/unit/domain/admin-session.test.ts",
-    "web/tests/unit/domain/secret-reveal-view.test.ts",
-    "web/tests/unit/domain/token-scope.test.ts",
-    "web/tests/unit/infrastructure/rest-harness-api-client.test.ts",
-    "web/tests/unit/infrastructure/session-manager.test.ts",
-    "web/tests/e2e/admin-console.spec.ts",
-    "web/tests/e2e/demo-walkthrough.spec.ts"
-  ]
-}
+{"node_id":"feature:web-admin-token-management","domain":"admin-token-management","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["web/src/middleware.ts","web/src/app/page.tsx","web/src/app/login/page.tsx"],"registration_files":["web/src/infrastructure/api/client-factory.ts"],"reference_files":["web/src/application/use-cases/issue-token.use-case.ts"],"code_files":["web/src/app/actions/auth.ts","web/src/app/actions/tokens.ts","web/src/application/ports/harness-api-client.port.ts","web/src/application/use-cases/bootstrap-tenant.use-case.ts","web/src/application/use-cases/revoke-token.use-case.ts","web/src/components/create-token-dialog.tsx","web/src/components/secret-reveal-modal.tsx","web/src/components/token-list.tsx","web/src/domain/access-token-order.ts","web/src/domain/admin-session.ts","web/src/domain/secret-reveal-view.ts","web/src/domain/token-scope.ts","web/src/infrastructure/api/rest-harness-api-client.ts","web/src/infrastructure/auth/auth-service.ts","web/src/infrastructure/auth/session-manager.ts","web/src/app/actions/projects.ts"],"test_files":["web/tests/unit/application/bootstrap-tenant.use-case.test.ts","web/tests/unit/application/issue-token.use-case.test.ts","web/tests/unit/application/revoke-token.use-case.test.ts","web/tests/unit/domain/access-token-order.test.ts","web/tests/unit/domain/admin-session.test.ts","web/tests/unit/domain/secret-reveal-view.test.ts","web/tests/unit/domain/token-scope.test.ts","web/tests/unit/infrastructure/rest-harness-api-client.test.ts","web/tests/unit/infrastructure/session-manager.test.ts","web/tests/e2e/admin-console.spec.ts","web/tests/e2e/demo-walkthrough.spec.ts"]}
 ```
 
 ## OVERVIEW
@@ -115,7 +65,7 @@ web/
 ### Operational Flow
 1. **Authenticate**: Operator submits admin token at `/login`. Middleware gates `/`.
 2. **Bootstrap**: Dashboard triggers `BootstrapTenantUseCase` ensuring active tenant and service account.
-3. **Issue Token**: Operator defines scope and expiry. `IssueTokenUseCase` calls `POST /v1/tokens`.
+3. **Issue Token**: The destination selector defaults to all tenants. The dialog loads every project and selects them by default. Keeping every project selected sends `project_keys: ["*"]`; a smaller selection sends explicit project keys to `POST /v1/tokens`.
 4. **Reveal Secret**: Plaintext token is displayed in modal; operator copies and confirms.
 5. **Revoke**: Operator confirms revocation in `TokenList`. `RevokeTokenUseCase` calls `DELETE /v1/tokens/{id}`.
 
@@ -142,6 +92,7 @@ const response = await fetch("http://api:8080/v1/tokens", {
 ## BEST PRACTICES
 
 REQUIRED: Validate token parameters in domain entities (`AccessTokenOrder`, `TokenScope`) before calling API.
+REQUIRED: Label all-tenant project access clearly; selecting it grants access to every tenant's projects.
 REQUIRED: Keep all admin API client calls in server actions; never leak tokens to browser scripts.
 REQUIRED: Enforce one-time secret display pattern with explicit user confirmation before closing modal.
 PROHIBITED: Bypassing middleware route guards or permitting unauthenticated requests to the dashboard.

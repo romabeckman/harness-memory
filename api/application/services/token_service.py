@@ -50,14 +50,12 @@ class TokenService:
                 raise LookupError("user not found")
             if expires_at is None:
                 raise ValueError("user tokens require an expiration")
-            owner_tenant_id = user.tenant_id
         elif self._service_account_repository is None:
             raise LookupError("service account not found")
         else:
             sa = self._service_account_repository.get(service_account_id)
             if sa is None:
                 raise LookupError("service account not found")
-            owner_tenant_id = sa.tenant_id
 
         cleaned_projects = [
             k.strip()
@@ -67,6 +65,8 @@ class TokenService:
         if not cleaned_projects:
             raise ValueError("at least one project is required")
         normalized_projects = list(dict.fromkeys(cleaned_projects))
+        if "*" in normalized_projects:
+            normalized_projects = ["*"]
 
         normalized_name = self._normalize_name(name)
         created_at = self._as_utc(now or datetime.now(UTC))
@@ -76,11 +76,11 @@ class TokenService:
             else None
         )
 
-        if self._project_repository is not None and owner_tenant_id is not None:
+        if self._project_repository is not None and "*" not in normalized_projects:
             for pkey in normalized_projects:
-                proj = self._project_repository.get_project(owner_tenant_id, pkey)
+                proj = self._project_repository.get_project_by_key(pkey)
                 if proj is None:
-                    raise LookupError(f"project '{pkey}' not found for tenant")
+                    raise LookupError(f"project '{pkey}' not found")
         token_id = uuid4()
         normalized_scopes = frozenset(scopes or {MemoryScope.READ.value})
         supported_scopes = {scope.value for scope in MemoryScope}

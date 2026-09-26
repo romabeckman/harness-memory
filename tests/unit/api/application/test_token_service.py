@@ -127,19 +127,68 @@ def test_create_rejects_empty_project_keys():
         service.create(user_id=user_id, name="automation", project_keys=[], expires_at=datetime(2026, 10, 1, tzinfo=UTC))
 
 
-def test_create_validates_projects_belong_to_tenant():
+def test_create_validates_projects_exist_globally():
     user_id = uuid4()
     tenant_id = uuid4()
     user_repository = Mock()
     user_repository.get.return_value = User(user_id, "Ada", "ada@example.com", tenant_id=tenant_id)
     project_repo = Mock()
-    project_repo.get_project.return_value = None
+    project_repo.get_project_by_key.return_value = None
     service = TokenService(Mock(), user_repository, project_repository=project_repo)
 
-    with pytest.raises(LookupError, match="project 'missing' not found for tenant"):
+    with pytest.raises(LookupError, match="project 'missing' not found"):
         service.create(
             user_id=user_id,
             name="automation",
             project_keys=["missing"],
             expires_at=datetime(2026, 10, 1, tzinfo=UTC),
         )
+
+
+def test_create_all_projects_skips_tenant_project_lookup():
+    user_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
+    project_repo = Mock()
+    token_repository = Mock()
+    token_repository.add.side_effect = lambda token: token
+
+    issued = TokenService(
+        token_repository, user_repository, project_repository=project_repo
+    ).create(
+        user_id=user_id,
+        name="global-read",
+        project_keys=["catalog", "*"],
+        expires_at=datetime(2026, 10, 1, tzinfo=UTC),
+    )
+
+    assert issued.token.allowed_project_keys == frozenset({"*"})
+    project_repo.get_project_by_key.assert_not_called()
+
+
+def test_create_accepts_selected_project_from_another_tenant():
+    user_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(
+        user_id, "Ada", "ada@example.com", tenant_id=uuid4()
+    )
+    project_repository = Mock()
+    project_repository.get_project_by_key.return_value = {
+        "key": "cross-tenant-project",
+        "tenant_id": str(uuid4()),
+    }
+    token_repository = Mock()
+    token_repository.add.side_effect = lambda token: token
+
+    issued = TokenService(
+        token_repository, user_repository, project_repository=project_repository
+    ).create(
+        user_id=user_id,
+        name="global-selection",
+        project_keys=["cross-tenant-project"],
+        expires_at=datetime(2026, 10, 1, tzinfo=UTC),
+    )
+
+    assert issued.token.allowed_project_keys == frozenset({"cross-tenant-project"})
+    project_repository.get_project_by_key.assert_called_once_with("cross-tenant-project")
+    project_repository.get_project.assert_not_called()

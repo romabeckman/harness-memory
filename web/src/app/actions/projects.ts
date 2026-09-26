@@ -24,6 +24,30 @@ export async function listProjectsAction(
   }
 }
 
+export async function listAllProjectsAction(): Promise<{
+  data?: ProjectDto[]
+  error?: string
+}> {
+  try {
+    const client = ClientFactory.getHarnessClient()
+    const pageSize = 500
+    const projects: ProjectDto[] = []
+    let offset = 0
+
+    while (true) {
+      const page = await client.listProjects(undefined, undefined, pageSize, offset)
+      projects.push(...page)
+      if (page.length < pageSize) break
+      offset += page.length
+    }
+
+    return { data: projects }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to list projects'
+    return { error: msg }
+  }
+}
+
 export async function createProjectAction(
   payload: CreateProjectDto
 ): Promise<{ success: boolean; data?: ProjectDto; error?: string }> {

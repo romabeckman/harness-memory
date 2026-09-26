@@ -86,7 +86,7 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(page.locator(`text=${tokenName}`)).toBeVisible()
   })
 
-  test('SCN-E2E-04B: should switch tenant in CreateTokenDialog and update scoped projects dynamically', async ({
+  test('SCN-E2E-04B: should default to all tenants with all projects selected', async ({
     page,
   }) => {
     // Authenticate
@@ -103,13 +103,34 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(dialog.first()).toBeVisible()
 
     const tenantSelect = page.locator('form select')
-    if (await tenantSelect.isVisible()) {
-      await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
-      await expect(page.locator('text=e2e-project')).toBeVisible()
-    }
+    await expect(tenantSelect.locator('option').first()).toHaveText(
+      'Todos os projetos (todos os tenants)'
+    )
+    await expect(tenantSelect).toHaveValue('__all_tenants__')
 
-    // Close dialog
-    await page.click('button:has-text("Cancelar")')
+    const project = page.getByRole('checkbox', { name: /e2e-project/ })
+    await expect(project).toBeVisible()
+    await expect(project).toBeChecked()
+    await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeHidden()
+
+    await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
+    await expect(project).toBeVisible()
+    await expect(project).toBeChecked()
+    await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeVisible()
+
+    await tenantSelect.selectOption('__all_tenants__')
+    await expect(project).toBeVisible()
+    await expect(project).toBeChecked()
+    await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeHidden()
+
+    const tokenName = `playwright-all-tenants-${Date.now()}`
+    await page.fill('input[placeholder*="github-actions"]', tokenName)
+    await page.click('button:has-text("Criar Token")')
+    await expect(page.getByText('Token Emitido com Sucesso!')).toBeVisible()
+    await page.click('button:has-text("Concluir e Fechar")')
+
+    const tokenRow = page.locator('tr').filter({ hasText: tokenName })
+    await expect(tokenRow).toContainText('Todos (*)')
   })
 
   test('SCN-E2E-05: should revoke a token and update its status immediately', async ({ page }) => {
