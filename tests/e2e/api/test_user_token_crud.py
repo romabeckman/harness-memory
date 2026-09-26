@@ -215,5 +215,6 @@ def test_token_requires_one_owner_and_user_token_expiration():
     assert missing_user_expiration.status_code == 422
     assert multiple_owners.status_code == 422
     assert missing_service_account.status_code == 404
-    assert missing_projects.status_code == 422
+    assert missing_projects.status_code == 201
+    assert missing_projects.json()["project_keys"] == ["*"]
 

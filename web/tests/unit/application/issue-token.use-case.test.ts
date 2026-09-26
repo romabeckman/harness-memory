@@ -28,7 +28,7 @@ describe('IssueTokenUseCase', () => {
     useCase = new IssueTokenUseCase(mockClient)
   })
 
-  it('SCN-12: should invoke API port and return SecretRevealView on successful issuance', async () => {
+  it.each([{ projectKeys: ['catalog'] }, { projectKeys: [] }])('should preserve project scope $projectKeys in the API request', async ({ projectKeys }) => {
     const mockCreated: CreatedTokenDto = {
       id: 'token-uuid-1',
       name: 'ci-runner',
@@ -45,7 +45,7 @@ describe('IssueTokenUseCase', () => {
       name: 'ci-runner',
       serviceAccountId: 'sa-uuid-1',
       scopes: [TokenScope.create('memory:publish')],
-      projectKeys: ['catalog'],
+      projectKeys,
       lifetimeDays: 30,
     })
 
@@ -55,7 +55,7 @@ describe('IssueTokenUseCase', () => {
       name: 'ci-runner',
       service_account_id: 'sa-uuid-1',
       scopes: ['memory:publish'],
-      project_keys: ['catalog'],
+      project_keys: projectKeys,
       expires_at: expect.any(String),
     })
 

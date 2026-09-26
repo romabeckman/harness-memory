@@ -62,9 +62,9 @@ class TokenService:
             for k in (project_keys or ())
             if isinstance(k, str) and k.strip()
         ]
-        if not cleaned_projects:
+        if project_keys and not cleaned_projects:
             raise ValueError("at least one project is required")
-        normalized_projects = list(dict.fromkeys(cleaned_projects))
+        normalized_projects = list(dict.fromkeys(cleaned_projects)) or ["*"]
         if "*" in normalized_projects:
             normalized_projects = ["*"]
 

@@ -65,7 +65,7 @@ web/
 ### Operational Flow
 1. **Authenticate**: Operator submits admin token at `/login`. Middleware gates `/`.
 2. **Bootstrap**: Dashboard triggers `BootstrapTenantUseCase` ensuring active tenant and service account.
-3. **Issue Token**: The destination selector defaults to all tenants. The dialog loads every project and selects them by default. Keeping every project selected sends `project_keys: ["*"]`; a smaller selection sends explicit project keys to `POST /v1/tokens`.
+3. **Issue Token**: The destination selector defaults to all tenants. This mode hides the entire project selector, skips project loading, and sends `project_keys: []` without a tenant filter. A selected tenant loads its projects and requires a nonempty selection. The service-account owner remains required in both modes.
 4. **Reveal Secret**: Plaintext token is displayed in modal; operator copies and confirms.
 5. **Revoke**: Operator confirms revocation in `TokenList`. `RevokeTokenUseCase` calls `DELETE /v1/tokens/{id}`.
 

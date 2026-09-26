@@ -12,7 +12,7 @@ import {
   Building2,
 } from 'lucide-react'
 import { createTokenAction } from '@/app/actions/tokens'
-import { listAllProjectsAction, listProjectsAction } from '@/app/actions/projects'
+import { listProjectsAction } from '@/app/actions/projects'
 import { ensureServiceAccountAction } from '@/app/actions/service-accounts'
 import { ProjectDto, TenantDto } from '@/application/ports/harness-api-client.port'
 
@@ -41,7 +41,7 @@ export function CreateTokenDialog({
   tenants = NO_TENANTS,
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(ALL_TENANTS_VALUE)
   const [tenantSelectionInitialized, setTenantSelectionInitialized] = useState(false)
   const [currentServiceAccountId, setCurrentServiceAccountId] = useState<string>('')
   const [currentServiceAccountName, setCurrentServiceAccountName] = useState<string>('')
@@ -101,11 +101,14 @@ export function CreateTokenDialog({
         setError(saRes.error || 'Não foi possível resolver a Service Account do tenant.')
       }
 
-      // 2. Fetch Projects for this tenant
-      const projRes =
-        tId === ALL_TENANTS_VALUE
-          ? await listAllProjectsAction()
-          : await listProjectsAction(tId, undefined, 100, 0)
+      if (tId === ALL_TENANTS_VALUE) {
+        setAvailableProjects([])
+        setProjectKeys([])
+        return
+      }
+
+      // Fetch projects only for a selected tenant.
+      const projRes = await listProjectsAction(tId, undefined, 100, 0)
       if (projRes.data) {
         setAvailableProjects(projRes.data)
         // Default to every project in the selected tenant scope.
@@ -182,7 +185,7 @@ export function CreateTokenDialog({
       return
     }
 
-    if (projectKeys.length === 0) {
+    if (selectedTenantId !== ALL_TENANTS_VALUE && projectKeys.length === 0) {
       setError('Selecione pelo menos um projeto para autorizar o token.')
       return
     }
@@ -192,9 +195,8 @@ export function CreateTokenDialog({
     try {
       const lifetimeDays = lifetime === 'never' ? undefined : Number(lifetime)
       const tokenProjectKeys =
-        selectedTenantId === ALL_TENANTS_VALUE &&
-        projectKeys.length === availableProjects.length
-          ? ['*']
+        selectedTenantId === ALL_TENANTS_VALUE
+          ? []
           : projectKeys
       const res = await createTokenAction({
         name: name.trim(),
@@ -305,8 +307,8 @@ export function CreateTokenDialog({
           </div>
 
           {/* Project Permissions Selector */}
+          {selectedTenantId !== ALL_TENANTS_VALUE && (
           <div>
-            {selectedTenantId !== ALL_TENANTS_VALUE && (
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
                   Projetos Autorizados (Obrigatório)
@@ -324,7 +326,6 @@ export function CreateTokenDialog({
                   </button>
                 )}
               </div>
-            )}
 
             {loadingProjects ? (
               <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
@@ -391,6 +392,8 @@ export function CreateTokenDialog({
               </div>
             )}
           </div>
+
+          )}
 
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">

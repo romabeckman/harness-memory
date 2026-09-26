@@ -117,14 +117,17 @@ def test_token_requires_exactly_one_owner():
         service.create(name="automation", project_keys=["catalog"], expires_at=None)
 
 
-def test_create_rejects_empty_project_keys():
+@pytest.mark.parametrize("project_keys", [[], None])
+def test_create_empty_project_keys_grants_global_access(project_keys):
     user_id = uuid4()
     user_repository = Mock()
     user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
-    service = TokenService(Mock(), user_repository)
+    repository = Mock()
+    repository.add.side_effect = lambda token: token
+    service = TokenService(repository, user_repository)
 
-    with pytest.raises(ValueError, match="at least one project is required"):
-        service.create(user_id=user_id, name="automation", project_keys=[], expires_at=datetime(2026, 10, 1, tzinfo=UTC))
+    issued = service.create(user_id=user_id, name="automation", project_keys=project_keys, expires_at=datetime(2026, 10, 1, tzinfo=UTC))
+    assert issued.token.allowed_project_keys == frozenset({"*"})
 
 
 def test_create_validates_projects_exist_globally():

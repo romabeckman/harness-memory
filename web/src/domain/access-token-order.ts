@@ -46,7 +46,7 @@ export class AccessTokenOrder {
     const cleanedProjects = Array.from(
       new Set((props.projectKeys || []).map((p) => p.trim()).filter((p) => p.length > 0))
     )
-    if (cleanedProjects.length === 0) {
+    if (props.projectKeys?.length && cleanedProjects.length === 0) {
       throw new Error('At least one project must be selected')
     }
 

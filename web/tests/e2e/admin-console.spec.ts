@@ -86,7 +86,7 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(page.locator(`text=${tokenName}`)).toBeVisible()
   })
 
-  test('SCN-E2E-04B: should default to all tenants with all projects selected', async ({
+  test('SCN-E2E-04B: should hide projects for all tenants', async ({
     page,
   }) => {
     // Authenticate
@@ -109,8 +109,8 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(tenantSelect).toHaveValue('__all_tenants__')
 
     const project = page.getByRole('checkbox', { name: /e2e-project/ })
-    await expect(project).toBeVisible()
-    await expect(project).toBeChecked()
+    await expect(project).toBeHidden()
+    await expect(page.getByText(/projeto\(s\) selecionado\(s\)/)).toBeHidden()
     await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeHidden()
 
     await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
@@ -119,8 +119,8 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeVisible()
 
     await tenantSelect.selectOption('__all_tenants__')
-    await expect(project).toBeVisible()
-    await expect(project).toBeChecked()
+    await expect(project).toBeHidden()
+    await expect(page.getByText(/projeto\(s\) selecionado\(s\)/)).toBeHidden()
     await expect(page.getByText('Projetos Autorizados (Obrigatório)', { exact: true })).toBeHidden()
 
     const tokenName = `playwright-all-tenants-${Date.now()}`
