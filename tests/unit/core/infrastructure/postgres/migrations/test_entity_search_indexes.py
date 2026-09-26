@@ -7,7 +7,7 @@ from core.infrastructure.postgres.models.project import Project
 
 
 def test_entity_search_migration_is_reversible_and_targets_only_documented_indexes():
-    migration = import_module("migrations.versions.002_entity_search_indexes")
+    migration = import_module("migrations.versions.002_indexes_and_relationships")
 
     assert migration.revision == "002"
     assert migration.down_revision == "001"
@@ -15,7 +15,8 @@ def test_entity_search_migration_is_reversible_and_targets_only_documented_index
         index.name
         for table in (Entity.__table__, Project.__table__)
         for index in table.indexes
-        if isinstance(index, Index) and index.name.startswith("ix_entities_")
+        if isinstance(index, Index)
+        and index.name.startswith("ix_entities_")
         and index.name.endswith("_search")
     } == {
         "ix_entities_tenant_key_active_search",

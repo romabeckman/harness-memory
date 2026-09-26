@@ -89,7 +89,7 @@ before applying a read filter or selecting a publication destination.
 - Revoke access by deleting the token or owner; database cascades remove owned tokens.
 - Keep `API_ADMIN_TOKEN` in a secret manager or private environment file. Never commit
   `.env` or log secrets, token hashes, database URLs, payloads, or SQL details.
-- Apply migration `009_token_scopes_and_environment_revisions` before scoped-token use in
+- Apply the consolidated migration history through `003` before scoped-token use in
   an existing database.
 
 ## TRANSPORT, ERRORS, AND AUDIT

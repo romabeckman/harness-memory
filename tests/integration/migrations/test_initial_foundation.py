@@ -14,7 +14,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def test_initial_migration_creates_only_foundation_tables():
+def test_initial_migration_creates_all_final_tables():
     runtime = AlembicRuntime(PostgresSettings(database_url=DATABASE_URL))
 
     runtime.upgrade("head")
@@ -27,6 +27,13 @@ def test_initial_migration_creates_only_foundation_tables():
         "entities",
         "relations",
         "evidence",
+        "tenants",
+        "users",
+        "tokens",
+        "service_accounts",
+        "security_audit_events",
+        "environments",
+        "knowledge_publications",
         "alembic_version",
     } <= tables
 
@@ -41,6 +48,7 @@ def test_initial_migration_is_idempotent_and_status_is_read_only():
 
     assert before == after
     assert after.is_current
+    assert after.head_revision == "003"
 
 
 def test_initial_migration_downgrades_to_base():
@@ -51,4 +59,4 @@ def test_initial_migration_downgrades_to_base():
     with runtime.engine.connect() as connection:
         tables = set(inspect(connection).get_table_names())
 
-    assert not {"projects", "snapshots", "entities", "relations", "evidence"} & tables
+    assert tables <= {"alembic_version"}
