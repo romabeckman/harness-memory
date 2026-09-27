@@ -14,7 +14,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**MCP.md**](./adr/MCP.md) | MCP tools, resources, prompts, transport, and security boundaries. | Optional |
 | [**TESTS.md**](./adr/TESTS.md) | Test tiers, commands, patterns, and coverage policy. | **Mandatory** |
 | [**BUSINESS.md**](./BUSINESS.md) | Product objective and global rules for contextual corporate memory. | Optional |
-| [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Recommended |
+| [**workflow/README.md**](./workflow/README.md) | Role-based setup, daily use, MCP conversations, credentials, and SDK publication. | Optional |
 | [**knowledge-reads.md**](./feature/api/knowledge-reads.md) | Scoped REST reads and filters, including reconstructed snapshot payloads. | Optional |
 | [**knowledge-publication.md**](./feature/api/knowledge-publication.md) | REST publication, normalized snapshot persistence, and environment baselines. | Optional |
 | [**scopes.md**](./feature/api/scopes.md) | API and MCP scope permissions, credential boundaries, and current route exceptions. | Optional |
@@ -34,7 +34,9 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**tenant-security.md**](./feature/mcp/tenant-security.md) | Tenant isolation, scopes, audit behavior, and security policy. | Optional |
 | [**token-authentication.md**](./feature/mcp/token-authentication.md) | Database-backed bearer authentication for MCP clients. | Optional |
 | [**snapshot-publisher.md**](./feature/sdk/snapshot-publisher.md) | SDK provider selection, temporary LLM graph output, target preflight, publication, and document revision history. | Optional |
-| [**admin-token-management.md**](./feature/web/admin-token-management.md) | Next.js admin console BFF for operator login, tenant bootstrap, and scoped token issuance. | Optional |
+| [**admin-token-management.md**](./feature/web/admin-token-management.md) | Next.js admin console BFF for operator sessions, owner-linked issuance, credential review, and revocation. | Optional |
+| [**user-management.md**](./feature/web/user-management.md) | Dedicated admin page for global user CRUD and user-owned token creation. | Optional |
+| [**service-account-management.md**](./feature/web/service-account-management.md) | Dedicated admin page for global service-account CRUD and locked-owner token creation. | Optional |
 
 ## Recommended Reading Order
 

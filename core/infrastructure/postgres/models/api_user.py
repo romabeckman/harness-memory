@@ -12,10 +12,10 @@ class ApiUser(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
         TenantId(as_uuid=True),
         ForeignKey("tenants.id", ondelete="RESTRICT", name="fk_users_tenant_id"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     name: Mapped[str] = mapped_column(String(120), nullable=False)

@@ -27,16 +27,16 @@ def create_service_account_router(service: ServiceAccountService) -> APIRouter:
         limit: int = Query(100, ge=1, le=500),
         offset: int = Query(0, ge=0),
     ) -> list[ServiceAccountResponse]:
-        accounts = service.list(tenant_id)
-        if name:
-            needle = name.casefold()
-            accounts = [item for item in accounts if needle in item.name.casefold()]
-        if q:
-            needle = q.casefold()
-            accounts = [item for item in accounts if needle in item.name.casefold()]
+        accounts = service.list(
+            tenant_id=tenant_id,
+            name=name,
+            q=q,
+            limit=limit,
+            offset=offset,
+        )
         return [
             ServiceAccountResponse(id=item.id, tenant_id=item.tenant_id, name=item.name)
-            for item in accounts[offset:offset + limit]
+            for item in accounts
         ]
 
     @router.get("/{account_id}", response_model=ServiceAccountResponse)

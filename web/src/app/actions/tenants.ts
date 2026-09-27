@@ -19,6 +19,30 @@ export async function listTenantsAction(
   }
 }
 
+export async function listAllTenantsAction(): Promise<{
+  data?: TenantDto[]
+  error?: string
+}> {
+  try {
+    const client = ClientFactory.getHarnessClient()
+    const pageSize = 500
+    const tenants: TenantDto[] = []
+    let offset = 0
+
+    while (true) {
+      const page = await client.listTenants(undefined, pageSize, offset)
+      tenants.push(...page)
+      if (page.length < pageSize) break
+      offset += page.length
+    }
+
+    return { data: tenants }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to list tenants'
+    return { error: msg }
+  }
+}
+
 export async function createTenantAction(
   payload: CreateTenantDto
 ): Promise<{ success: boolean; data?: TenantDto; error?: string }> {

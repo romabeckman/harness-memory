@@ -42,10 +42,10 @@ class DatabaseTokenVerifier(TokenVerifier):
         stored, owner = identity
         owner_id = getattr(owner, "id", None)
         owner_tenant_id = getattr(owner, "tenant_id", None)
-        if stored is None or owner_id is None or owner_tenant_id is None:
+        if stored is None or owner_id is None:
             return None
         subject = str(owner_id)
-        tenant_id = str(owner_tenant_id)
+        tenant_id = str(owner_tenant_id or owner_id)
         scopes = sorted(stored.scopes)
         return AccessToken(
             token=token,

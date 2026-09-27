@@ -7,6 +7,110 @@ describe('AccessTokenOrder', () => {
   const SCOPE_PUBLISH = TokenScope.create('memory:publish')
   const SCOPE_READ = TokenScope.create('memory:read')
 
+  it('allows a user token for 365 days and rejects 366 days', () => {
+    const props = {
+      name: 'annual-user-token',
+      owner: { kind: 'user' as const, id: 'user-1', name: 'Ada' },
+      scopes: [SCOPE_READ],
+      projectKeys: [],
+    }
+
+    const order = AccessTokenOrder.create({ ...props, lifetimeDays: 365 })
+
+    expect(order.calculateExpiresAt(new Date('2026-09-23T20:00:00Z')))
+      .toBe('2027-09-23T20:00:00.000Z')
+    expect(() => AccessTokenOrder.create({ ...props, lifetimeDays: 366 }))
+      .toThrow('User token lifetime cannot exceed 365 days')
+  })
+
+  it('preserves an immutable service-account owner selected from a row', () => {
+    const owner = {
+      kind: 'service-account' as const,
+      id: VALID_SA_ID,
+      name: 'Release bot',
+      tenantId: 'tenant-1',
+      tenantName: 'Platform',
+    }
+
+    const order = AccessTokenOrder.create({
+      name: 'release-token',
+      owner,
+      scopes: [SCOPE_READ],
+      projectKeys: [],
+      lifetimeDays: 30,
+    })
+
+    owner.name = 'Changed outside order'
+    owner.tenantId = 'tenant-2'
+
+    expect(order.owner).toEqual({
+      kind: 'service-account',
+      id: VALID_SA_ID,
+      name: 'Release bot',
+      tenantId: 'tenant-1',
+      tenantName: 'Platform',
+    })
+    expect(Object.isFrozen(order.owner)).toBe(true)
+  })
+
+  it('rejects a service-account owner with a blank ID', () => {
+    expect(() =>
+      AccessTokenOrder.create({
+        name: 'invalid-owner',
+        owner: {
+          kind: 'service-account',
+          id: '   ',
+          name: 'Release bot',
+          tenantId: 'tenant-1',
+          tenantName: 'Platform',
+        },
+        scopes: [SCOPE_READ],
+        projectKeys: [],
+        lifetimeDays: 30,
+      })
+    ).toThrow('Token owner ID cannot be empty')
+  })
+
+  it('rejects a service-account owner without complete organization context', () => {
+    expect(() =>
+      AccessTokenOrder.create({
+        name: 'invalid-owner-context',
+        owner: {
+          kind: 'service-account',
+          id: VALID_SA_ID,
+          name: 'Release bot',
+          tenantId: '   ',
+          tenantName: 'Platform',
+        },
+        scopes: [SCOPE_READ],
+        projectKeys: [],
+        lifetimeDays: 30,
+      })
+    ).toThrow('Service-account organization ID cannot be empty')
+  })
+
+  it.each([
+    { lifetimeDays: 30, expected: '2026-10-23T20:00:00.000Z' },
+    { lifetimeDays: 90, expected: '2026-12-22T20:00:00.000Z' },
+    { lifetimeDays: undefined, expected: null },
+  ])('supports service-account lifetime $lifetimeDays', ({ lifetimeDays, expected }) => {
+    const order = AccessTokenOrder.create({
+      name: 'lifetime-token',
+      owner: {
+        kind: 'service-account',
+        id: VALID_SA_ID,
+        name: 'Release bot',
+        tenantId: 'tenant-1',
+        tenantName: 'Platform',
+      },
+      scopes: [SCOPE_READ],
+      projectKeys: [],
+      lifetimeDays,
+    })
+
+    expect(order.calculateExpiresAt(new Date('2026-09-23T20:00:00Z'))).toBe(expected)
+  })
+
   it('SCN-04: should create AccessTokenOrder when required fields and valid scopes are provided', () => {
     const order = AccessTokenOrder.create({
       name: 'github-ci-runner',

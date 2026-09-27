@@ -32,23 +32,23 @@ def test_issues_hashed_token_with_plaintext_returned_once():
     assert issued.token.allowed_project_keys == frozenset({"catalog"})
 
 
-def test_rejects_token_expiring_after_ninety_days():
+def test_rejects_user_token_expiring_after_one_year():
     user_id = uuid4()
     user_repository = Mock()
     user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
     now = datetime(2026, 9, 20, tzinfo=UTC)
 
-    with pytest.raises(ValueError, match="between 1 second and 90 days"):
+    with pytest.raises(ValueError, match="between 1 second and 365 days"):
         TokenService(Mock(), user_repository).create(
             user_id=user_id,
             name="automation",
             project_keys=["catalog"],
-            expires_at=now + timedelta(days=91),
+            expires_at=now + timedelta(days=366),
             now=now,
         )
 
 
-def test_rejects_update_that_extends_token_beyond_original_ninety_day_window():
+def test_rejects_update_that_extends_user_token_beyond_original_one_year_window():
     issued_at = datetime(2026, 8, 1, tzinfo=UTC)
     now = datetime(2026, 9, 20, tzinfo=UTC)
     token_repository = Mock()
@@ -62,12 +62,53 @@ def test_rejects_update_that_extends_token_beyond_original_ninety_day_window():
         allowed_project_keys=frozenset({"catalog"}),
     )
 
-    with pytest.raises(ValueError, match="between 1 second and 90 days"):
+    with pytest.raises(ValueError, match="between 1 second and 365 days"):
         TokenService(token_repository, Mock()).update(
             token_repository.get.return_value.id,
             name=None,
-            expires_at=issued_at + timedelta(days=91),
+            expires_at=issued_at + timedelta(days=366),
             now=now,
+        )
+
+
+def test_update_accepts_user_token_expiration_at_original_one_year_limit():
+    issued_at = datetime(2026, 8, 1, tzinfo=UTC)
+    now = datetime(2026, 9, 20, tzinfo=UTC)
+    token_repository = Mock()
+    token_repository.get.return_value = AccessToken(
+        id=uuid4(),
+        user_id=uuid4(),
+        name="automation",
+        token_hash="a" * 64,
+        expires_at=issued_at + timedelta(days=60),
+        created_at=issued_at,
+        allowed_project_keys=frozenset({"catalog"}),
+    )
+    token_repository.update.side_effect = lambda token: token
+
+    updated = TokenService(token_repository, Mock()).update(
+        token_repository.get.return_value.id,
+        name=None,
+        expires_at=issued_at + timedelta(days=365),
+        now=now,
+    )
+
+    assert updated.expires_at == issued_at + timedelta(days=365)
+
+
+def test_service_account_finite_lifetime_remains_limited_to_ninety_days():
+    issued_at = datetime(2026, 9, 20, tzinfo=UTC)
+    account = ServiceAccount(uuid4(), uuid4(), "Build agent")
+    accounts = Mock()
+    accounts.get.return_value = account
+    service = TokenService(Mock(), Mock(), service_account_repository=accounts)
+
+    with pytest.raises(ValueError, match="between 1 second and 90 days"):
+        service.create(
+            service_account_id=account.id,
+            name="too-long",
+            expires_at=issued_at + timedelta(days=91),
+            now=issued_at,
         )
 
 
@@ -145,6 +186,26 @@ def test_create_validates_projects_exist_globally():
             name="automation",
             project_keys=["missing"],
             expires_at=datetime(2026, 10, 1, tzinfo=UTC),
+        )
+
+
+def test_user_token_accepts_one_year_and_rejects_longer_lifetime():
+    user_id = uuid4()
+    user_repository = Mock()
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com")
+    token_repository = Mock()
+    token_repository.add.side_effect = lambda token: token
+    now = datetime(2026, 9, 20, tzinfo=UTC)
+    service = TokenService(token_repository, user_repository)
+
+    issued = service.create(
+        user_id=user_id, name="annual", expires_at=now + timedelta(days=365), now=now,
+    )
+
+    assert issued.token.expires_at == now + timedelta(days=365)
+    with pytest.raises(ValueError, match="between 1 second and 365 days"):
+        service.create(
+            user_id=user_id, name="too-long", expires_at=now + timedelta(days=366), now=now,
         )
 
 

@@ -51,13 +51,16 @@ def test_user_and_token_crud_http_contract():
     created_user = client.post("/v1/users", json=user_payload)
     assert created_user.status_code == 201
     user_id = created_user.json()["id"]
+    assert client.get("/v1/tenants").json() == []
+    assert client.get("/v1/projects").json() == []
     assert client.get(f"/v1/users/{user_id}").status_code == 200
     assert (
         client.patch(f"/v1/users/{user_id}", json={"name": "Ada Lovelace"}).json()["name"]
         == "Ada Lovelace"
     )
 
-    client.post("/v1/projects", json={"tenant_id": user_id, "key": "backend", "name": "Backend"})
+    tenant_id = client.post("/v1/tenants", json={"key": "platform", "name": "Platform"}).json()["id"]
+    client.post("/v1/projects", json={"tenant_id": tenant_id, "key": "backend", "name": "Backend"})
     expires_at = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     created_token = client.post(
         "/v1/tokens",
@@ -66,6 +69,10 @@ def test_user_and_token_crud_http_contract():
     assert created_token.status_code == 201
     assert created_token.json()["token"].startswith("hm_")
     assert created_token.json()["project_keys"] == ["backend"]
+    assert client.get(
+        "/v1/projects",
+        headers={"Authorization": f"Bearer {created_token.json()['token']}"},
+    ).status_code == 200
     token_id = created_token.json()["id"]
     assert client.get(f"/v1/tokens/{token_id}").status_code == 200
     assert (
@@ -75,7 +82,7 @@ def test_user_and_token_crud_http_contract():
     assert client.delete(f"/v1/users/{user_id}").status_code == 204
 
 
-def test_http_rejects_token_lifetime_over_ninety_days():
+def test_http_accepts_one_year_user_token_and_rejects_longer_lifetime():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -88,16 +95,26 @@ def test_http_rejects_token_lifetime_over_ninety_days():
         "id"
     ]
 
-    response = client.post(
+    accepted = client.post(
         "/v1/tokens",
         json={
             "user_id": user_id,
             "name": "agent",
-            "project_keys": ["backend"],
-            "expires_at": (datetime.now(UTC) + timedelta(days=91)).isoformat(),
+            "project_keys": [],
+            "expires_at": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
+        },
+    )
+    response = client.post(
+        "/v1/tokens",
+        json={
+            "user_id": user_id,
+            "name": "too-long",
+            "project_keys": [],
+            "expires_at": (datetime.now(UTC) + timedelta(days=366)).isoformat(),
         },
     )
 
+    assert accepted.status_code == 201
     assert response.status_code == 422
 
 
@@ -127,6 +144,8 @@ def test_service_account_crud_issues_non_expiring_token():
     assert created.status_code == 201
     account_id = created.json()["id"]
     assert created.json()["tenant_id"] == tenant_id
+    assert len(client.get("/v1/tenants").json()) == 1
+    assert [project["key"] for project in client.get("/v1/projects").json()] == ["automation-proj"]
     assert client.get(f"/v1/service-accounts/{account_id}").status_code == 200
     assert client.get(f"/v1/service-accounts?tenant_id={tenant_id}").json()[0]["id"] == account_id
     assert (
@@ -217,4 +236,41 @@ def test_token_requires_one_owner_and_user_token_expiration():
     assert missing_service_account.status_code == 404
     assert missing_projects.status_code == 201
     assert missing_projects.json()["project_keys"] == ["*"]
+
+
+def test_deleting_user_cascades_all_owned_tokens_over_rest():
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    client = TestClient(
+        create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
+        headers=ADMIN_HEADERS,
+    )
+    user_response = client.post(
+        "/v1/users", json={"name": "Ada", "email": "ada@example.com"}
+    )
+    assert user_response.status_code == 201
+    user_id = user_response.json()["id"]
+    assert set(user_response.json()) == {"id", "name", "email"}
+    assert client.get(f"/v1/tenants/{user_id}").status_code == 404
+
+    token_ids = []
+    for token_name in ("reader", "publisher"):
+        token_response = client.post(
+            "/v1/tokens",
+            json={
+                "user_id": user_id,
+                "name": token_name,
+                "scopes": ["memory:read"],
+                "project_keys": [],
+                "expires_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+            },
+        )
+        assert token_response.status_code == 201
+        token_ids.append(token_response.json()["id"])
+
+    assert client.delete(f"/v1/users/{user_id}").status_code == 204
+    assert client.get(f"/v1/users/{user_id}").status_code == 404
+    assert all(client.get(f"/v1/tokens/{token_id}").status_code == 404 for token_id in token_ids)
 

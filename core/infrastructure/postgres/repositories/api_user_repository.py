@@ -1,13 +1,11 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from api.domain.entities.user import User
 from core.infrastructure.postgres.models.api_user import ApiUser
-from core.infrastructure.postgres.models.tenant import Tenant
 
 
 class ApiUserRepository:
@@ -15,29 +13,10 @@ class ApiUserRepository:
         self._session_factory = session_factory
 
     def add(self, user: User) -> User:
-        tenant_id = getattr(user, "tenant_id", None) or user.id
         with self._session_factory() as session:
-            self._ensure_tenant(session, tenant_id, user.name)
-            session.add(ApiUser(id=user.id, tenant_id=tenant_id, name=user.name, email=user.email))
+            session.add(ApiUser(id=user.id, tenant_id=user.tenant_id, name=user.name, email=user.email))
             session.commit()
         return user
-
-    def _ensure_tenant(self, session: Session, tenant_id: UUID, user_name: str) -> None:
-        try:
-            if session.get(Tenant, tenant_id) is not None:
-                return
-            with session.begin_nested():
-                session.add(
-                    Tenant(
-                        id=tenant_id,
-                        key=f"user-{tenant_id}",
-                        name=f"User {user_name} Tenant",
-                        status="active",
-                    )
-                )
-                session.flush()
-        except (IntegrityError, OperationalError):
-            pass
 
     def get(self, user_id: UUID) -> User | None:
         with self._session_factory() as session:
@@ -47,9 +26,23 @@ class ApiUserRepository:
         with self._session_factory() as session:
             return self._to_domain(session.scalar(select(ApiUser).where(ApiUser.email == email)))
 
-    def list(self) -> list[User]:
+    def list(
+        self, *, name: str | None = None, email: str | None = None,
+        q: str | None = None, limit: int = 100, offset: int = 0,
+    ) -> list[User]:
+        def contains(column, value: str):
+            escaped = value.casefold().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            return func.lower(column).like(f"%{escaped}%", escape="\\")
+
+        query = select(ApiUser)
+        if name:
+            query = query.where(contains(ApiUser.name, name))
+        if email:
+            query = query.where(contains(ApiUser.email, email))
+        if q:
+            query = query.where(or_(contains(ApiUser.name, q), contains(ApiUser.email, q)))
         with self._session_factory() as session:
-            rows = session.scalars(select(ApiUser).order_by(ApiUser.email)).all()
+            rows = session.scalars(query.order_by(ApiUser.email).limit(limit).offset(offset)).all()
             return [User(id=row.id, name=row.name, email=row.email) for row in rows]
 
     def update(self, user: User) -> User:
@@ -73,4 +66,4 @@ class ApiUserRepository:
     def _to_domain(row: ApiUser | None) -> User | None:
         if row is None:
             return None
-        return User(id=row.id, name=row.name, email=row.email)
+        return User(id=row.id, name=row.name, email=row.email, tenant_id=row.tenant_id)

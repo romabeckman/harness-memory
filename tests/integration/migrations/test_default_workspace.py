@@ -44,7 +44,7 @@ def test_migration_head_creates_default_admin_tenant_and_project():
 
         assert admin["name"] == migration.ADMIN_NAME
         assert admin["email"] == migration.ADMIN_EMAIL
-        assert project["tenant_id"] == str(admin["id"])
+        assert project["tenant_id"] == admin["id"]
         assert project["key"] == migration.DEFAULT_PROJECT_KEY
         assert project["name"] == migration.DEFAULT_PROJECT_NAME
     finally:

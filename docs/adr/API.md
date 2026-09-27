@@ -106,7 +106,7 @@ service-account tokens as the management credential.
 
 ## TOKEN HANDOFF TO MCP
 
-Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit any finite token lifetime to 90 days. Reads and updates return metadata, never the digest or plaintext.
+Issue each token for exactly one user or service account. Return plaintext only in the successful create-token response and persist only its SHA-256 digest. Require user-token expiry; allow service-account tokens without expiry. Limit finite user-token lifetimes to 365 days and finite service-account lifetimes to 90 days. Reads and updates return metadata, never the digest or plaintext.
 
 The verifier hashes an ordinary bearer token and asks the shared token repository for
 an active record and owner. Owner type does not change eligible permissions. The owner

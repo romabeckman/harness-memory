@@ -44,6 +44,34 @@ export interface ServiceAccountDto {
   created_at?: string
 }
 
+export interface ServiceAccountListQuery {
+  tenantId?: string
+  tenant_id?: string
+  query?: string
+  limit?: number
+  offset?: number
+}
+
+export interface UpdateServiceAccountDto {
+  name: string
+}
+
+export interface UserDto {
+  id: string
+  name: string
+  email: string
+}
+
+export interface CreateUserDto {
+  name: string
+  email: string
+}
+
+export interface UpdateUserDto {
+  name?: string
+  email?: string
+}
+
 export interface TokenMetadataDto {
   id: string
   name: string
@@ -91,6 +119,10 @@ export interface CreateServiceAccountDto {
 }
 
 export interface HarnessApiClientPort {
+  listUsers(query?: string, limit?: number, offset?: number): Promise<UserDto[]>
+  createUser(payload: CreateUserDto): Promise<UserDto>
+  updateUser(userId: string, payload: UpdateUserDto): Promise<UserDto>
+  deleteUser(userId: string): Promise<void>
   listTenants(query?: string, limit?: number, offset?: number): Promise<TenantDto[]>
   createTenant(payload: CreateTenantDto): Promise<TenantDto>
   updateTenant(tenantId: string, payload: UpdateTenantDto): Promise<TenantDto>
@@ -105,9 +137,19 @@ export interface HarnessApiClientPort {
   createProject(payload: CreateProjectDto): Promise<ProjectDto>
   updateProject(tenantId: string, projectKey: string, payload: UpdateProjectDto): Promise<ProjectDto>
   deleteProject(tenantId: string, projectKey: string): Promise<void>
-  listServiceAccounts(tenantId?: string): Promise<ServiceAccountDto[]>
+  listServiceAccounts(
+    queryOrTenantId?: ServiceAccountListQuery | string,
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<ServiceAccountDto[]>
   createServiceAccount(payload: CreateServiceAccountDto): Promise<ServiceAccountDto>
-  listTokens(): Promise<TokenMetadataDto[]>
+  updateServiceAccount(
+    serviceAccountId: string,
+    payload: UpdateServiceAccountDto
+  ): Promise<ServiceAccountDto>
+  deleteServiceAccount(serviceAccountId: string): Promise<void>
+  listTokens(limit?: number, offset?: number): Promise<TokenMetadataDto[]>
   createToken(payload: CreateTokenDto): Promise<CreatedTokenDto>
   revokeToken(tokenId: string): Promise<void>
 }

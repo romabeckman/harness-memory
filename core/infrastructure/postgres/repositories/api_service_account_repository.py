@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from api.domain.entities.service_account import ServiceAccount
@@ -38,12 +38,32 @@ class ApiServiceAccountRepository:
         with self._session_factory() as session:
             return self._to_domain(session.get(ApiServiceAccount, account_id))
 
-    def list(self, tenant_id: UUID | None = None) -> list[ServiceAccount]:
-        statement = select(ApiServiceAccount).order_by(ApiServiceAccount.name)
+    def list(
+        self,
+        tenant_id: UUID | None = None,
+        *,
+        name: str | None = None,
+        q: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ServiceAccount]:
+        statement = select(ApiServiceAccount)
         if tenant_id is not None:
             statement = statement.where(ApiServiceAccount.tenant_id == tenant_id)
+        if name:
+            statement = statement.where(self._contains(ApiServiceAccount.name, name))
+        if q:
+            statement = statement.where(self._contains(ApiServiceAccount.name, q))
         with self._session_factory() as session:
-            return [self._to_domain(row) for row in session.scalars(statement).all()]
+            rows = session.scalars(
+                statement.order_by(ApiServiceAccount.name).limit(limit).offset(offset)
+            ).all()
+            return [self._to_domain(row) for row in rows]
+
+    @staticmethod
+    def _contains(column, value: str):
+        escaped = value.casefold().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return func.lower(column).like(f"%{escaped}%", escape="\\")
 
     def update(self, account: ServiceAccount) -> ServiceAccount:
         with self._session_factory() as session:

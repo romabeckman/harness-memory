@@ -26,9 +26,10 @@ TABLES = {
 }
 
 
-def test_history_contains_only_three_ordered_revisions():
+def test_history_contains_ordered_revisions():
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
     assert [(item.revision, item.down_revision) for item in scripts.walk_revisions()] == [
+        ("004", "003"),
         ("003", "002"),
         ("002", "001"),
         ("001", None),

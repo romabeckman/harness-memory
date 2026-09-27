@@ -12,9 +12,11 @@ import {
   Building2,
 } from 'lucide-react'
 import { createTokenAction } from '@/app/actions/tokens'
-import { listProjectsAction } from '@/app/actions/projects'
+import { listTenantProjectsAction } from '@/app/actions/projects'
 import { ensureServiceAccountAction } from '@/app/actions/service-accounts'
 import { ProjectDto, TenantDto } from '@/application/ports/harness-api-client.port'
+import { ServiceAccountTokenOwner } from '@/domain/access-token-order'
+import { UserTokenOwner } from '@/domain/user-token-owner'
 
 const ALL_TENANTS_VALUE = '__all_tenants__'
 const NO_TENANTS: TenantDto[] = []
@@ -28,6 +30,8 @@ interface CreateTokenDialogProps {
   tenantId?: string
   tenantName?: string
   tenants?: TenantDto[]
+  userOwner?: UserTokenOwner
+  serviceAccountOwner?: ServiceAccountTokenOwner
 }
 
 export function CreateTokenDialog({
@@ -39,6 +43,8 @@ export function CreateTokenDialog({
   tenantId: initialTenantId,
   tenantName: initialTenantName,
   tenants = NO_TENANTS,
+  userOwner,
+  serviceAccountOwner,
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
   const [selectedTenantId, setSelectedTenantId] = useState<string>(ALL_TENANTS_VALUE)
@@ -46,13 +52,14 @@ export function CreateTokenDialog({
   const [currentServiceAccountId, setCurrentServiceAccountId] = useState<string>('')
   const [currentServiceAccountName, setCurrentServiceAccountName] = useState<string>('')
   const [loadingServiceAccount, setLoadingServiceAccount] = useState<boolean>(false)
+  const [serviceAccountProjectAccess, setServiceAccountProjectAccess] = useState<'all' | 'owner-tenant'>('all')
 
   const [scopes, setScopes] = useState<string[]>(['memory:read', 'memory:publish'])
   const [projectKeys, setProjectKeys] = useState<string[]>([])
   const [availableProjects, setAvailableProjects] = useState<ProjectDto[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
-  const [lifetime, setLifetime] = useState<'30' | '90' | 'never'>('30')
+  const [lifetime, setLifetime] = useState<'30' | '90' | '365' | 'never'>('30')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -62,8 +69,26 @@ export function CreateTokenDialog({
       setTenantSelectionInitialized(false)
       return
     }
+    setName('')
+    setError(null)
     setSelectedTenantId(ALL_TENANTS_VALUE)
     setProjectKeys([])
+    setAvailableProjects([])
+    setLoadingProjects(false)
+    setServiceAccountProjectAccess('all')
+    setLifetime('30')
+    if (userOwner) {
+      setCurrentServiceAccountId('')
+      setCurrentServiceAccountName('')
+      setTenantSelectionInitialized(false)
+      return
+    }
+    if (serviceAccountOwner) {
+      setCurrentServiceAccountId(serviceAccountOwner.id)
+      setCurrentServiceAccountName(serviceAccountOwner.name)
+      setTenantSelectionInitialized(false)
+      return
+    }
     if (initialServiceAccountId) {
       setCurrentServiceAccountId(initialServiceAccountId)
     }
@@ -71,7 +96,7 @@ export function CreateTokenDialog({
       setCurrentServiceAccountName(initialServiceAccountName)
     }
     setTenantSelectionInitialized(true)
-  }, [isOpen, initialServiceAccountId, initialServiceAccountName])
+  }, [isOpen, initialServiceAccountId, initialServiceAccountName, serviceAccountOwner?.id, userOwner?.id])
 
   // Fetch Service Account and Projects when selected tenant changes
   const loadTenantContext = useCallback(async (tId: string) => {
@@ -108,7 +133,7 @@ export function CreateTokenDialog({
       }
 
       // Fetch projects only for a selected tenant.
-      const projRes = await listProjectsAction(tId, undefined, 100, 0)
+      const projRes = await listTenantProjectsAction(tId)
       if (projRes.data) {
         setAvailableProjects(projRes.data)
         // Default to every project in the selected tenant scope.
@@ -126,10 +151,79 @@ export function CreateTokenDialog({
   }, [initialTenantId, tenants])
 
   useEffect(() => {
-    if (isOpen && tenantSelectionInitialized && selectedTenantId) {
+    if (!userOwner && !serviceAccountOwner && isOpen && tenantSelectionInitialized && selectedTenantId) {
       loadTenantContext(selectedTenantId)
     }
-  }, [isOpen, tenantSelectionInitialized, selectedTenantId, loadTenantContext])
+  }, [isOpen, tenantSelectionInitialized, selectedTenantId, loadTenantContext, serviceAccountOwner, userOwner])
+
+  useEffect(() => {
+    if (!isOpen || !userOwner || selectedTenantId === ALL_TENANTS_VALUE) return
+
+    let cancelled = false
+    setLoadingProjects(true)
+    setError(null)
+
+    listTenantProjectsAction(selectedTenantId)
+      .then((result) => {
+        if (cancelled) return
+        if (result.data) {
+          setAvailableProjects(result.data)
+          setProjectKeys(result.data.map((project) => project.key))
+        } else {
+          setAvailableProjects([])
+          setProjectKeys([])
+          setError(result.error || 'Could not load projects for this user.')
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setAvailableProjects([])
+          setProjectKeys([])
+          setError(requestError instanceof Error ? requestError.message : 'Could not load projects for this user.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProjects(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, userOwner?.id, selectedTenantId])
+
+  useEffect(() => {
+    if (!isOpen || !serviceAccountOwner || serviceAccountProjectAccess !== 'owner-tenant') return
+
+    let cancelled = false
+    setLoadingProjects(true)
+    setError(null)
+    listTenantProjectsAction(serviceAccountOwner.tenantId)
+      .then((result) => {
+        if (cancelled) return
+        if (result.data) {
+          setAvailableProjects(result.data)
+          setProjectKeys(result.data.map((project) => project.key))
+        } else {
+          setAvailableProjects([])
+          setProjectKeys([])
+          setError(result.error || 'Could not load projects for this organization.')
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!cancelled) {
+          setAvailableProjects([])
+          setProjectKeys([])
+          setError(requestError instanceof Error ? requestError.message : 'Could not load projects for this organization.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProjects(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, serviceAccountOwner?.tenantId, serviceAccountProjectAccess])
 
   if (!isOpen) return null
 
@@ -160,7 +254,9 @@ export function CreateTokenDialog({
   )
 
   const activeTenantName =
-    selectedTenantId === ALL_TENANTS_VALUE
+    serviceAccountOwner
+      ? serviceAccountOwner.tenantName
+      : selectedTenantId === ALL_TENANTS_VALUE
       ? 'All tenants'
       : tenants.find((t) => t.id === selectedTenantId)?.name ||
         initialTenantName ||
@@ -175,7 +271,7 @@ export function CreateTokenDialog({
       return
     }
 
-    if (!currentServiceAccountId) {
+    if (!userOwner && !serviceAccountOwner && !currentServiceAccountId) {
       setError('No service account is linked to this tenant.')
       return
     }
@@ -185,7 +281,12 @@ export function CreateTokenDialog({
       return
     }
 
-    if (selectedTenantId !== ALL_TENANTS_VALUE && projectKeys.length === 0) {
+    const requiresProject = userOwner
+      ? selectedTenantId !== ALL_TENANTS_VALUE
+      : serviceAccountOwner
+        ? serviceAccountProjectAccess === 'owner-tenant'
+        : selectedTenantId !== ALL_TENANTS_VALUE
+    if (requiresProject && projectKeys.length === 0) {
       setError('Select at least one project for this token.')
       return
     }
@@ -194,13 +295,19 @@ export function CreateTokenDialog({
 
     try {
       const lifetimeDays = lifetime === 'never' ? undefined : Number(lifetime)
-      const tokenProjectKeys =
-        selectedTenantId === ALL_TENANTS_VALUE
-          ? []
-          : projectKeys
+      const tokenProjectKeys = requiresProject ? projectKeys : []
       const res = await createTokenAction({
         name: name.trim(),
-        serviceAccountId: currentServiceAccountId,
+        owner:
+          userOwner ||
+          serviceAccountOwner ||
+          ({
+            kind: 'service-account',
+            id: currentServiceAccountId,
+            name: currentServiceAccountName || 'Service account',
+            tenantId: initialTenantId || '',
+            tenantName: initialTenantName || '',
+          } satisfies ServiceAccountTokenOwner),
         scopes,
         projectKeys: tokenProjectKeys,
         lifetimeDays,
@@ -221,11 +328,16 @@ export function CreateTokenDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+      <div
+        aria-labelledby="create-token-title"
+        aria-modal="true"
+        className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200"
+        role="dialog"
+      >
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center space-x-2 text-white">
             <PlusCircle className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold">Issue New Access Token</h2>
+            <h2 className="text-lg font-semibold" id="create-token-title">Issue New Access Token</h2>
           </div>
           <button
             onClick={onClose}
@@ -244,10 +356,11 @@ export function CreateTokenDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
+            <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1" htmlFor="token-name">
               Token Name
             </label>
             <input
+              id="token-name"
               type="text"
               required
               placeholder="e.g., github-actions-checkout, cursor-mcp"
@@ -257,57 +370,131 @@ export function CreateTokenDialog({
             />
           </div>
 
-          {/* Tenant Selector */}
-          <div>
-            <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
-              Destination Organization (Tenant)
-            </label>
-            {tenants.length > 0 ? (
-              <div className="relative">
+          {userOwner ? (
+            <>
+              <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center space-x-2">
+                <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Owner (User):</span>
+                <span className="font-semibold text-white">{userOwner.name}</span>
+              </div>
+              <div>
+                <label htmlFor="user-project-access" className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
+                  Tenant and Project Access
+                </label>
                 <select
+                  id="user-project-access"
+                  aria-label="Tenant and project access"
                   value={selectedTenantId}
-                  onChange={(e) => setSelectedTenantId(e.target.value)}
-                  disabled={loading || loadingProjects || loadingServiceAccount}
+                  onChange={(event) => {
+                    const nextAccess = event.target.value
+                    setSelectedTenantId(nextAccess)
+                    setProjectKeys([])
+                    setAvailableProjects([])
+                    if (nextAccess === ALL_TENANTS_VALUE) setLoadingProjects(false)
+                  }}
+                  disabled={loading || loadingProjects}
                   className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
-                  <option value={ALL_TENANTS_VALUE}>
-                    All projects (all tenants)
-                  </option>
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.key})
-                    </option>
+                  <option value={ALL_TENANTS_VALUE}>All projects (all tenants)</option>
+                  {tenants.filter((tenant) => tenant.status === 'active').map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>{tenant.name} ({tenant.key})</option>
                   ))}
                 </select>
               </div>
-            ) : (
-              <div className="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-xs text-gray-300 flex items-center space-x-2">
-                <Building2 className="h-3.5 w-3.5 text-blue-400" />
-                <span>{activeTenantName}</span>
+            </>
+          ) : serviceAccountOwner ? (
+            <>
+              <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Owner (Service Account):</span>
+                    <span className="font-semibold text-white">{serviceAccountOwner.name}</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-gray-500">ID: {serviceAccountOwner.id.substring(0, 8)}...</span>
+                </div>
+                <div className="mt-1 pl-5 text-[11px] text-gray-400">
+                  Organization: <span className="text-gray-200">{serviceAccountOwner.tenantName}</span>
+                </div>
               </div>
-            )}
-          </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wider text-gray-400" htmlFor="service-account-project-access">
+                  Project Access
+                </label>
+                <select
+                  aria-label="Project access"
+                  className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={loading || loadingProjects}
+                  id="service-account-project-access"
+                  onChange={(event) => {
+                    const nextAccess = event.target.value as 'all' | 'owner-tenant'
+                    setServiceAccountProjectAccess(nextAccess)
+                    setProjectKeys([])
+                    setAvailableProjects([])
+                    if (nextAccess === 'all') setLoadingProjects(false)
+                  }}
+                  value={serviceAccountProjectAccess}
+                >
+                  <option value="all">All projects (all tenants)</option>
+                  <option value="owner-tenant">Projects in owner organization</option>
+                </select>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
+                  Destination Organization (Tenant)
+                </label>
+                {tenants.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={selectedTenantId}
+                      onChange={(e) => setSelectedTenantId(e.target.value)}
+                      disabled={loading || loadingProjects || loadingServiceAccount}
+                      className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value={ALL_TENANTS_VALUE}>All projects (all tenants)</option>
+                      {tenants.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.key})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="w-full rounded-lg border border-border bg-black/20 px-3 py-2 text-xs text-gray-300 flex items-center space-x-2">
+                    <Building2 className="h-3.5 w-3.5 text-blue-400" />
+                    <span>{activeTenantName}</span>
+                  </div>
+                )}
+              </div>
 
-          {/* Service Account Context */}
-          <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Owner (Service Account):</span>
-              <span className="font-semibold text-white">
-                {loadingServiceAccount
-                  ? 'Identifying...'
-                  : currentServiceAccountName || 'default-automation'}
-              </span>
-            </div>
-            {currentServiceAccountId && (
-              <span className="text-[10px] font-mono text-gray-500">
-                ID: {currentServiceAccountId.substring(0, 8)}...
-              </span>
-            )}
-          </div>
+              <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Owner (Service Account):</span>
+                  <span className="font-semibold text-white">
+                    {loadingServiceAccount
+                      ? 'Identifying...'
+                      : currentServiceAccountName || 'default-automation'}
+                  </span>
+                </div>
+                {currentServiceAccountId && (
+                  <span className="text-[10px] font-mono text-gray-500">
+                    ID: {currentServiceAccountId.substring(0, 8)}...
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Project Permissions Selector */}
-          {selectedTenantId !== ALL_TENANTS_VALUE && (
+          {(userOwner
+            ? selectedTenantId !== ALL_TENANTS_VALUE
+            : serviceAccountOwner
+              ? serviceAccountProjectAccess === 'owner-tenant'
+              : selectedTenantId !== ALL_TENANTS_VALUE) && (
           <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
@@ -474,17 +661,32 @@ export function CreateTokenDialog({
               >
                 90 Days
               </button>
-              <button
-                type="button"
-                onClick={() => setLifetime('never')}
-                className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
-                  lifetime === 'never'
-                    ? 'border-blue-500 bg-blue-500/10 text-blue-400'
-                    : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
-                }`}
-              >
-                Never Expires
-              </button>
+              {userOwner && (
+                <button
+                  type="button"
+                  onClick={() => setLifetime('365')}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    lifetime === '365'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
+                  }`}
+                >
+                  1 Year (365 Days)
+                </button>
+              )}
+              {!userOwner && (
+                <button
+                  type="button"
+                  onClick={() => setLifetime('never')}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    lifetime === 'never'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
+                  }`}
+                >
+                  Never Expires
+                </button>
+              )}
             </div>
           </div>
 

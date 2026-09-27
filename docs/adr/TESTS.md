@@ -1,7 +1,7 @@
 ---
 doc_type: adr
 domain: testing
-stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, TypeScript 7.x, Node.js 20+, Vitest 4.x, Playwright, FastAPI, FastMCP 4.x, PostgreSQL]
+stack: [Python 3.12+, pytest 9.x, pytest-asyncio, pytest-cov, coverage.py, TypeScript 7.x SDK, TypeScript 5.x Web, Node.js 20+, Vitest 4.x SDK, Vitest 1.6.x Web, Playwright, FastAPI, FastMCP 4.x, PostgreSQL]
 node_id: "adr:tests"
 tags: [testing, unit-tests, e2e-tests, coverage]
 edges: []
@@ -11,7 +11,7 @@ updated: 2026-09-26
 
 ## OVERVIEW
 
-Use **pytest 9.x** for Python unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Use **Vitest 4.x** for SDK and Web unit/integration tiers and SDK CLI E2E. Use **Playwright** for Web E2E. Enforce the configured Python branch-coverage gate.
+Use **pytest 9.x** for Python unit, PostgreSQL integration, FastAPI/FastMCP contract, and HTTP/Docker E2E tiers. Use **Vitest 4.x** for SDK tests and **Vitest 1.6.x** for Web tests. Use **Playwright** for Web E2E. Enforce the configured Python branch-coverage gate.
 
 ## COMMANDS
 
@@ -58,7 +58,7 @@ PROHIBITED: Treat skipped PostgreSQL checks as proof of production persistence b
 
 ## TOOLING
 
-- **Framework:** pytest 9.x, pytest-asyncio, FastMCP 4.x; Vitest 4.x for TypeScript SDK and Web; Playwright for Web E2E.
+- **Framework:** pytest 9.x, pytest-asyncio, FastMCP 4.x; Vitest 4.x for the SDK, Vitest 1.6.x for Web, and Playwright for Web E2E.
 - **Assertions:** pytest and Vitest built-in assertions; Playwright `expect`.
 - **Mocks/Stubs:** Hand-written fakes and boundary substitutes; no external mocking library configured for Python.
 - **Coverage:** coverage.py with pytest-cov; branch measurement and missing-line report.

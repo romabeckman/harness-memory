@@ -48,7 +48,7 @@ def test_initial_migration_is_idempotent_and_status_is_read_only():
 
     assert before == after
     assert after.is_current
-    assert after.head_revision == "003"
+    assert after.head_revision == "004"
 
 
 def test_initial_migration_downgrades_to_base():

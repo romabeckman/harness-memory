@@ -8,7 +8,10 @@ class TokenCreate(BaseModel):
     user_id: UUID | None = None
     service_account_id: UUID | None = None
     name: str = Field(min_length=1, max_length=120)
-    expires_at: datetime | None = None
+    expires_at: datetime | None = Field(
+        default=None,
+        description="Required for user tokens. Maximum 365 days from issuance for users; maximum 90 days for expiring service-account tokens.",
+    )
     scopes: set[str] = Field(default_factory=lambda: {"memory:read"}, min_length=1)
     project_keys: list[str] | None = Field(
         default=None,

@@ -9,7 +9,15 @@ class ServiceAccountRepository(Protocol):
 
     def get(self, account_id: UUID) -> ServiceAccount | None: ...
 
-    def list(self, tenant_id: UUID | None = None) -> list[ServiceAccount]: ...
+    def list(
+        self,
+        tenant_id: UUID | None = None,
+        *,
+        name: str | None = None,
+        q: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ServiceAccount]: ...
 
     def update(self, account: ServiceAccount) -> ServiceAccount: ...
 

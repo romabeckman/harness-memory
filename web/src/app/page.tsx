@@ -1,44 +1,44 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, LogOut, Shield, Database, RefreshCw, Key } from 'lucide-react'
+import { LogOut, RefreshCw, Key } from 'lucide-react'
 import { loadDashboardDataAction, DashboardData } from '@/app/actions/tokens'
 import { logoutAction } from '@/app/actions/auth'
 import { TokenList } from '@/components/token-list'
-import { CreateTokenDialog } from '@/components/create-token-dialog'
-import { SecretRevealModal } from '@/components/secret-reveal-modal'
 import { AdminSidebar } from '@/components/admin-sidebar'
+import { nextDashboardLoadState } from '@/application/dashboard-load-state'
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [revealedToken, setRevealedToken] = useState<string | null>(null)
-
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (selectedPage: number): Promise<boolean> => {
     setLoading(true)
     setError(null)
-    const res = await loadDashboardDataAction()
-    if (res.data) {
-      setData(res.data)
-    } else {
-      setError(res.error || 'Failed to load data.')
+    try {
+      const res = await loadDashboardDataAction(selectedPage)
+      const state = nextDashboardLoadState<DashboardData>({ data: null, error: null }, res)
+      setData(state.data)
+      setError(state.error)
+      if (state.data) {
+        setPage(selectedPage)
+        return true
+      }
+      return false
+    } catch {
+      setData(null)
+      setError('Failed to load data.')
+      return false
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
-    fetchData()
+    void fetchData(0)
   }, [fetchData])
-
-  const handleTokenCreated = (plaintext: string) => {
-    setIsCreateOpen(false)
-    setRevealedToken(plaintext)
-    fetchData()
-  }
 
   return (
     <div className="min-h-screen bg-background text-gray-100 flex">
@@ -64,38 +64,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {data?.bootstrap && (
-          <div className="hidden md:flex items-center space-x-3 text-xs">
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-black/40 border border-border text-gray-300">
-              <Database className="h-3.5 w-3.5 text-blue-400" />
-              <span className="text-gray-500">Tenant:</span>
-              {data.tenants && data.tenants.length > 1 ? (
-                <select
-                  value={selectedTenantId || data.bootstrap.tenantId}
-                  onChange={(e) => setSelectedTenantId(e.target.value)}
-                  className="bg-transparent text-white font-medium focus:outline-none cursor-pointer pr-1"
-                >
-                  {data.tenants.map((t) => (
-                    <option key={t.id} value={t.id} className="bg-gray-900 text-white">
-                      {t.name} ({t.key})
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <span className="font-medium text-white">{data.bootstrap.tenantName}</span>
-              )}
-            </div>
-            <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-black/40 border border-border text-gray-300">
-              <Shield className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-gray-500">Service Account:</span>
-              <span className="font-medium text-white">{data.bootstrap.serviceAccountName}</span>
-            </div>
-          </div>
-        )}
-
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => fetchData()}
+            onClick={() => void fetchData(page)}
             disabled={loading}
             className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition"
             title="Refresh data"
@@ -123,17 +94,9 @@ export default function DashboardPage() {
               Access Tokens & Credentials
             </h1>
             <p className="text-xs text-gray-400 mt-1 max-w-xl leading-relaxed">
-              Issue and manage secure credentials prefixed with <code className="text-emerald-400 font-mono">hm_</code> with least-privilege scopes (<code className="text-blue-400 font-mono">memory:read</code>, <code className="text-blue-400 font-mono">memory:publish</code>, <code className="text-blue-400 font-mono">memory:impact</code>).
+              Review active credentials, owner context, scopes, and revocation status.
             </p>
           </div>
-
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <Plus className="mr-1.5 h-4 w-4" />
-            New Token
-          </button>
         </div>
 
         {error && (
@@ -143,39 +106,22 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {loading && !data ? (
+        {loading ? (
           <div className="py-16 text-center text-xs text-gray-500">
             <RefreshCw className="mx-auto h-6 w-6 animate-spin text-gray-600 mb-2" />
             Loading credentials...
           </div>
         ) : (
-          data && <TokenList tokens={data.tokens} onTokenRevoked={fetchData} />
+          data && <>
+            <TokenList credentials={data.credentials} onTokenRevoked={() => fetchData(page)} />
+            <div className="flex justify-end gap-3 text-xs">
+              <button disabled={loading || page === 0} onClick={() => void fetchData(page - 1)}>Previous</button>
+              <span>Page {page + 1}</span>
+              <button disabled={loading || !data.hasMore} onClick={() => void fetchData(page + 1)}>Next</button>
+            </div>
+          </>
         )}
       </main>
-
-      {/* Modals */}
-      {data?.bootstrap && (
-        <CreateTokenDialog
-          isOpen={isCreateOpen}
-          onClose={() => setIsCreateOpen(false)}
-          onSuccess={handleTokenCreated}
-          serviceAccountId={data.bootstrap.serviceAccountId}
-          serviceAccountName={data.bootstrap.serviceAccountName}
-          tenantId={selectedTenantId || data.bootstrap.tenantId}
-          tenantName={
-            data.tenants?.find((t) => t.id === (selectedTenantId || data.bootstrap.tenantId))?.name ||
-            data.bootstrap.tenantName
-          }
-          tenants={data.tenants || []}
-        />
-      )}
-
-      {revealedToken && (
-        <SecretRevealModal
-          token={revealedToken}
-          onClose={() => setRevealedToken(null)}
-        />
-      )}
       </div>
     </div>
   )

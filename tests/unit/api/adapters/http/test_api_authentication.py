@@ -57,7 +57,7 @@ def _client(scopes: tuple[str, ...]) -> tuple[TestClient, str, str, sessionmaker
 
 
 def test_management_routes_require_admin_bearer_token() -> None:
-    client, _, _, _ = _client(("memory:read",))
+    client, scoped_token, _, _ = _client(("memory:read",))
 
     assert (
         client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"}).status_code
@@ -71,14 +71,37 @@ def test_management_routes_require_admin_bearer_token() -> None:
         ).status_code
         == 401
     )
+    admin = {"Authorization": "Bearer admin-secret"}
+    created = client.post(
+        "/v1/users",
+        json={"name": "Ada", "email": "ada@example.com"},
+        headers=admin,
+    )
+    assert created.status_code == 201
+
+    scoped = {"Authorization": f"Bearer {scoped_token}"}
+    user_id = created.json()["id"]
+    assert client.get("/v1/users", headers=scoped).status_code == 403
+    assert (
+        client.patch(f"/v1/users/{user_id}", headers=scoped, json={"name": "Other"}).status_code
+        == 403
+    )
+    assert client.delete(f"/v1/users/{user_id}", headers=scoped).status_code == 403
     assert (
         client.post(
-            "/v1/users",
-            json={"name": "Ada", "email": "ada@example.com"},
-            headers={"Authorization": "Bearer admin-secret"},
+            "/v1/tokens",
+            headers=scoped,
+            json={
+                "user_id": user_id,
+                "name": "user-token",
+                "expires_at": (datetime.now(UTC) + timedelta(days=30)).isoformat(),
+                "scopes": ["memory:read"],
+                "project_keys": [],
+            },
         ).status_code
-        == 201
+        == 403
     )
+    assert client.get(f"/v1/users/{user_id}", headers=admin).status_code == 200
 
 
 def test_admin_management_collections_support_search_filters_and_pagination() -> None:

@@ -126,7 +126,7 @@ class ApiSecurity:
             )
         return AuthenticatedPrincipal(
             subject=str(owner.id),
-            tenant_id=str(owner.tenant_id),
+            tenant_id=str(owner.tenant_id or owner.id),
             scopes=token.scopes,
             allowed_project_keys=token.allowed_project_keys,
         )
