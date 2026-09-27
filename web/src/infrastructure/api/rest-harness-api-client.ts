@@ -10,6 +10,8 @@ import {
   ProjectDto,
   CreateProjectDto,
   UpdateProjectDto,
+  EnvironmentDto,
+  ProjectEnvironmentRef,
   CreateServiceAccountDto,
   ServiceAccountListQuery,
   UpdateServiceAccountDto,
@@ -216,6 +218,32 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
         method: 'PATCH',
         body: JSON.stringify(payload),
       }
+    )
+  }
+
+  public async listProjectEnvironments(
+    reference: ProjectEnvironmentRef
+  ): Promise<EnvironmentDto[]> {
+    const params = new URLSearchParams({
+      tenant_id: reference.tenantId,
+      project_key: reference.projectKey,
+      limit: '500',
+      offset: '0',
+    })
+    return this.request<EnvironmentDto[]>(`/v1/environments?${params.toString()}`, {
+      method: 'GET',
+    })
+  }
+
+  public async addProjectEnvironment(
+    reference: ProjectEnvironmentRef,
+    name: string
+  ): Promise<EnvironmentDto> {
+    const projectKey = encodeURIComponent(reference.projectKey)
+    const tenantId = encodeURIComponent(reference.tenantId)
+    return this.request<EnvironmentDto>(
+      `/v1/projects/${projectKey}/environments?tenant_id=${tenantId}`,
+      { method: 'POST', body: JSON.stringify({ name }) }
     )
   }
 

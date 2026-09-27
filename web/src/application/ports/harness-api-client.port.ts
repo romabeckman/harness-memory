@@ -44,6 +44,21 @@ export interface ServiceAccountDto {
   created_at?: string
 }
 
+export type EnvironmentTypeDto = 'development' | 'staging' | 'production' | 'other'
+
+export interface EnvironmentDto {
+  id: string
+  tenant_id?: string
+  project_key?: string
+  name: string
+  type: EnvironmentTypeDto
+}
+
+export interface ProjectEnvironmentRef {
+  tenantId: string
+  projectKey: string
+}
+
 export interface ServiceAccountListQuery {
   tenantId?: string
   tenant_id?: string
@@ -137,6 +152,11 @@ export interface HarnessApiClientPort {
   createProject(payload: CreateProjectDto): Promise<ProjectDto>
   updateProject(tenantId: string, projectKey: string, payload: UpdateProjectDto): Promise<ProjectDto>
   deleteProject(tenantId: string, projectKey: string): Promise<void>
+  listProjectEnvironments(reference: ProjectEnvironmentRef): Promise<EnvironmentDto[]>
+  addProjectEnvironment(
+    reference: ProjectEnvironmentRef,
+    name: string
+  ): Promise<EnvironmentDto>
   listServiceAccounts(
     queryOrTenantId?: ServiceAccountListQuery | string,
     query?: string,

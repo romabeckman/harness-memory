@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,7 @@ from core.infrastructure.postgres.models.knowledge_publication import KnowledgeP
 from core.infrastructure.postgres.models.project import Project
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.models.tenant import Tenant
+from core.domain.environment.value_objects.environment_type import EnvironmentType
 
 
 class PostgresTenantProjectManagementRepository(TenantProjectManagementRepository):
@@ -104,18 +105,28 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
     def create_project(
         self, tenant_id: UUID, key: str, name: str | None, metadata: dict[str, Any]
     ) -> dict:
-        try:
-            with self._session_factory() as session, session.begin():
-                if session.get(Tenant, tenant_id) is None:
-                    raise LookupError("tenant not found")
-                project = Project(
-                    id=uuid4(), tenant_id=tenant_id, key=key, name=name, metadata_json=metadata
-                )
-                session.add(project)
+        with self._session_factory() as session, session.begin():
+            if session.get(Tenant, tenant_id) is None:
+                raise LookupError("tenant not found")
+            project = Project(
+                id=uuid4(), tenant_id=tenant_id, key=key, name=name, metadata_json=metadata
+            )
+            session.add(project)
+            try:
                 session.flush()
-                return self._project(project)
-        except IntegrityError as error:
-            raise ValueError("project key already exists for tenant") from error
+            except IntegrityError as error:
+                raise ValueError("project key already exists for tenant") from error
+            session.add(
+                Environment(
+                    id=uuid4(),
+                    tenant_id=tenant_id,
+                    project_id=project.id,
+                    name=EnvironmentType.PRODUCTION.value,
+                    type=EnvironmentType.PRODUCTION.value,
+                )
+            )
+            session.flush()
+            return self._project(project)
 
     def get_project(self, tenant_id: UUID, key: str) -> dict | None:
         with self._session_factory() as session:
@@ -182,7 +193,7 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
             )
             if project is None:
                 return False
-            related_models = (Snapshot, Environment, KnowledgePublication)
+            related_models = (Snapshot, KnowledgePublication)
             if any(
                 session.scalar(
                     select(model.id).where(model.project_id == project.id).limit(1)
@@ -191,6 +202,22 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
                 for model in related_models
             ):
                 raise ValueError("project cannot be deleted while it has snapshots or environments")
+            has_non_default_environment = session.scalar(
+                select(Environment.id)
+                .where(
+                    Environment.project_id == project.id,
+                    Environment.name != EnvironmentType.PRODUCTION.value,
+                )
+                .limit(1)
+            ) is not None
+            if has_non_default_environment:
+                raise ValueError("project cannot be deleted while it has snapshots or environments")
+            session.execute(
+                delete(Environment).where(
+                    Environment.project_id == project.id,
+                    Environment.tenant_id == tenant_id,
+                )
+            )
             session.delete(project)
             return True
 

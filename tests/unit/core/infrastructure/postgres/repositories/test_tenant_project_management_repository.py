@@ -1,22 +1,27 @@
-from uuid import uuid4
-from sqlalchemy import create_engine
+from uuid import UUID, uuid4
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import pytest
 
 from core.infrastructure.postgres.models.base import Base
+from core.infrastructure.postgres.models.environment import Environment
 from core.infrastructure.postgres.repositories.tenant_project_management_repository import (
     PostgresTenantProjectManagementRepository,
 )
 
 
-def _repo():
+def _repository_and_factory():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
-    return PostgresTenantProjectManagementRepository(factory)
+    return PostgresTenantProjectManagementRepository(factory), factory, engine
+
+
+def _repo():
+    return _repository_and_factory()[0]
 
 
 def test_list_tenants_and_projects_repository():
@@ -46,3 +51,36 @@ def test_list_tenants_and_projects_repository():
     proj_list = repo.list_projects(tenant_id=t1["id"])
     assert proj_list["total"] == 2
     assert {p["key"] for p in proj_list["items"]} == {"proj-alpha", "proj-beta"}
+
+
+def test_create_project_commits_one_production_environment_atomically():
+    repo, factory, _ = _repository_and_factory()
+    tenant = repo.create_tenant("tenant-prod", "Tenant Production", {})
+
+    project = repo.create_project(tenant["id"], "catalog", "Catalog", {})
+
+    with factory() as session:
+        environments = session.scalars(
+            select(Environment).where(Environment.project_id == UUID(project["id"]))
+        ).all()
+    assert [(environment.name, environment.type) for environment in environments] == [
+        ("production", "production")
+    ]
+
+
+def test_create_project_rolls_back_when_production_environment_insert_fails():
+    repo, _, engine = _repository_and_factory()
+    tenant = repo.create_tenant("tenant-rollback", "Tenant Rollback", {})
+
+    def fail_environment_insert(connection, cursor, statement, parameters, context, many):
+        if statement.lower().startswith("insert into environments"):
+            raise RuntimeError("production persistence failed")
+
+    event.listen(engine, "before_cursor_execute", fail_environment_insert)
+    try:
+        with pytest.raises(RuntimeError, match="production persistence failed"):
+            repo.create_project(tenant["id"], "catalog", "Catalog", {})
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_environment_insert)
+
+    assert repo.get_project(tenant["id"], "catalog") is None

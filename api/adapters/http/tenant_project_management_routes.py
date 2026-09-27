@@ -3,15 +3,21 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from api.adapters.http.schemas.project_create import ProjectCreate
+from api.adapters.http.schemas.project_environment_create import ProjectEnvironmentCreate
 from api.adapters.http.schemas.project_update import ProjectUpdate
 from api.adapters.http.schemas.tenant_create import TenantCreate
 from api.adapters.http.schemas.tenant_update import TenantUpdate
 from api.application.services.project_management_service import ProjectManagementService
+from api.application.services.project_environment_management_service import (
+    ProjectEnvironmentManagementService,
+)
 from api.application.services.tenant_management_service import TenantManagementService
 
 
 def create_tenant_project_management_router(
-    tenants: TenantManagementService, projects: ProjectManagementService
+    tenants: TenantManagementService,
+    projects: ProjectManagementService,
+    project_environments: ProjectEnvironmentManagementService,
 ) -> APIRouter:
     router = APIRouter(tags=["resource-management"])
 
@@ -45,6 +51,21 @@ def create_tenant_project_management_router(
     def create_project(request: ProjectCreate):
         try:
             return projects.create(request.tenant_id, request.key, request.name, request.metadata)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @router.post(
+        "/projects/{project_key}/environments", status_code=status.HTTP_201_CREATED
+    )
+    def create_project_environment(
+        project_key: str,
+        request: ProjectEnvironmentCreate,
+        tenant_id: UUID = Query(...),
+    ):
+        try:
+            return project_environments.create(tenant_id, project_key, request.name)
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except ValueError as error:

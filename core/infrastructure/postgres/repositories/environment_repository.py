@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.domain.environment.aggregates.environment import Environment as DomainEnvironment
@@ -47,19 +48,14 @@ class PostgresEnvironmentRepository:
             raise ValueError("environment matches multiple tenants; provide tenant_id")
         by_name = {row.name: row for row in rows}
 
-        def to_domain(row):
-            if row is None:
-                return None
-            return DomainEnvironment(
-                id=row.id, project_key=ProjectKey(project_key),
-                name=EnvironmentName(row.name),
-                environment_type=EnvironmentType(row.type)
-                if row.type in EnvironmentType._value2member_map_
-                else EnvironmentType.OTHER,
-                current_snapshot_id=row.current_snapshot_id,
-            )
-
-        return to_domain(by_name.get(source_name)), to_domain(by_name.get(target_name))
+        return (
+            self._to_domain(by_name[source_name], project_key)
+            if source_name in by_name
+            else None,
+            self._to_domain(by_name[target_name], project_key)
+            if target_name in by_name
+            else None,
+        )
 
     def resolve(
         self, project_key: str, name: str, tenant_id: str | None
@@ -83,15 +79,7 @@ class PostgresEnvironmentRepository:
                 raise ValueError("environment matches multiple tenants; provide tenant_id")
             row = rows[0]
 
-            return DomainEnvironment(
-                id=row.id,
-                project_key=ProjectKey(project_key),
-                name=EnvironmentName(row.name),
-                environment_type=EnvironmentType(row.type)
-                if row.type in EnvironmentType._value2member_map_
-                else EnvironmentType.OTHER,
-                current_snapshot_id=row.current_snapshot_id,
-            )
+            return self._to_domain(row, project_key)
 
     def promote_active_snapshot(
         self, env_id: UUID, snap_id: UUID, tenant_id: str
@@ -115,11 +103,12 @@ class PostgresEnvironmentRepository:
         with self._session_factory() as session:
             with session.begin():
                 insert = postgres_insert if session.bind.dialect.name == "postgresql" else sqlite_insert
-                session.execute(
+                inserted_project_id = session.execute(
                     insert(ModelProject).values(
                         id=uuid4(), tenant_id=tenant_id, key=project_key, name=project_key,
                     ).on_conflict_do_nothing(index_elements=["tenant_id", "key"])
-                )
+                    .returning(ModelProject.id)
+                ).scalar_one_or_none()
                 project = session.scalars(
                     select(ModelProject).where(
                         ModelProject.tenant_id == tenant_id,
@@ -128,6 +117,14 @@ class PostgresEnvironmentRepository:
                 ).first()
                 if project is None:
                     raise LookupError("project insert was not visible")
+                if inserted_project_id is not None:
+                    session.add(
+                        ModelEnvironment(
+                            id=uuid4(), tenant_id=tenant_id, project_id=project.id,
+                            name=EnvironmentType.PRODUCTION.value,
+                            type=EnvironmentType.PRODUCTION.value,
+                        )
+                    )
                 environment_type = (
                     name
                     if name in EnvironmentType._value2member_map_
@@ -148,9 +145,68 @@ class PostgresEnvironmentRepository:
                         ModelEnvironment.name == name,
                     )
                 ).one()
-                return DomainEnvironment(
-                    id=row.id,
-                    project_key=ProjectKey(project_key),
-                    name=EnvironmentName(name),
-                    environment_type=EnvironmentType(environment_type),
+                return self._to_domain(row, project_key)
+
+    def create_for_project(
+        self, tenant_id: str, project_key: str, name: str
+    ) -> DomainEnvironment:
+        environment_name = EnvironmentName(name.strip())
+        environment_type = (
+            EnvironmentType(environment_name.value)
+            if environment_name.value in EnvironmentType._value2member_map_
+            else EnvironmentType.OTHER
+        )
+        try:
+            with self._session_factory() as session, session.begin():
+                project = session.scalars(
+                    select(ModelProject).where(
+                        ModelProject.tenant_id == tenant_id,
+                        ModelProject.key == project_key,
+                    )
+                ).first()
+                if project is None:
+                    raise LookupError("project not found")
+                row = ModelEnvironment(
+                    id=uuid4(),
+                    tenant_id=project.tenant_id,
+                    project_id=project.id,
+                    name=environment_name.value,
+                    type=environment_type.value,
                 )
+                session.add(row)
+                session.flush()
+                return self._to_domain(row, project_key)
+        except IntegrityError as error:
+            with self._session_factory() as session:
+                duplicate = session.scalar(
+                    select(ModelEnvironment.id)
+                    .join(
+                        ModelProject,
+                        (ModelProject.id == ModelEnvironment.project_id)
+                        & (ModelProject.tenant_id == ModelEnvironment.tenant_id),
+                    )
+                    .where(
+                        ModelEnvironment.tenant_id == tenant_id,
+                        ModelProject.key == project_key,
+                        ModelEnvironment.name == environment_name.value,
+                    )
+                    .limit(1)
+                )
+            if duplicate is not None:
+                raise ValueError("environment name already exists") from error
+            raise
+
+    @staticmethod
+    def _to_domain(row: ModelEnvironment, project_key: str) -> DomainEnvironment:
+        environment_type = (
+            EnvironmentType(row.type)
+            if row.type in EnvironmentType._value2member_map_
+            else EnvironmentType.OTHER
+        )
+        return DomainEnvironment(
+            id=row.id,
+            project_key=ProjectKey(project_key),
+            name=EnvironmentName(row.name),
+            environment_type=environment_type,
+            current_snapshot_id=row.current_snapshot_id,
+        )
