@@ -53,19 +53,13 @@ class SecurityAuditMiddleware(Middleware):
             return await call_next(context)
 
     async def on_call_tool(self, context, call_next):
-        return await self._run_typed(
-            "tool", context.message.name, context, call_next
-        )
+        return await self._run_typed("tool", context.message.name, context, call_next)
 
     async def on_read_resource(self, context, call_next):
-        return await self._run_typed(
-            "resource", str(context.message.uri), context, call_next
-        )
+        return await self._run_typed("resource", str(context.message.uri), context, call_next)
 
     async def on_get_prompt(self, context, call_next):
-        return await self._run_typed(
-            "prompt", context.message.name, context, call_next
-        )
+        return await self._run_typed("prompt", context.message.name, context, call_next)
 
     async def _run_typed(self, kind, name, context, call_next):
         token = get_access_token()

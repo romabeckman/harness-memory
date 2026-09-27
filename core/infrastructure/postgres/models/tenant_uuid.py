@@ -25,4 +25,3 @@ class TenantUUID(UUID):
 
     def __hash__(self) -> int:
         return super().__hash__()
-

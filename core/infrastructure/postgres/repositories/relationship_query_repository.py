@@ -69,16 +69,18 @@ class PostgresRelationshipQueryRepository:
 
     def load_context(self, scope: TenantScope, query: GetContextInput) -> GetContextOutput:
         request = (
-            query
-            if isinstance(query, GetContextInput)
-            else GetContextInput.model_validate(query)
+            query if isinstance(query, GetContextInput) else GetContextInput.model_validate(query)
         )
         try:
             with self._session_factory() as session:
                 with session.begin():
                     entity, project, snapshot = self._resolve_entity(
-                        session, scope, request.entity_id, request.snapshot_id,
-                        request.project_id, request.tenant_id,
+                        session,
+                        scope,
+                        request.entity_id,
+                        request.snapshot_id,
+                        request.project_id,
+                        request.tenant_id,
                     )
                     return self._build_context(session, scope, request, entity, project, snapshot)
         except (EntityContextNotFound, EntityContextAmbiguous, RelationshipQueryFailure):
@@ -97,10 +99,12 @@ class PostgresRelationshipQueryRepository:
                         tenant_scope_predicate(scope, Entity.tenant_id),
                     ]
                     if request.entity_id is not None:
-                        predicates.append(or_(
-                            Entity.id == request.entity_id,
-                            Entity.identity_id == request.entity_id,
-                        ))
+                        predicates.append(
+                            or_(
+                                Entity.id == request.entity_id,
+                                Entity.identity_id == request.entity_id,
+                            )
+                        )
                     if request.snapshot_id is not None:
                         predicates.append(Entity.snapshot_id == request.snapshot_id)
                     else:
@@ -111,19 +115,28 @@ class PostgresRelationshipQueryRepository:
                         predicates.append(Entity.tenant_id == request.tenant_id)
                     rows = session.execute(
                         select(Entity, Project, Snapshot)
-                        .join(Project, and_(
-                            Project.id == Entity.project_id,
-                            tenant_scope_predicate(scope, Project.tenant_id),
-                        ))
-                        .join(Snapshot, and_(
-                            Snapshot.id == Entity.snapshot_id,
-                            Snapshot.project_id == Entity.project_id,
-                            tenant_scope_predicate(scope, Snapshot.tenant_id),
-                        ))
+                        .join(
+                            Project,
+                            and_(
+                                Project.id == Entity.project_id,
+                                tenant_scope_predicate(scope, Project.tenant_id),
+                            ),
+                        )
+                        .join(
+                            Snapshot,
+                            and_(
+                                Snapshot.id == Entity.snapshot_id,
+                                Snapshot.project_id == Entity.project_id,
+                                tenant_scope_predicate(scope, Snapshot.tenant_id),
+                            ),
+                        )
                         .where(*predicates)
                         .order_by(
-                            Snapshot.created_at.desc(), Snapshot.revision.desc(),
-                            Snapshot.id.desc(), Entity.created_at.desc(), Entity.id.desc(),
+                            Snapshot.created_at.desc(),
+                            Snapshot.revision.desc(),
+                            Snapshot.id.desc(),
+                            Entity.created_at.desc(),
+                            Entity.id.desc(),
                         )
                         .limit(request.limit + 1)
                         .offset(request.offset)
@@ -146,22 +159,39 @@ class PostgresRelationshipQueryRepository:
 
     def _build_context(self, session, scope, request, entity, project, snapshot):
         relation_rows = self._load_relations(
-            session, scope, snapshot.id, entity.id, request.result_limit,
+            session,
+            scope,
+            snapshot.id,
+            entity.id,
+            request.result_limit,
         )
         dependency_rows = self._load_relations(
-            session, scope, snapshot.id, entity.id, request.result_limit, dependency_only=True,
+            session,
+            scope,
+            snapshot.id,
+            entity.id,
+            request.result_limit,
+            dependency_only=True,
         )
         relation_views = self._map_relations(
-            relation_rows[: request.result_limit], entity.id,
+            relation_rows[: request.result_limit],
+            entity.id,
             self._load_evidence(
-                session, scope, snapshot.id, relation_rows[: request.result_limit],
+                session,
+                scope,
+                snapshot.id,
+                relation_rows[: request.result_limit],
                 request.evidence_limit,
             ),
         )
         dependency_views = self._map_dependencies(
-            dependency_rows[: request.result_limit], entity.id,
+            dependency_rows[: request.result_limit],
+            entity.id,
             self._load_evidence(
-                session, scope, snapshot.id, dependency_rows[: request.result_limit],
+                session,
+                scope,
+                snapshot.id,
+                dependency_rows[: request.result_limit],
                 request.evidence_limit,
             ),
         )
@@ -223,8 +253,14 @@ class PostgresRelationshipQueryRepository:
             raise RelationshipQueryFailure(str(error)) from None
 
     @staticmethod
-    def _resolve_entity(session: Session, scope: TenantScope, entity_id,
-                        snapshot_id=None, project_id=None, tenant_id=None):
+    def _resolve_entity(
+        session: Session,
+        scope: TenantScope,
+        entity_id,
+        snapshot_id=None,
+        project_id=None,
+        tenant_id=None,
+    ):
         predicates = [
             or_(Entity.id == entity_id, Entity.identity_id == entity_id),
             tenant_scope_predicate(scope, Entity.tenant_id),
@@ -256,17 +292,24 @@ class PostgresRelationshipQueryRepository:
             )
             .where(*predicates)
         )
-        matching_project_ids = session.execute(
-            statement.with_only_columns(Project.id).order_by(None).distinct().limit(2)
-        ).scalars().all()
+        matching_project_ids = (
+            session.execute(
+                statement.with_only_columns(Project.id).order_by(None).distinct().limit(2)
+            )
+            .scalars()
+            .all()
+        )
         if not matching_project_ids:
             raise EntityContextNotFound(entity_id, scope.tenant_id)
         if len(matching_project_ids) > 1:
             raise EntityContextAmbiguous()
         results = session.execute(
             statement.order_by(
-                Snapshot.created_at.desc(), Snapshot.revision.desc(), Snapshot.id.desc(),
-                Entity.created_at.desc(), Entity.id.desc(),
+                Snapshot.created_at.desc(),
+                Snapshot.revision.desc(),
+                Snapshot.id.desc(),
+                Entity.created_at.desc(),
+                Entity.id.desc(),
             ).limit(2 if snapshot_id is not None else 1)
         ).all()
         if snapshot_id is not None and len(results) > 1:

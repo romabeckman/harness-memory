@@ -8,4 +8,3 @@ class IntegrationPathBounds(BaseModel):
     owner_limit: StrictInt = Field(default=5, ge=0, le=20)
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-

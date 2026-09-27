@@ -308,9 +308,7 @@ def test_context_and_dependencies_accept_stable_entity_identity():
         session.commit()
 
     repository = PostgresRelationshipQueryRepository(session_factory)
-    context = repository.load_context(
-        TenantScope("tenant-a"), GetContextInput(entity_id=stable_id)
-    )
+    context = repository.load_context(TenantScope("tenant-a"), GetContextInput(entity_id=stable_id))
     dependencies = repository.load_dependencies(
         TenantScope("tenant-a"), GetDependenciesInput(entity_id=stable_id)
     )
@@ -346,15 +344,26 @@ def test_shared_canonical_identity_requires_occurrence_or_project_selector():
             project = Project(tenant_id="tenant-a", key=key)
             session.add(project)
             session.flush()
-            snapshot = Snapshot(tenant_id="tenant-a", project_id=project.id,
-                                revision=1, schema_version="1.0",
-                                payload_hash=key[0] * 64, metadata_json={})
+            snapshot = Snapshot(
+                tenant_id="tenant-a",
+                project_id=project.id,
+                revision=1,
+                schema_version="1.0",
+                payload_hash=key[0] * 64,
+                metadata_json={},
+            )
             session.add(snapshot)
             session.flush()
             project.active_snapshot_id = snapshot.id
-            entity = Entity(tenant_id="tenant-a", project_id=project.id,
-                            snapshot_id=snapshot.id, entity_key="shared", entity_type="service",
-                            identity_id=identity, metadata_json={})
+            entity = Entity(
+                tenant_id="tenant-a",
+                project_id=project.id,
+                snapshot_id=snapshot.id,
+                entity_key="shared",
+                entity_type="service",
+                identity_id=identity,
+                metadata_json={},
+            )
             session.add(entity)
             session.flush()
             occurrences.append((entity.id, project.id))
@@ -424,17 +433,27 @@ def test_context_lists_selected_entities_newest_first_with_pagination_and_scope(
         session.add(project)
         session.flush()
         newest = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, revision=1,
-            schema_version="1.0", payload_hash="4" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="4" * 64,
+            metadata_json={},
             created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
         )
         session.add(newest)
         session.flush()
         project.active_snapshot_id = newest.id
-        session.add(Entity(
-            tenant_id="tenant-a", project_id=project.id, snapshot_id=newest.id,
-            entity_key="newest", entity_type="service", metadata_json={},
-        ))
+        session.add(
+            Entity(
+                tenant_id="tenant-a",
+                project_id=project.id,
+                snapshot_id=newest.id,
+                entity_key="newest",
+                entity_type="service",
+                metadata_json={},
+            )
+        )
         session.commit()
 
     repository = PostgresRelationshipQueryRepository(session_factory)
@@ -448,9 +467,7 @@ def test_context_lists_selected_entities_newest_first_with_pagination_and_scope(
     project_page = repository.list_contexts(
         TenantScope("tenant-a"), GetContextInput(project_id=project.id)
     )
-    pinned = repository.list_contexts(
-        TenantScope("tenant-a"), GetContextInput(snapshot_id=old.id)
-    )
+    pinned = repository.list_contexts(TenantScope("tenant-a"), GetContextInput(snapshot_id=old.id))
     forbidden = repository.list_contexts(
         TenantScope("tenant-b"), GetContextInput(snapshot_id=old.id)
     )
@@ -479,17 +496,32 @@ def test_context_listing_uses_current_snapshot_from_each_environment():
         session.add_all([production, staging])
         session.flush()
         production_old = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
-            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            environment_id=production.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="a" * 64,
+            metadata_json={},
         )
         production_current = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
-            revision=2, schema_version="1.0", payload_hash="b" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            environment_id=production.id,
+            revision=2,
+            schema_version="1.0",
+            payload_hash="b" * 64,
+            metadata_json={},
             created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
         )
         staging_current = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
-            revision=1, schema_version="1.0", payload_hash="c" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            environment_id=staging.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="c" * 64,
+            metadata_json={},
             created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
         )
         session.add_all([production_old, production_current, staging_current])
@@ -502,10 +534,16 @@ def test_context_listing_uses_current_snapshot_from_each_environment():
             (production_current, "production-current"),
             (staging_current, "staging-current"),
         ):
-            session.add(Entity(
-                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
-                entity_key=key, entity_type="service", metadata_json={},
-            ))
+            session.add(
+                Entity(
+                    tenant_id="tenant-a",
+                    project_id=project.id,
+                    snapshot_id=snapshot.id,
+                    entity_key=key,
+                    entity_type="service",
+                    metadata_json={},
+                )
+            )
         project_id = project.id
         session.commit()
 
@@ -513,11 +551,10 @@ def test_context_listing_uses_current_snapshot_from_each_environment():
         TenantScope("tenant-a"), GetContextInput(project_id=project_id)
     )
 
-    assert [item.entity.key for item in result.items] == [
-        "staging-current", "production-current"
-    ]
+    assert [item.entity.key for item in result.items] == ["staging-current", "production-current"]
     assert [item.project.snapshot_id for item in result.items] == [
-        staging_current.id, production_current.id
+        staging_current.id,
+        production_current.id,
     ]
 
 
@@ -537,13 +574,23 @@ def test_entity_context_without_snapshot_uses_newest_current_environment():
         session.add_all([production, staging])
         session.flush()
         production_current = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, environment_id=production.id,
-            revision=1, schema_version="1.0", payload_hash="a" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            environment_id=production.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="a" * 64,
+            metadata_json={},
             created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
         )
         staging_current = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, environment_id=staging.id,
-            revision=1, schema_version="1.0", payload_hash="b" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            environment_id=staging.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="b" * 64,
+            metadata_json={},
             created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
         )
         session.add_all([production_current, staging_current])
@@ -552,11 +599,17 @@ def test_entity_context_without_snapshot_uses_newest_current_environment():
         staging.current_snapshot_id = staging_current.id
         project.active_snapshot_id = production_current.id
         for snapshot in (production_current, staging_current):
-            session.add(Entity(
-                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
-                identity_id=identity_id, entity_key="catalog-service", entity_type="service",
-                metadata_json={},
-            ))
+            session.add(
+                Entity(
+                    tenant_id="tenant-a",
+                    project_id=project.id,
+                    snapshot_id=snapshot.id,
+                    identity_id=identity_id,
+                    entity_key="catalog-service",
+                    entity_type="service",
+                    metadata_json={},
+                )
+            )
         session.commit()
 
     result = PostgresRelationshipQueryRepository(session_factory).load_context(
@@ -591,16 +644,24 @@ def test_context_lists_500_entities_per_page():
         session.add(project)
         session.flush()
         snapshot = Snapshot(
-            tenant_id="tenant-a", project_id=project.id, revision=1,
-            schema_version="1.0", payload_hash="5" * 64, metadata_json={},
+            tenant_id="tenant-a",
+            project_id=project.id,
+            revision=1,
+            schema_version="1.0",
+            payload_hash="5" * 64,
+            metadata_json={},
         )
         session.add(snapshot)
         session.flush()
         project.active_snapshot_id = snapshot.id
         session.add_all(
             Entity(
-                tenant_id="tenant-a", project_id=project.id, snapshot_id=snapshot.id,
-                entity_key=f"service-{index:03}", entity_type="service", metadata_json={},
+                tenant_id="tenant-a",
+                project_id=project.id,
+                snapshot_id=snapshot.id,
+                entity_key=f"service-{index:03}",
+                entity_type="service",
+                metadata_json={},
             )
             for index in range(501)
         )

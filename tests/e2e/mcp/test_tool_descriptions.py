@@ -72,7 +72,9 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
     guidance = {
         "search_projects": ("omit key and query", "list accessible projects"),
         "search_entities": (
-            "at least one filter", "search_projects", "current environment snapshots"
+            "at least one filter",
+            "search_projects",
+            "current environment snapshots",
         ),
         "get_context": ("search_entities", "snapshot_id", "newest current occurrence"),
         "get_dependencies": ("search_entities", "depends_on"),
@@ -116,9 +118,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
 @pytest.mark.asyncio
 async def test_legacy_publication_tool_describes_complete_payload_and_runtime_status():
     server = FastMCP("legacy-publication")
-    register_publish_project_snapshot(
-        server, Mock(), TenantContextProvider("tenant-a")
-    )
+    register_publish_project_snapshot(server, Mock(), TenantContextProvider("tenant-a"))
 
     async with Client(server) as client:
         (tool,) = await client.list_tools()

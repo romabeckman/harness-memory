@@ -131,7 +131,9 @@ class ApiTokenRepository:
             user_id=row.user_id,
             service_account_id=row.service_account_id,
             scopes=frozenset(row.scopes or ()),
-            allowed_project_keys=frozenset(row.allowed_projects) if row.allowed_projects else frozenset({"*"}),
+            allowed_project_keys=frozenset(row.allowed_projects)
+            if row.allowed_projects
+            else frozenset({"*"}),
             name=row.name,
             token_hash=row.token_hash,
             expires_at=(

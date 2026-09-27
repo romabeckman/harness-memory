@@ -16,4 +16,3 @@ async def test_path_tool_is_registered_once_when_configured():
     async with Client(server) as client:
         tools = await client.list_tools()
     assert [tool.name for tool in tools].count("find_integration_paths") == 1
-

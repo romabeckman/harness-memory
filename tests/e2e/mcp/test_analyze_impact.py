@@ -73,9 +73,7 @@ async def test_impact_tool_runs_with_security_audit_enabled():
     )
 
     async with Client(server) as client:
-        result = await client.call_tool(
-            "analyze_impact", {"entity_id": str(entity_id)}
-        )
+        result = await client.call_tool("analyze_impact", {"entity_id": str(entity_id)})
 
     assert result.data["changed_entity"]["id"] == str(entity_id)
     assert repository.analyze_impact.call_args.args[0].tenant_id == "tenant-a"
@@ -92,9 +90,7 @@ async def test_impact_tool_hides_unknown_target_and_rejects_tenant_payload():
     )
 
     async with Client(server) as client:
-        not_found = await client.call_tool(
-            "analyze_impact", {"entity_id": str(uuid4())}
-        )
+        not_found = await client.call_tool("analyze_impact", {"entity_id": str(uuid4())})
         invalid = await client.call_tool(
             "analyze_impact",
             {"entity_id": str(uuid4()), "tenant_id": "tenant-b"},
@@ -115,9 +111,7 @@ async def test_impact_tool_requires_impact_scope():
     )
 
     async with Client(server) as client:
-        result = await client.call_tool(
-            "analyze_impact", {"entity_id": str(uuid4())}
-        )
+        result = await client.call_tool("analyze_impact", {"entity_id": str(uuid4())})
 
     assert result.data["error"]["code"] == "IMPACT_UNAUTHORIZED"
     repository.analyze_impact.assert_not_called()
@@ -132,9 +126,7 @@ async def test_impact_tool_rejects_context_without_explicit_scopes():
     )
 
     async with Client(server) as client:
-        result = await client.call_tool(
-            "analyze_impact", {"entity_id": str(uuid4())}
-        )
+        result = await client.call_tool("analyze_impact", {"entity_id": str(uuid4())})
 
     assert result.data["error"]["code"] == "IMPACT_UNAUTHORIZED"
     repository.analyze_impact.assert_not_called()

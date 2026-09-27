@@ -32,8 +32,14 @@ def test_relationship_mapper_bounds_large_repeated_document_context_and_reports_
                 "entity": entity,
                 "project": {"key": "p"},
                 "owners": [],
-                "relations": [{"source": entity.copy(), "target": entity.copy(),
-                               "evidence": [{"excerpt": "y" * 5000}]} for _ in range(100)],
+                "relations": [
+                    {
+                        "source": entity.copy(),
+                        "target": entity.copy(),
+                        "evidence": [{"excerpt": "y" * 5000}],
+                    }
+                    for _ in range(100)
+                ],
                 "dependencies": [],
                 "relations_truncated": False,
                 "dependencies_truncated": False,
@@ -48,8 +54,13 @@ def test_relationship_mapper_bounds_large_repeated_document_context_and_reports_
 
 def test_relationship_mapper_bounds_context_page_without_losing_newest_item():
     contexts = [
-        {"entity": {"key": key, "metadata": {"content": "x" * 140000}},
-         "project": {"key": "p"}, "owners": [], "relations": [], "dependencies": []}
+        {
+            "entity": {"key": key, "metadata": {"content": "x" * 140000}},
+            "project": {"key": "p"},
+            "owners": [],
+            "relations": [],
+            "dependencies": [],
+        }
         for key in ("newest", "older")
     ]
     page = {"items": contexts, "count": 2, "limit": 25, "offset": 0, "has_more": False}
@@ -65,10 +76,19 @@ def test_relationship_mapper_bounds_context_page_without_losing_newest_item():
 
 def test_relationship_mapper_keeps_single_oversized_page_item_readable():
     page = {
-        "items": [{"entity": {"key": "only", "metadata": {"content": "x" * 300000}},
-                   "project": {"key": "p"}, "owners": [], "relations": [],
-                   "dependencies": []}],
-        "count": 1, "limit": 25, "offset": 0, "has_more": False,
+        "items": [
+            {
+                "entity": {"key": "only", "metadata": {"content": "x" * 300000}},
+                "project": {"key": "p"},
+                "owners": [],
+                "relations": [],
+                "dependencies": [],
+            }
+        ],
+        "count": 1,
+        "limit": 25,
+        "offset": 0,
+        "has_more": False,
     }
 
     mapped = RelationshipResponseMapper().success(page)

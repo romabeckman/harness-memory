@@ -105,4 +105,3 @@ async def test_find_integration_paths_fails_before_repository_when_context_missi
         )
     assert result.data["error"]["code"] == "MISSING_TENANT_CONTEXT"
     repository.find_paths.assert_not_called()
-

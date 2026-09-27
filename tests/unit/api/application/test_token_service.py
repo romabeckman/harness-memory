@@ -167,7 +167,12 @@ def test_create_empty_project_keys_grants_global_access(project_keys):
     repository.add.side_effect = lambda token: token
     service = TokenService(repository, user_repository)
 
-    issued = service.create(user_id=user_id, name="automation", project_keys=project_keys, expires_at=datetime(2026, 10, 1, tzinfo=UTC))
+    issued = service.create(
+        user_id=user_id,
+        name="automation",
+        project_keys=project_keys,
+        expires_at=datetime(2026, 10, 1, tzinfo=UTC),
+    )
     assert issued.token.allowed_project_keys == frozenset({"*"})
 
 
@@ -199,13 +204,19 @@ def test_user_token_accepts_one_year_and_rejects_longer_lifetime():
     service = TokenService(token_repository, user_repository)
 
     issued = service.create(
-        user_id=user_id, name="annual", expires_at=now + timedelta(days=365), now=now,
+        user_id=user_id,
+        name="annual",
+        expires_at=now + timedelta(days=365),
+        now=now,
     )
 
     assert issued.token.expires_at == now + timedelta(days=365)
     with pytest.raises(ValueError, match="between 1 second and 365 days"):
         service.create(
-            user_id=user_id, name="too-long", expires_at=now + timedelta(days=366), now=now,
+            user_id=user_id,
+            name="too-long",
+            expires_at=now + timedelta(days=366),
+            now=now,
         )
 
 
@@ -233,9 +244,7 @@ def test_create_all_projects_skips_tenant_project_lookup():
 def test_create_accepts_selected_project_from_another_tenant():
     user_id = uuid4()
     user_repository = Mock()
-    user_repository.get.return_value = User(
-        user_id, "Ada", "ada@example.com", tenant_id=uuid4()
-    )
+    user_repository.get.return_value = User(user_id, "Ada", "ada@example.com", tenant_id=uuid4())
     project_repository = Mock()
     project_repository.get_project_by_key.return_value = {
         "key": "cross-tenant-project",

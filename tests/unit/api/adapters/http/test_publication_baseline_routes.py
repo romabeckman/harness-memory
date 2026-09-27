@@ -13,12 +13,28 @@ from core.domain.tenant_security.value_objects.authenticated_principal import Au
 def test_baseline_uses_requested_tenant_for_scoped_publisher():
     execute = Mock(return_value={"graph": {"entities": []}})
     app = FastAPI()
-    app.include_router(create_knowledge_publication_router(None,
-        lambda: AuthenticatedPrincipal("pipeline", "trusted", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"orders"})),
-        SimpleNamespace(execute=execute)), prefix="/v1")
+    app.include_router(
+        create_knowledge_publication_router(
+            None,
+            lambda: AuthenticatedPrincipal(
+                "pipeline",
+                "trusted",
+                frozenset({"memory:publish"}),
+                allowed_project_keys=frozenset({"orders"}),
+            ),
+            SimpleNamespace(execute=execute),
+        ),
+        prefix="/v1",
+    )
     target_tenant_id = str(uuid4())
-    response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production", "tenant_id": target_tenant_id})
+    response = TestClient(app).get(
+        "/v1/knowledge-publications/latest",
+        params={
+            "project_key": "orders",
+            "environment": "production",
+            "tenant_id": target_tenant_id,
+        },
+    )
     assert response.status_code == 200
     execute.assert_called_once_with("orders", "production", target_tenant_id)
 
@@ -26,11 +42,23 @@ def test_baseline_uses_requested_tenant_for_scoped_publisher():
 def test_scoped_publisher_baseline_searches_all_tenants_without_filter():
     execute = Mock(return_value={"graph": {"entities": []}})
     app = FastAPI()
-    app.include_router(create_knowledge_publication_router(None,
-        lambda: AuthenticatedPrincipal("pipeline", "trusted", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"orders"})),
-        SimpleNamespace(execute=execute)), prefix="/v1")
-    response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production"})
+    app.include_router(
+        create_knowledge_publication_router(
+            None,
+            lambda: AuthenticatedPrincipal(
+                "pipeline",
+                "trusted",
+                frozenset({"memory:publish"}),
+                allowed_project_keys=frozenset({"orders"}),
+            ),
+            SimpleNamespace(execute=execute),
+        ),
+        prefix="/v1",
+    )
+    response = TestClient(app).get(
+        "/v1/knowledge-publications/latest",
+        params={"project_key": "orders", "environment": "production"},
+    )
     assert response.status_code == 200
     execute.assert_called_once_with("orders", "production", None)
 
@@ -38,11 +66,23 @@ def test_scoped_publisher_baseline_searches_all_tenants_without_filter():
 def test_baseline_rejects_unauthorized_project_with_403():
     execute = Mock(return_value={"graph": {"entities": []}})
     app = FastAPI()
-    app.include_router(create_knowledge_publication_router(None,
-        lambda: AuthenticatedPrincipal("pipeline", "trusted", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"other-project"})),
-        SimpleNamespace(execute=execute)), prefix="/v1")
-    response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production"})
+    app.include_router(
+        create_knowledge_publication_router(
+            None,
+            lambda: AuthenticatedPrincipal(
+                "pipeline",
+                "trusted",
+                frozenset({"memory:publish"}),
+                allowed_project_keys=frozenset({"other-project"}),
+            ),
+            SimpleNamespace(execute=execute),
+        ),
+        prefix="/v1",
+    )
+    response = TestClient(app).get(
+        "/v1/knowledge-publications/latest",
+        params={"project_key": "orders", "environment": "production"},
+    )
     assert response.status_code == 403
     assert "insufficient project permission" in response.json()["detail"]
     execute.assert_not_called()
@@ -52,10 +92,14 @@ def test_admin_baseline_reads_all_tenants_by_default():
     execute = Mock(return_value={"graph": {"entities": []}})
     admin = AuthenticatedPrincipal("admin", "*", frozenset({"memory:read"}), is_admin=True)
     app = FastAPI()
-    app.include_router(create_knowledge_publication_router(None, lambda: admin,
-        SimpleNamespace(execute=execute)), prefix="/v1")
-    response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production"})
+    app.include_router(
+        create_knowledge_publication_router(None, lambda: admin, SimpleNamespace(execute=execute)),
+        prefix="/v1",
+    )
+    response = TestClient(app).get(
+        "/v1/knowledge-publications/latest",
+        params={"project_key": "orders", "environment": "production"},
+    )
 
     assert response.status_code == 200
     execute.assert_called_once_with("orders", "production", None)
@@ -68,9 +112,13 @@ def test_baseline_requires_publisher_authentication(status):
 
     execute = Mock()
     app = FastAPI()
-    app.include_router(create_knowledge_publication_router(None, denied,
-        SimpleNamespace(execute=execute)), prefix="/v1")
-    response = TestClient(app).get("/v1/knowledge-publications/latest",
-        params={"project_key": "orders", "environment": "production"})
+    app.include_router(
+        create_knowledge_publication_router(None, denied, SimpleNamespace(execute=execute)),
+        prefix="/v1",
+    )
+    response = TestClient(app).get(
+        "/v1/knowledge-publications/latest",
+        params={"project_key": "orders", "environment": "production"},
+    )
     assert response.status_code == status
     execute.assert_not_called()

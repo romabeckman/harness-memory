@@ -59,8 +59,13 @@ class PostgresMemoryResourceRepository:
         self._session_factory = session_factory
 
     def compare_snapshot_entities(
-        self, source_snapshot_id, target_snapshot_id, tenant_id: str | None,
-        *, offset: int, limit: int,
+        self,
+        source_snapshot_id,
+        target_snapshot_id,
+        tenant_id: str | None,
+        *,
+        offset: int,
+        limit: int,
     ) -> dict[str, tuple[str, ...] | int]:
         source = aliased(Entity, name="comparison_source")
         target = aliased(Entity, name="comparison_target")
@@ -99,18 +104,22 @@ class PostgresMemoryResourceRepository:
         comparisons = union_all(source_rows, target_only).subquery()
         with self._session_factory() as session:
             with session.begin():
-                counts = dict(session.execute(
-                    select(comparisons.c.status, func.count())
-                    .group_by(comparisons.c.status)
-                ).all())
+                counts = dict(
+                    session.execute(
+                        select(comparisons.c.status, func.count()).group_by(comparisons.c.status)
+                    ).all()
+                )
                 result: dict[str, tuple[str, ...] | int] = {}
                 for status in ("added", "removed", "modified", "unchanged"):
-                    result[status] = tuple(session.scalars(
-                        select(comparisons.c.entity_key)
-                        .where(comparisons.c.status == status)
-                        .order_by(comparisons.c.entity_key)
-                        .limit(limit).offset(offset)
-                    ).all())
+                    result[status] = tuple(
+                        session.scalars(
+                            select(comparisons.c.entity_key)
+                            .where(comparisons.c.status == status)
+                            .order_by(comparisons.c.entity_key)
+                            .limit(limit)
+                            .offset(offset)
+                        ).all()
+                    )
                     result[f"total_{status}"] = counts.get(status, 0)
                 return result
 
@@ -121,9 +130,7 @@ class PostgresMemoryResourceRepository:
         if tenant_id is not None:
             statement = statement.where(Entity.tenant_id == tenant_id)
         with self._session_factory() as session:
-            entities = session.scalars(
-                statement.order_by(Entity.entity_key.asc())
-            ).all()
+            entities = session.scalars(statement.order_by(Entity.entity_key.asc())).all()
         return {
             entity.entity_key: sha256(
                 json.dumps(
@@ -174,16 +181,20 @@ class PostgresMemoryResourceRepository:
                         raise ValueError("project key matches multiple tenants")
                     row = rows[0]
                     project, snapshot = row
-                    entities = session.execute(
-                        select(Entity)
-                        .where(
-                            tenant_scope_predicate(tenant, Entity.tenant_id),
-                            Entity.project_id == project.id,
-                            Entity.snapshot_id == snapshot.id,
+                    entities = (
+                        session.execute(
+                            select(Entity)
+                            .where(
+                                tenant_scope_predicate(tenant, Entity.tenant_id),
+                                Entity.project_id == project.id,
+                                Entity.snapshot_id == snapshot.id,
+                            )
+                            .order_by(Entity.entity_key.asc(), Entity.id.asc())
+                            .limit(bounds.fact_limit + 1)
                         )
-                        .order_by(Entity.entity_key.asc(), Entity.id.asc())
-                        .limit(bounds.fact_limit + 1)
-                    ).scalars().all()
+                        .scalars()
+                        .all()
+                    )
                     return ProjectResourceOutput(
                         project=self._project_context(project, snapshot),
                         entities=tuple(
@@ -227,15 +238,19 @@ class PostgresMemoryResourceRepository:
                     if row is None:
                         raise ResourceNotFound()
                     snapshot, project = row
-                    entity_rows = session.execute(
-                        select(Entity)
-                        .where(
-                            tenant_scope_predicate(tenant, Entity.tenant_id),
-                            Entity.snapshot_id == snapshot.id,
+                    entity_rows = (
+                        session.execute(
+                            select(Entity)
+                            .where(
+                                tenant_scope_predicate(tenant, Entity.tenant_id),
+                                Entity.snapshot_id == snapshot.id,
+                            )
+                            .order_by(Entity.entity_key.asc(), Entity.id.asc())
+                            .limit(bounds.fact_limit + 1)
                         )
-                        .order_by(Entity.entity_key.asc(), Entity.id.asc())
-                        .limit(bounds.fact_limit + 1)
-                    ).scalars().all()
+                        .scalars()
+                        .all()
+                    )
                     entities = tuple(
                         self._map_entity(entity) for entity in entity_rows[: bounds.fact_limit]
                     )
@@ -273,18 +288,21 @@ class PostgresMemoryResourceRepository:
                         .limit(bounds.fact_limit + 1)
                     ).all()
                     selected_relations = relation_rows[: bounds.fact_limit]
-                    evidence_rows = session.execute(
-                        select(Evidence)
-                        .where(
-                            tenant_scope_predicate(tenant, Evidence.tenant_id),
-                            Evidence.snapshot_id == snapshot.id,
+                    evidence_rows = (
+                        session.execute(
+                            select(Evidence)
+                            .where(
+                                tenant_scope_predicate(tenant, Evidence.tenant_id),
+                                Evidence.snapshot_id == snapshot.id,
+                            )
+                            .order_by(Evidence.id.asc())
+                            .limit(bounds.evidence_limit + 1)
                         )
-                        .order_by(Evidence.id.asc())
-                        .limit(bounds.evidence_limit + 1)
-                    ).scalars().all()
+                        .scalars()
+                        .all()
+                    )
                     evidence = tuple(
-                        self._map_evidence(item)
-                        for item in evidence_rows[: bounds.evidence_limit]
+                        self._map_evidence(item) for item in evidence_rows[: bounds.evidence_limit]
                     )
                     evidence_by_relation = defaultdict(list)
                     for item in evidence:

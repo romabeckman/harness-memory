@@ -11,7 +11,9 @@ from ..types.audit_event_type import AuditEventType
 from ..types.audit_outcome import AuditOutcome
 from ..types.audit_phase import AuditPhase
 
-_SAFE_DETAIL_KEYS = frozenset({"project_key", "revision", "entity_id", "change_type", "trace_id", "span_id"})
+_SAFE_DETAIL_KEYS = frozenset(
+    {"project_key", "revision", "entity_id", "change_type", "trace_id", "span_id"}
+)
 _MAX_DETAIL_VALUE = 255
 _MAX_SERIALIZED_DETAILS = 4096
 _OPERATION_EVENTS = frozenset({AuditEventType.PUBLICATION, AuditEventType.IMPACT_ANALYSIS})

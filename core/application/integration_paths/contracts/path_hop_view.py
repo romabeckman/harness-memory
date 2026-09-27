@@ -23,4 +23,3 @@ class PathHopView(BaseModel):
     evidence: tuple[EvidenceView, ...] = ()
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-

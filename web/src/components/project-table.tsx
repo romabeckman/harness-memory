@@ -7,6 +7,7 @@ import { deleteProjectAction } from '@/app/actions/projects'
 import { ProjectDialog } from './project-dialog'
 import { ConfirmDeleteDialog } from './confirm-delete-dialog'
 import { ProjectEnvironmentPanel } from './project-environment-panel'
+import { ProjectLinkPanel } from './project-link-panel'
 
 interface ProjectTableProps {
   projects: ProjectDto[]
@@ -138,6 +139,15 @@ export function ProjectTable({
                   <td className="px-5 py-3.5 text-right space-x-1">
                     <ProjectEnvironmentPanel
                       project={{ tenantId: proj.tenant_id, projectKey: proj.key }}
+                    />
+                    <ProjectLinkPanel
+                      project={{
+                        tenantId: proj.tenant_id,
+                        projectKey: proj.key,
+                        name: proj.name,
+                      }}
+                      allProjects={projects}
+                      tenants={tenants}
                     />
                     <button
                       onClick={() => setEditingProject(proj)}

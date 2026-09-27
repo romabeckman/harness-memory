@@ -30,7 +30,7 @@ def register_search_projects(
             "Omit key and query to list accessible projects; supply both to combine filters. "
             "Use key for an exact, case-sensitive key or query for a case-insensitive "
             "substring of a key or name. Returns tenant and project IDs, environments "
-            "with each name and current_snapshot_id, and active snapshot status. "
+            "with each name and current_snapshot_id, associated project links, and active snapshot status. "
             "Use these values in later entity or "
             "environment calls. Requires memory:read."
         ),
@@ -66,8 +66,7 @@ def register_search_projects(
                 ge=0,
                 le=10000,
                 description=(
-                    "Matching projects to skip, from 0 to 10000; use with limit "
-                    "for the next page."
+                    "Matching projects to skip, from 0 to 10000; use with limit for the next page."
                 ),
             ),
         ] = 0,
@@ -86,8 +85,11 @@ def register_search_projects(
             )
             payload = result.model_dump(mode="json", exclude_none=True)
             for item in payload["items"]:
-                for environment in item["environments"]:
+                item.setdefault("links", [])
+                for environment in item.get("environments", []):
                     environment.setdefault("current_snapshot_id", None)
+                for link in item.get("links", []):
+                    link.setdefault("name", None)
             return payload
         except ValidationError:
             return {

@@ -12,7 +12,9 @@ def test_tracer_provider_returns_telemetry_tracer():
 def test_telemetry_tracer_operates_cleanly_when_noop():
     tracer = TelemetryTracer("test-tracer")
     executed = False
-    with tracer.start_as_current_span("test-span", attributes={"tool.name": "test", "password": "pass"}) as span:
+    with tracer.start_as_current_span(
+        "test-span", attributes={"tool.name": "test", "password": "pass"}
+    ) as span:
         executed = True
 
     assert executed is True

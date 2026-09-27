@@ -10,9 +10,7 @@ class ProjectEnvironmentManagementService:
         self._repository = repository
 
     def create(self, tenant_id: UUID, project_key: str, name: str) -> dict[str, str]:
-        environment = self._repository.create_for_project(
-            str(tenant_id), project_key, name
-        )
+        environment = self._repository.create_for_project(str(tenant_id), project_key, name)
         return {
             "id": str(environment.id),
             "tenant_id": str(tenant_id),

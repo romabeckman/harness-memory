@@ -12,7 +12,9 @@ from core.infrastructure.postgres.repositories.api_user_repository import ApiUse
 
 class TestApiUserRepository:
     def test_add_does_not_create_tenant_or_project(self):
-        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
         Base.metadata.create_all(engine, tables=[Tenant.__table__, ApiUser.__table__])
         session_factory = sessionmaker(bind=engine, expire_on_commit=False)
         user = User(uuid4(), "Alice", "alice@example.com")
@@ -42,7 +44,9 @@ class TestApiUserRepository:
                 statements.append(statement.upper())
 
         result = repo.list(q="MEMBER", limit=5, offset=20)
-        assert [user.email for user in result] == [f"member{index:02d}@example.com" for index in range(20, 25)]
+        assert [user.email for user in result] == [
+            f"member{index:02d}@example.com" for index in range(20, 25)
+        ]
         assert len(statements) == 1
         assert "LIMIT" in statements[0] and "OFFSET" in statements[0] and "LIKE" in statements[0]
 
@@ -93,6 +97,3 @@ class TestApiUserRepository:
 
         with session_factory() as session:
             assert session.get(ApiUser, user_id) is not None
-
-
-

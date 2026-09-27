@@ -23,7 +23,9 @@ edges:
     target: "feature:api-knowledge-publication"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-23
+  - relation: references
+    target: "feature:project-links"
+updated: 2026-09-27
 ---
 # API Architecture
 
@@ -84,6 +86,8 @@ PROHIBITED: Use ordinary API access tokens for REST management authentication.
 | GET | `/v1/tenants/current` | Read the authenticated tenant for owner-bound credentials. |
 | POST, GET | `/v1/projects` | Admin creates projects; credentials read within their access scope. |
 | GET, PATCH, DELETE | `/v1/projects/{project_key}` | Read project; admin updates or deletes a project without dependent data. |
+| POST, GET | `/v1/projects/{project_key}/links` | Create or list bidirectional project links across intra/cross-tenant projects. |
+| DELETE | `/v1/projects/{project_key}/links/{target_project_key}` | Remove a bidirectional project link. |
 | GET | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history and payloads; filter by tenant when supplied. |
 | GET | `/docs`, `/openapi.json` | Serve Swagger UI and the generated OpenAPI schema. |
 
@@ -126,6 +130,7 @@ graph TD
     API -->|references| TOKENS["API Tokens"]
     API -->|references| PUBLICATION["API Knowledge Publication"]
     API -->|references| AUTH["MCP Token Authentication"]
+    API -->|references| LINKS["Project Links"]
     click ARCH "./ARCHITECTURE.md"
     click MCP "./MCP.md"
     click TESTS "./TESTS.md"
@@ -134,6 +139,7 @@ graph TD
     click TOKENS "../feature/api/tokens.md"
     click PUBLICATION "../feature/api/knowledge-publication.md"
     click AUTH "../feature/mcp/token-authentication.md"
+    click LINKS "../feature/project-links.md"
 ```
 
 ## REFERENCES
@@ -146,3 +152,4 @@ graph TD
 - [**tokens.md**](../feature/api/tokens.md): Token issuance, storage, and MCP handoff contract.
 - [**knowledge-publication.md**](../feature/api/knowledge-publication.md): CI/CD publication boundary and response contract.
 - [**token-authentication.md**](../feature/mcp/token-authentication.md): MCP verification of API-issued tokens.
+- [**project-links.md**](../feature/project-links.md): Project link management REST endpoints and domain rules.

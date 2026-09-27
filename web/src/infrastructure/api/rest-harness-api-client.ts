@@ -18,6 +18,8 @@ import {
   UserDto,
   CreateUserDto,
   UpdateUserDto,
+  LinkedProjectDto,
+  CreateProjectLinkDto,
 } from '@/application/ports/harness-api-client.port'
 
 export class RestHarnessApiClient implements HarnessApiClientPort {
@@ -44,7 +46,16 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     }
 
     if (!response.ok) {
-      throw new Error(`Harness API request failed with status ${response.status}`)
+      let errorDetail = `Harness API request failed with status ${response.status}`
+      try {
+        const body = (await response.json()) as { detail?: string | { msg?: string }[] }
+        if (typeof body.detail === 'string') {
+          errorDetail = body.detail
+        }
+      } catch {
+        // Ignore json parse error
+      }
+      throw new Error(errorDetail)
     }
 
     if (response.status === 204) {
@@ -244,6 +255,50 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     return this.request<EnvironmentDto>(
       `/v1/projects/${projectKey}/environments?tenant_id=${tenantId}`,
       { method: 'POST', body: JSON.stringify({ name }) }
+    )
+  }
+
+  public async listProjectLinks(
+    tenantId: string,
+    projectKey: string
+  ): Promise<LinkedProjectDto[]> {
+    const params = new URLSearchParams({ tenant_id: tenantId })
+    return this.request<LinkedProjectDto[]>(
+      `/v1/projects/${encodeURIComponent(projectKey)}/links?${params.toString()}`,
+      { method: 'GET' }
+    )
+  }
+
+  public async createProjectLink(
+    tenantId: string,
+    projectKey: string,
+    payload: CreateProjectLinkDto
+  ): Promise<void> {
+    const params = new URLSearchParams({ tenant_id: tenantId })
+    await this.request<void>(
+      `/v1/projects/${encodeURIComponent(projectKey)}/links?${params.toString()}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    )
+  }
+
+  public async deleteProjectLink(
+    tenantId: string,
+    projectKey: string,
+    targetKey: string,
+    targetTenantId?: string
+  ): Promise<void> {
+    const params = new URLSearchParams({ tenant_id: tenantId })
+    if (targetTenantId) {
+      params.set('target_tenant_id', targetTenantId)
+    }
+    await this.request<void>(
+      `/v1/projects/${encodeURIComponent(projectKey)}/links/${encodeURIComponent(targetKey)}?${params.toString()}`,
+      {
+        method: 'DELETE',
+      }
     )
   }
 

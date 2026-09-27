@@ -18,14 +18,21 @@ from core.domain.tenant_security.value_objects.authenticated_principal import Au
 
 
 def create_knowledge_publication_router(
-    handler, authenticate, baseline_handler=None, authenticate_reader=None,
+    handler,
+    authenticate,
+    baseline_handler=None,
+    authenticate_reader=None,
     tenant_exists: Callable[[str], bool] | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["knowledge-publications"])
 
     @router.get("/knowledge-publications/latest")
-    def latest_graph(project_key: str, environment: str, tenant_id: UUID | None = None,
-        principal: AuthenticatedPrincipal = Depends(authenticate_reader or authenticate)):
+    def latest_graph(
+        project_key: str,
+        environment: str,
+        tenant_id: UUID | None = None,
+        principal: AuthenticatedPrincipal = Depends(authenticate_reader or authenticate),
+    ):
         if not principal.can_access_project(project_key):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

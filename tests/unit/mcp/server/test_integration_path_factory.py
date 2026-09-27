@@ -10,4 +10,3 @@ def test_factory_registers_configured_integration_path_repository():
         tenant_context=TenantContextProvider("tenant-a"),
     )
     assert server.name == "harness-memory"
-

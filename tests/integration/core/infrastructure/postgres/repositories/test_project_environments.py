@@ -74,12 +74,8 @@ def test_environment_create_is_project_scoped_and_duplicate_safe(postgres_reposi
     other_project = f"other-{tenant_id.hex}"
     project_repository.create_project(tenant_id, other_project, "Other", {})
 
-    first = environment_repository.create_for_project(
-        str(tenant_id), project_key, "staging"
-    )
-    second = environment_repository.create_for_project(
-        str(tenant_id), other_project, "staging"
-    )
+    first = environment_repository.create_for_project(str(tenant_id), project_key, "staging")
+    second = environment_repository.create_for_project(str(tenant_id), other_project, "staging")
     with pytest.raises(ValueError, match="already exists"):
         environment_repository.create_for_project(str(tenant_id), project_key, "staging")
 
@@ -98,9 +94,7 @@ def test_concurrent_duplicate_environment_creates_leave_one_row(postgres_reposit
 
     def create_environment():
         barrier.wait()
-        return environment_repository.create_for_project(
-            str(tenant_id), project_key, "qa-canary"
-        )
+        return environment_repository.create_for_project(str(tenant_id), project_key, "qa-canary")
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(create_environment) for _ in range(2)]
@@ -143,11 +137,7 @@ def test_first_publication_materialization_creates_production_once(postgres_repo
 def test_existing_project_receiving_environment_is_not_backfilled(postgres_repositories):
     _, factory, tenant_id, project_key, environment_repository, _ = postgres_repositories
     with factory() as session:
-        session.add(
-            Project(
-                id=uuid4(), tenant_id=tenant_id, key=project_key, name="Pre-existing"
-            )
-        )
+        session.add(Project(id=uuid4(), tenant_id=tenant_id, key=project_key, name="Pre-existing"))
         session.commit()
 
     environment_repository.resolve_or_create(project_key, "development", str(tenant_id))
@@ -191,9 +181,7 @@ def test_explicit_and_publication_project_creation_race_keeps_one_production(
 
     def materialize_from_publication():
         barrier.wait()
-        return environment_repository.resolve_or_create(
-            project_key, "development", str(tenant_id)
-        )
+        return environment_repository.resolve_or_create(project_key, "development", str(tenant_id))
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
@@ -212,6 +200,4 @@ def test_explicit_and_publication_project_creation_race_keeps_one_production(
         ).all()
     environments = _environment_rows(factory, tenant_id, project_key)
     assert len(projects) == 1
-    assert [(row.name, row.type) for row in environments].count(
-        ("production", "production")
-    ) == 1
+    assert [(row.name, row.type) for row in environments].count(("production", "production")) == 1

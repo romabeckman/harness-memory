@@ -26,9 +26,7 @@ class TenantManagementService:
         limit: int = 100,
         offset: int = 0,
     ) -> dict:
-        return self._repository.list_tenants(
-            query=query, status=status, limit=limit, offset=offset
-        )
+        return self._repository.list_tenants(query=query, status=status, limit=limit, offset=offset)
 
     def update(self, tenant_id: UUID, values: dict[str, Any]) -> dict:
         tenant = self._repository.update_tenant(tenant_id, values)

@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, Query
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
 
 
-def create_knowledge_search_router(repository, authenticate, authenticate_publication_target=None) -> APIRouter:
+def create_knowledge_search_router(
+    repository, authenticate, authenticate_publication_target=None
+) -> APIRouter:
     router = APIRouter(tags=["knowledge-search"])
 
     def tenant_scope(
@@ -22,7 +24,9 @@ def create_knowledge_search_router(repository, authenticate, authenticate_public
         q: str | None = None,
         limit: int = Query(100, ge=1, le=500),
         offset: int = Query(0, ge=0),
-        principal: AuthenticatedPrincipal = Depends(authenticate_publication_target or authenticate),
+        principal: AuthenticatedPrincipal = Depends(
+            authenticate_publication_target or authenticate
+        ),
     ):
         return repository.environments(
             tenant_id=tenant_scope(principal, tenant_id),
@@ -46,7 +50,9 @@ def create_knowledge_search_router(repository, authenticate, authenticate_public
         q: str | None = None,
         limit: int = Query(100, ge=1, le=500),
         offset: int = Query(0, ge=0),
-        principal: AuthenticatedPrincipal = Depends(authenticate_publication_target or authenticate),
+        principal: AuthenticatedPrincipal = Depends(
+            authenticate_publication_target or authenticate
+        ),
     ):
         return repository.publications(
             tenant_id=tenant_scope(principal, tenant_id),

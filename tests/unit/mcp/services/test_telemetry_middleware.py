@@ -7,6 +7,7 @@ from harness_memory_mcp.services.telemetry_middleware import TelemetryMiddleware
 @pytest.mark.asyncio
 async def test_execute_wrapped_tool_logic_when_unconfigured_noop():
     middleware = TelemetryMiddleware(tracer=TelemetryTracer("test-noop"))
+
     async def invoke():
         return {"result": "success"}
 

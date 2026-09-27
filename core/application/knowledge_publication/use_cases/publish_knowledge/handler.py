@@ -162,9 +162,7 @@ class PublishKnowledgeHandler:
             revision_val = int(input.version)
         except (ValueError, TypeError):
             revision_val = (
-                int.from_bytes(sha256(input.version.encode()).digest()[:8], "big")
-                % 2147483647
-                + 1
+                int.from_bytes(sha256(input.version.encode()).digest()[:8], "big") % 2147483647 + 1
             )
 
         return ProjectKnowledgeSnapshot(
@@ -220,12 +218,16 @@ class PublishKnowledgeHandler:
         )
 
         publish_args = dict(
-            tenant_id=input.tenant_id, publication=publication,
-            snapshot=snapshot, environment_id=env.id,
+            tenant_id=input.tenant_id,
+            publication=publication,
+            snapshot=snapshot,
+            environment_id=env.id,
         )
         if input.expected_current_snapshot_id is not None:
             publish_args["expected_current_snapshot_id"] = input.expected_current_snapshot_id
-        new_snapshot_id = self._publication_repository.publish_atomically_with_environment(**publish_args)
+        new_snapshot_id = self._publication_repository.publish_atomically_with_environment(
+            **publish_args
+        )
 
         recorded = self._publication_repository.find_by_deployment(
             project_key=input.project_key,

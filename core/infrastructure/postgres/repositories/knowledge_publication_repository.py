@@ -68,8 +68,7 @@ class PostgresKnowledgePublicationRepository:
             row = rows[0]
             payload = self._payload_reader.read(session, row)
             graph = {
-                key: payload[key]
-                for key in ("schema_version", "entities", "relations", "evidence")
+                key: payload[key] for key in ("schema_version", "entities", "relations", "evidence")
             }
             graph["metadata"] = row.metadata_json
             return {
@@ -227,19 +226,28 @@ class PostgresKnowledgePublicationRepository:
                 )
                 if existing is not None:
                     if existing.snapshot_id is None or existing.version != publication.version:
-                        raise RevisionConflict("deployment identity was reused with different content")
+                        raise RevisionConflict(
+                            "deployment identity was reused with different content"
+                        )
                     recorded_snapshot = session.get(ModelSnapshot, existing.snapshot_id)
                     if recorded_snapshot is None:
                         raise RevisionConflict("deployment snapshot is unavailable")
                     replay = replace(snapshot, revision=Revision(recorded_snapshot.revision))
                     replay_content = snapshot_payload(replay)
                     replay_content.pop("generated_at", None)
-                    if self._hash_calculator.calculate(replay_content).value != recorded_snapshot.payload_hash:
-                        raise RevisionConflict("deployment identity was reused with different content")
+                    if (
+                        self._hash_calculator.calculate(replay_content).value
+                        != recorded_snapshot.payload_hash
+                    ):
+                        raise RevisionConflict(
+                            "deployment identity was reused with different content"
+                        )
                     return existing.snapshot_id
 
-                if (expected_current_snapshot_id is not None and
-                        env.current_snapshot_id != expected_current_snapshot_id):
+                if (
+                    expected_current_snapshot_id is not None
+                    and env.current_snapshot_id != expected_current_snapshot_id
+                ):
                     raise RevisionConflict("current snapshot changed; refresh publication baseline")
 
                 if env.current_snapshot_id is not None:
@@ -251,11 +259,15 @@ class PostgresKnowledgePublicationRepository:
                     )
                     if current_publication is not None:
                         try:
-                            older = Version(publication.version) < Version(current_publication.version)
+                            older = Version(publication.version) < Version(
+                                current_publication.version
+                            )
                         except InvalidVersion:
                             older = False
                         if older:
-                            raise RevisionConflict("older version cannot replace current environment snapshot")
+                            raise RevisionConflict(
+                                "older version cannot replace current environment snapshot"
+                            )
 
                 latest_revision = session.scalar(
                     select(func.max(ModelSnapshot.revision)).where(
@@ -305,8 +317,11 @@ class PostgresKnowledgePublicationRepository:
 
                 previous_environment_snapshot_id = env.current_snapshot_id
                 env.current_snapshot_id = rows.snapshot.id
-                if (env.type == "production" or proj.active_snapshot_id is None or
-                        proj.active_snapshot_id == previous_environment_snapshot_id):
+                if (
+                    env.type == "production"
+                    or proj.active_snapshot_id is None
+                    or proj.active_snapshot_id == previous_environment_snapshot_id
+                ):
                     proj.active_snapshot_id = rows.snapshot.id
                 session.flush()
 

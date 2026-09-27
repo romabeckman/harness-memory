@@ -8,7 +8,13 @@ class DummyProjectRepo:
         self.projects = []
 
     def create_project(self, tenant_id, key, name, metadata):
-        p = {"id": str(uuid4()), "tenant_id": str(tenant_id), "key": key, "name": name, "metadata": metadata}
+        p = {
+            "id": str(uuid4()),
+            "tenant_id": str(tenant_id),
+            "key": key,
+            "name": name,
+            "metadata": metadata,
+        }
         self.projects.append(p)
         return p
 
@@ -23,8 +29,17 @@ class DummyProjectRepo:
         if tenant_id:
             items = [p for p in items if p["tenant_id"] == str(tenant_id)]
         if query:
-            items = [p for p in items if query.lower() in (p["name"] or "").lower() or query.lower() in p["key"].lower()]
-        return {"items": items[offset : offset + limit], "total": len(items), "limit": limit, "offset": offset}
+            items = [
+                p
+                for p in items
+                if query.lower() in (p["name"] or "").lower() or query.lower() in p["key"].lower()
+            ]
+        return {
+            "items": items[offset : offset + limit],
+            "total": len(items),
+            "limit": limit,
+            "offset": offset,
+        }
 
     def update_project(self, tenant_id, key, values):
         p = self.get_project(tenant_id, key)

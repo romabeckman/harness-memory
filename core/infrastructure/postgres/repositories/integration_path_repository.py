@@ -308,9 +308,7 @@ class PostgresIntegrationPathRepository:
             else_=source_node_id,
         )
         target_rank = case((next_node_id == target_id, 0), else_=1)
-        eligible_types = tuple(
-            item.value for item in PathTraversalPolicy().eligible_types
-        )
+        eligible_types = tuple(item.value for item in PathTraversalPolicy().eligible_types)
         return (
             select(Relation, relation_source, relation_target)
             .join(
@@ -428,11 +426,7 @@ class PostgresIntegrationPathRepository:
             .where(
                 tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type.in_(eligible_types),
-                *( 
-                    [Relation.id.in_(tuple(relation_ids))]
-                    if relation_ids
-                    else []
-                ),
+                *([Relation.id.in_(tuple(relation_ids))] if relation_ids else []),
             )
             .order_by(Relation.id.asc())
         ).all()
@@ -450,9 +444,7 @@ class PostgresIntegrationPathRepository:
     def _order_raw_paths(cls, raw_paths, entity_by_id):
         unique = {tuple(spec[0].id for spec in path[1]): path for path in raw_paths}
         return tuple(
-            sorted(
-                unique.values(), key=lambda path: cls._raw_path_sort_key(path, entity_by_id)
-            )
+            sorted(unique.values(), key=lambda path: cls._raw_path_sort_key(path, entity_by_id))
         )
 
     def _hydrate_paths(
@@ -465,12 +457,8 @@ class PostgresIntegrationPathRepository:
         owner_limit,
     ):
         relation_ids = [spec[0].id for _, hop_specs in raw_paths for spec in hop_specs]
-        path_entity_ids = {
-            entity_id for entity_ids, _ in raw_paths for entity_id in entity_ids
-        }
-        path_entities = {
-            entity_id: entity_by_id[entity_id] for entity_id in path_entity_ids
-        }
+        path_entity_ids = {entity_id for entity_ids, _ in raw_paths for entity_id in entity_ids}
+        path_entities = {entity_id: entity_by_id[entity_id] for entity_id in path_entity_ids}
         owner_rows = self._load_owner_rows(session, scope, path_entities, owner_limit)
         owner_relation_ids = [relation.id for relation, _, _ in owner_rows]
         evidence = self._load_evidence(
@@ -529,10 +517,14 @@ class PostgresIntegrationPathRepository:
         ranked_target = aliased(Entity, name="owner_rank_target")
         ranked_snapshot = aliased(Snapshot, name="owner_rank_snapshot")
         ranked_project = aliased(Project, name="owner_rank_project")
-        owner_rank = func.row_number().over(
-            partition_by=Relation.source_entity_id,
-            order_by=(ranked_target.entity_key.asc(), Relation.id.asc()),
-        ).label("owner_rank")
+        owner_rank = (
+            func.row_number()
+            .over(
+                partition_by=Relation.source_entity_id,
+                order_by=(ranked_target.entity_key.asc(), Relation.id.asc()),
+            )
+            .label("owner_rank")
+        )
         ranked_relation_ids = (
             select(
                 Relation.id.label("relation_id"),
@@ -616,10 +608,14 @@ class PostgresIntegrationPathRepository:
         if evidence_limit == 0 or not relation_ids:
             return {}
         evidence_by_relation = defaultdict(list)
-        evidence_rank = func.row_number().over(
-            partition_by=Evidence.relation_id,
-            order_by=Evidence.id.asc(),
-        ).label("evidence_rank")
+        evidence_rank = (
+            func.row_number()
+            .over(
+                partition_by=Evidence.relation_id,
+                order_by=Evidence.id.asc(),
+            )
+            .label("evidence_rank")
+        )
         ranked = (
             select(
                 Evidence.id.label("id"),

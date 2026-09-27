@@ -37,6 +37,7 @@ class RequestSecurityContext:
         if call_next is None:
             return self._binding(principal)
         if iscoroutinefunction(call_next):
+
             async def _run_async_callable():
                 token = self._principal.set(principal)
                 try:
@@ -52,6 +53,7 @@ class RequestSecurityContext:
             self._principal.reset(token)
             raise
         if isawaitable(result):
+
             async def _await_bound():
                 try:
                     return await result

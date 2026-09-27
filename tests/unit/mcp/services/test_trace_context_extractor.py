@@ -13,8 +13,18 @@ def test_extract_valid_w3c_trace_id():
 def test_return_none_when_traceparent_absent_or_malformed():
     assert TraceContextExtractor.extract_trace_id({}) is None
     assert TraceContextExtractor.extract_trace_id({"traceparent": "invalid-header-value"}) is None
-    assert TraceContextExtractor.extract_trace_id({"traceparent": "00-00000000000000000000000000000000-00f067aa0ba902b7-01"}) is None
-    assert TraceContextExtractor.extract_trace_id({"traceparent": "ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}) is None
+    assert (
+        TraceContextExtractor.extract_trace_id(
+            {"traceparent": "00-00000000000000000000000000000000-00f067aa0ba902b7-01"}
+        )
+        is None
+    )
+    assert (
+        TraceContextExtractor.extract_trace_id(
+            {"traceparent": "ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
+        )
+        is None
+    )
 
 
 def test_extract_valid_w3c_parent_span_id():

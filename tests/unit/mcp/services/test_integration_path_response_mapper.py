@@ -5,7 +5,9 @@ from core.application.integration_paths.errors.integration_path_query_failure im
     IntegrationPathQueryFailure,
 )
 from core.application.snapshot_publication.errors.missing_tenant_context import MissingTenantContext
-from harness_memory_mcp.services.integration_path_response_mapper import IntegrationPathResponseMapper
+from harness_memory_mcp.services.integration_path_response_mapper import (
+    IntegrationPathResponseMapper,
+)
 
 
 def test_mapper_hides_endpoint_and_query_details():
@@ -28,4 +30,3 @@ def test_mapper_uses_stable_missing_context_and_invalid_contract_errors():
     assert mapper.failure(MissingTenantContext("tenant-a"))["error"]["code"] == (
         "MISSING_TENANT_CONTEXT"
     )
-

@@ -21,4 +21,3 @@ def test_engine_creator_uses_repeatable_read_for_snapshot_queries():
     with patch("core.infrastructure.postgres.create_postgres_engine.create_engine") as create:
         CreatePostgresEngine().execute(settings)
     assert create.call_args.kwargs["isolation_level"] == "REPEATABLE READ"
-

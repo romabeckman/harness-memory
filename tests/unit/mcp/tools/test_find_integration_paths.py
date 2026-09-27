@@ -11,4 +11,3 @@ def test_factory_path_handler_receives_trusted_scope_and_request_without_tenant_
         tenant_context=TenantContextProvider("tenant-a"),
     )
     assert server.name == "harness-memory"
-

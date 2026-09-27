@@ -59,20 +59,30 @@ def test_user_and_token_crud_http_contract():
         == "Ada Lovelace"
     )
 
-    tenant_id = client.post("/v1/tenants", json={"key": "platform", "name": "Platform"}).json()["id"]
+    tenant_id = client.post("/v1/tenants", json={"key": "platform", "name": "Platform"}).json()[
+        "id"
+    ]
     client.post("/v1/projects", json={"tenant_id": tenant_id, "key": "backend", "name": "Backend"})
     expires_at = (datetime.now(UTC) + timedelta(days=30)).isoformat()
     created_token = client.post(
         "/v1/tokens",
-        json={"user_id": user_id, "name": "agent", "expires_at": expires_at, "project_keys": ["backend"]},
+        json={
+            "user_id": user_id,
+            "name": "agent",
+            "expires_at": expires_at,
+            "project_keys": ["backend"],
+        },
     )
     assert created_token.status_code == 201
     assert created_token.json()["token"].startswith("hm_")
     assert created_token.json()["project_keys"] == ["backend"]
-    assert client.get(
-        "/v1/projects",
-        headers={"Authorization": f"Bearer {created_token.json()['token']}"},
-    ).status_code == 200
+    assert (
+        client.get(
+            "/v1/projects",
+            headers={"Authorization": f"Bearer {created_token.json()['token']}"},
+        ).status_code
+        == 200
+    )
     token_id = created_token.json()["id"]
     assert client.get(f"/v1/tokens/{token_id}").status_code == 200
     assert (
@@ -164,7 +174,11 @@ def test_service_account_crud_issues_non_expiring_token():
 
     created_token = client.post(
         "/v1/tokens",
-        json={"service_account_id": account_id, "name": "automation", "project_keys": ["automation-proj"]},
+        json={
+            "service_account_id": account_id,
+            "name": "automation",
+            "project_keys": ["automation-proj"],
+        },
     )
 
     assert created_token.status_code == 201
@@ -247,9 +261,7 @@ def test_deleting_user_cascades_all_owned_tokens_over_rest():
         create_app(sessionmaker(bind=engine, expire_on_commit=False), admin_token=ADMIN_TOKEN),
         headers=ADMIN_HEADERS,
     )
-    user_response = client.post(
-        "/v1/users", json={"name": "Ada", "email": "ada@example.com"}
-    )
+    user_response = client.post("/v1/users", json={"name": "Ada", "email": "ada@example.com"})
     assert user_response.status_code == 201
     user_id = user_response.json()["id"]
     assert set(user_response.json()) == {"id", "name", "email"}
@@ -273,4 +285,3 @@ def test_deleting_user_cascades_all_owned_tokens_over_rest():
     assert client.delete(f"/v1/users/{user_id}").status_code == 204
     assert client.get(f"/v1/users/{user_id}").status_code == 404
     assert all(client.get(f"/v1/tokens/{token_id}").status_code == 404 for token_id in token_ids)
-

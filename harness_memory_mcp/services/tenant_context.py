@@ -36,8 +36,9 @@ class TenantContextProvider:
 
     def bind_principal(self, principal):
         """Bind principal and derived publication context for one request."""
-        tenant_token = self._context.set(PublicationContext(
-            principal.tenant_id, principal.scopes, principal.is_admin))
+        tenant_token = self._context.set(
+            PublicationContext(principal.tenant_id, principal.scopes, principal.is_admin)
+        )
         principal_binding = self.security_context.bind(principal)
 
         class _Binding:

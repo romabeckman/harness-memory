@@ -15,8 +15,12 @@ from core.application.entity_discovery.value_objects.search_cursor import Search
 class SearchCursorCodec:
     MAX_LENGTH = 1024
 
-    def encode(self, criteria: EntitySearchCriteria, item: EntitySearchItem,
-               context: SearchCursor | None = None) -> str:
+    def encode(
+        self,
+        criteria: EntitySearchCriteria,
+        item: EntitySearchItem,
+        context: SearchCursor | None = None,
+    ) -> str:
         fingerprint = FilterFingerprint.from_criteria(criteria)
         cursor = SearchCursor(
             version=context.version if context is not None else 1,
@@ -34,11 +38,15 @@ class SearchCursorCodec:
             "version": cursor.version,
         }
         if cursor.version == 2:
-            payload.update({
-                "scope_hash": cursor.scope_hash,
-                "context_hash": cursor.context_hash,
-                "pinned_snapshot_id": str(cursor.pinned_snapshot_id) if cursor.pinned_snapshot_id else None,
-            })
+            payload.update(
+                {
+                    "scope_hash": cursor.scope_hash,
+                    "context_hash": cursor.context_hash,
+                    "pinned_snapshot_id": str(cursor.pinned_snapshot_id)
+                    if cursor.pinned_snapshot_id
+                    else None,
+                }
+            )
         raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
@@ -55,7 +63,10 @@ class SearchCursorCodec:
             raise SearchCursorValidationError("invalid search cursor") from error
         base_fields = {"version", "filter_fingerprint", "last_key", "last_id"}
         extra_fields = {"scope_hash", "context_hash", "pinned_snapshot_id"}
-        if not isinstance(payload, dict) or set(payload) not in (base_fields, base_fields | extra_fields):
+        if not isinstance(payload, dict) or set(payload) not in (
+            base_fields,
+            base_fields | extra_fields,
+        ):
             raise SearchCursorValidationError("invalid search cursor payload")
         if payload.get("version") not in (1, 2) or isinstance(payload.get("version"), bool):
             raise SearchCursorValidationError("unsupported search cursor version")

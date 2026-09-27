@@ -39,8 +39,13 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
             [
                 Tenant(id=tenant_id, key="acme", name="Acme", status="active"),
                 Tenant(id=other_tenant_id, key="other", name="Other", status="active"),
-                Project(id=project_id, tenant_id=tenant_id, key="catalog", name="Catalog",
-                        active_snapshot_id=snapshot_id),
+                Project(
+                    id=project_id,
+                    tenant_id=tenant_id,
+                    key="catalog",
+                    name="Catalog",
+                    active_snapshot_id=snapshot_id,
+                ),
                 Project(
                     id=other_project_id,
                     tenant_id=other_tenant_id,
@@ -150,7 +155,8 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
     headers = {"Authorization": "Bearer global-read-secret"}
 
     environments = client.get(
-        "/v1/environments", params={"project_key": "catalog", "name": "production"},
+        "/v1/environments",
+        params={"project_key": "catalog", "name": "production"},
         headers=headers,
     )
     publications = client.get(
@@ -168,13 +174,13 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
     )
     relations = client.get(
         "/v1/relations",
-        params={"project_key": "catalog", "relation_type": "uses",
-                "provenance_kind": "declared"},
+        params={"project_key": "catalog", "relation_type": "uses", "provenance_kind": "declared"},
         headers=headers,
     )
     evidence = client.get(
         "/v1/evidence",
-        params={"snapshot_id": str(snapshot_id), "q": "Catalog Database"}, headers=headers,
+        params={"snapshot_id": str(snapshot_id), "q": "Catalog Database"},
+        headers=headers,
     )
 
     assert environments.status_code == 200
@@ -191,9 +197,7 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
     assert evidence.json()[0]["source"] == "docs/architecture.md"
 
     tenants = client.get("/v1/tenants", headers=headers)
-    assert {item["id"] for item in tenants.json()} == {
-        str(tenant_id), str(other_tenant_id)
-    }
+    assert {item["id"] for item in tenants.json()} == {str(tenant_id), str(other_tenant_id)}
     first_page = client.get(
         "/v1/environments", params={"type": "production", "limit": 1}, headers=headers
     )
@@ -217,7 +221,8 @@ def test_data_search_supports_pagination_and_rejects_write_methods() -> None:
     )
 
     response = client.get(
-        "/v1/entities", params={"limit": 0},
+        "/v1/entities",
+        params={"limit": 0},
         headers={"Authorization": "Bearer global-read-secret"},
     )
 

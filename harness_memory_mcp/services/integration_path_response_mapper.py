@@ -31,4 +31,3 @@ class IntegrationPathResponseMapper:
         else:
             code, message = "INTEGRATION_PATH_QUERY_FAILED", "integration path query failed"
         return {"status": "ERROR", "error": {"code": code, "message": message}}
-

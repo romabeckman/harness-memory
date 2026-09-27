@@ -13,7 +13,9 @@ edges:
     target: "adr:tests"
   - relation: references
     target: "feature:mcp-token-authentication"
-updated: 2026-09-24
+  - relation: references
+    target: "feature:project-links"
+updated: 2026-09-27
 ---
 # MCP Interface
 
@@ -60,7 +62,7 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 
 | Tool | Scope | Purpose | Input | Output |
 |------|-------|---------|-------|--------|
-| `search_projects` | `memory:read` | Find projects and active-data status. | Exact key or partial key/name; omit both to list; offset page. | Tenant/project IDs, `environments` with name and `current_snapshot_id`, and active-snapshot status; no project `active_snapshot_id`. |
+| `search_projects` | `memory:read` | Find projects and active-data status. | Exact key or partial key/name; omit both to list; offset page. | Tenant/project IDs, `environments` with name and `current_snapshot_id`, `links` with associated projects (`project_id`, `name`, `tenant_id`), and active-snapshot status; no project `active_snapshot_id`. |
 | `search_entities` | `memory:read` | Find entities in active snapshots, including document content. | Required request with at least one filter or tenant/project/snapshot/environment selector; bounded cursor page. | Bounded entity IDs, project IDs, and snapshot IDs for pinned reads. |
 | `get_context` | `memory:read` | Read entity context and evidence. | Entity, snapshot, project, or tenant ID; bounded page. | One entity context or newest-first `items` page with `count`, `offset`, and `has_more`. |
 | `get_dependencies` | `memory:read` | Read an entity's inbound or outbound dependency relationships. | Entity identifier, direction, and result limits. | Known dependency relationships and provenance. |
@@ -127,8 +129,10 @@ graph TD
     MCP -->|references| API["API Architecture"]
     MCP -->|references| TESTS["Testing Protocol"]
     MCP -->|references| AUTH["MCP Token Authentication"]
+    MCP -->|references| LINKS["Project Links"]
     click API "./API.md"
     click AUTH "../feature/mcp/token-authentication.md"
+    click LINKS "../feature/project-links.md"
 ```
 
 ## REFERENCES
@@ -137,3 +141,4 @@ graph TD
 - [**API.md**](./API.md): Defines API-issued tokens and their handoff to MCP authentication.
 - [**TESTS.md**](./TESTS.md): Defines MCP contract tests and backend coverage gate.
 - [**token-authentication.md**](../feature/mcp/token-authentication.md): Defines database-backed API token verification for MCP clients.
+- [**project-links.md**](../feature/project-links.md): Exposes project link metadata through search_projects tool.

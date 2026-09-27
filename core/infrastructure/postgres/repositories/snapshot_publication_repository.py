@@ -46,6 +46,7 @@ class PostgresSnapshotPublicationRepository:
 
             def session_factory():
                 return session
+
         if session_factory is None and engine is not None:
             write_engine = engine.execution_options(isolation_level="READ COMMITTED")
             session_factory = sessionmaker(bind=write_engine, expire_on_commit=False)
@@ -216,6 +217,9 @@ class PostgresSnapshotPublicationRepository:
 
     @staticmethod
     def _count(session: Session, model: type, snapshot_id: UUID) -> int:
-        return session.scalar(
-            select(func.count()).select_from(model).where(model.snapshot_id == snapshot_id)
-        ) or 0
+        return (
+            session.scalar(
+                select(func.count()).select_from(model).where(model.snapshot_id == snapshot_id)
+            )
+            or 0
+        )

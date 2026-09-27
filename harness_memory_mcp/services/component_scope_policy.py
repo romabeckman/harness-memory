@@ -106,7 +106,7 @@ class ComponentScopePolicy:
         if value == template:
             return True
         end = len(value) - len(suffix) if suffix else len(value)
-        bound_value = value[len(prefix):end]
+        bound_value = value[len(prefix) : end]
         return bool(variable and bound_value and "/" not in bound_value)
 
 
@@ -119,7 +119,10 @@ def component_scope_auth(policy: ComponentScopePolicy, audit_handler=None, princ
         if token is None:
             return False
         if hasattr(component, "uri_template") or hasattr(component, "uriTemplate"):
-            kind, name = "resource", getattr(component, "uri_template", None) or component.uriTemplate
+            kind, name = (
+                "resource",
+                getattr(component, "uri_template", None) or component.uriTemplate,
+            )
         elif hasattr(component, "uri"):
             kind, name = "resource", str(component.uri)
         elif component.__class__.__name__.lower().endswith("prompt"):

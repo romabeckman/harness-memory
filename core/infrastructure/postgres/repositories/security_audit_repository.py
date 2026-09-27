@@ -23,8 +23,10 @@ class PostgresSecurityAuditRepository:
             session = session_factory
             session_factory = None
         if session is not None and session_factory is None:
+
             def session_factory():
                 return session
+
         if session_factory is None and engine is not None:
             session_factory = sessionmaker(bind=engine, expire_on_commit=False)
             if getattr(engine.dialect, "name", None) == "sqlite":

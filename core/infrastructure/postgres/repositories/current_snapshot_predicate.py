@@ -7,17 +7,21 @@ from ..models.project import Project
 
 def current_snapshot_predicate():
     environment_current = exists(
-        select(Environment.id).where(
+        select(Environment.id)
+        .where(
             Environment.project_id == Project.id,
             Environment.tenant_id == Project.tenant_id,
             Environment.current_snapshot_id == Entity.snapshot_id,
-        ).correlate(Project, Entity)
+        )
+        .correlate(Project, Entity)
     )
     project_has_environments = exists(
-        select(Environment.id).where(
+        select(Environment.id)
+        .where(
             Environment.project_id == Project.id,
             Environment.tenant_id == Project.tenant_id,
-        ).correlate(Project)
+        )
+        .correlate(Project)
     )
     legacy_project_current = and_(
         Project.active_snapshot_id == Entity.snapshot_id,

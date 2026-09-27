@@ -33,12 +33,24 @@ class TestPostgresEnvironmentRepository:
         Base.metadata.create_all(engine)
         project = _seed_project(engine, "tenant-a", "checkout")
         with Session(engine) as session:
-            session.add_all([
-                ModelEnvironment(tenant_id="tenant-a", project_id=project.id,
-                                 name="staging", type="staging", current_snapshot_id=uuid4()),
-                ModelEnvironment(tenant_id="tenant-a", project_id=project.id,
-                                 name="production", type="production", current_snapshot_id=uuid4()),
-            ])
+            session.add_all(
+                [
+                    ModelEnvironment(
+                        tenant_id="tenant-a",
+                        project_id=project.id,
+                        name="staging",
+                        type="staging",
+                        current_snapshot_id=uuid4(),
+                    ),
+                    ModelEnvironment(
+                        tenant_id="tenant-a",
+                        project_id=project.id,
+                        name="production",
+                        type="production",
+                        current_snapshot_id=uuid4(),
+                    ),
+                ]
+            )
             session.commit()
 
         source, target = PostgresEnvironmentRepository(engine=engine).resolve_pair(
@@ -79,8 +91,15 @@ class TestPostgresEnvironmentRepository:
         project = _seed_project(engine, "tenant-a", "checkout")
         existing_id = uuid4()
         with Session(engine) as session:
-            session.add(ModelEnvironment(id=existing_id, tenant_id="tenant-a",
-                                         project_id=project.id, name="staging", type="staging"))
+            session.add(
+                ModelEnvironment(
+                    id=existing_id,
+                    tenant_id="tenant-a",
+                    project_id=project.id,
+                    name="staging",
+                    type="staging",
+                )
+            )
             session.commit()
 
         repository = PostgresEnvironmentRepository(engine=engine)
@@ -116,12 +135,24 @@ class TestPostgresEnvironmentRepository:
         first = _seed_project(engine, "tenant-a", "checkout")
         second = _seed_project(engine, "tenant-b", "catalog")
         with Session(engine) as session:
-            session.add_all([
-                ModelEnvironment(id=uuid4(), tenant_id="tenant-a", project_id=first.id,
-                                 name="staging", type="staging"),
-                ModelEnvironment(id=uuid4(), tenant_id="tenant-b", project_id=second.id,
-                                 name="staging", type="staging"),
-            ])
+            session.add_all(
+                [
+                    ModelEnvironment(
+                        id=uuid4(),
+                        tenant_id="tenant-a",
+                        project_id=first.id,
+                        name="staging",
+                        type="staging",
+                    ),
+                    ModelEnvironment(
+                        id=uuid4(),
+                        tenant_id="tenant-b",
+                        project_id=second.id,
+                        name="staging",
+                        type="staging",
+                    ),
+                ]
+            )
             session.commit()
 
         repo = PostgresEnvironmentRepository(engine=engine)
@@ -169,11 +200,10 @@ class TestPostgresEnvironmentRepository:
         custom = repository.create_for_project("tenant-a", "checkout", "Production")
 
         assert (standard.name.value, standard.environment_type) == (
-            "staging", EnvironmentType.STAGING
+            "staging",
+            EnvironmentType.STAGING,
         )
-        assert (custom.name.value, custom.environment_type) == (
-            "Production", EnvironmentType.OTHER
-        )
+        assert (custom.name.value, custom.environment_type) == ("Production", EnvironmentType.OTHER)
 
     def test_create_for_project_rejects_missing_project_and_duplicate_name(self) -> None:
         engine = create_engine("sqlite://")

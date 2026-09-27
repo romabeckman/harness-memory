@@ -91,8 +91,12 @@ def register_compare_environments(
         try:
             ctx = tenant_context.require_scope("memory:read")
             if tenant_id is not None and not ctx.is_admin and tenant_id != ctx.tenant_id:
-                return {"error": {"code": "INVALID_ARGUMENT",
-                                  "message": "tenant selector is outside the trusted read scope"}}
+                return {
+                    "error": {
+                        "code": "INVALID_ARGUMENT",
+                        "message": "tenant selector is outside the trusted read scope",
+                    }
+                }
             input_data = CompareEnvironmentsInput(
                 project_key=project_key,
                 source_environment=source_environment,
@@ -113,10 +117,16 @@ def register_compare_environments(
                 "total_removed": result.total_removed,
                 "total_unchanged": result.total_unchanged,
                 "total_modified": result.total_modified,
-                **({"source_snapshot_id": str(result.source_snapshot_id)}
-                   if result.source_snapshot_id else {}),
-                **({"target_snapshot_id": str(result.target_snapshot_id)}
-                   if result.target_snapshot_id else {}),
+                **(
+                    {"source_snapshot_id": str(result.source_snapshot_id)}
+                    if result.source_snapshot_id
+                    else {}
+                ),
+                **(
+                    {"target_snapshot_id": str(result.target_snapshot_id)}
+                    if result.target_snapshot_id
+                    else {}
+                ),
             }
         except Exception as error:
             error_str = str(error).lower()

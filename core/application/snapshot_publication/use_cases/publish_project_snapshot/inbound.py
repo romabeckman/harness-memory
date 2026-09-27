@@ -14,9 +14,7 @@ class PublishProjectSnapshotInput(BaseModel):
     schema_version: Literal["1.0"] = Field(
         description="Snapshot payload schema version; currently 1.0."
     )
-    project: ProjectInput = Field(
-        description="Project identity and metadata for this snapshot."
-    )
+    project: ProjectInput = Field(description="Project identity and metadata for this snapshot.")
     revision: StrictInt = Field(
         ge=1,
         description="Positive revision used to order and deduplicate project snapshots.",

@@ -10,4 +10,3 @@ class IntegrationPathRepository(Protocol):
     def find_paths(
         self, scope: TenantScope, query: FindIntegrationPathsInput
     ) -> FindIntegrationPathsOutput: ...
-

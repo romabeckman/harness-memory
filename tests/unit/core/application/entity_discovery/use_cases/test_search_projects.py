@@ -2,6 +2,9 @@ from unittest.mock import Mock
 
 import pytest
 
+from uuid import uuid4
+
+from core.application.entity_discovery.contracts.project_link_item import ProjectLinkItem
 from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.application.entity_discovery.errors.project_search_failure import ProjectSearchFailure
@@ -22,7 +25,15 @@ def test_handler_normalizes_input_and_bounds_project_results():
     )
 
     assert result.model_dump(mode="json", exclude_none=True) == {
-        "items": [{"key": "send", "environments": [], "name": "Send", "has_active_snapshot": True}],
+        "items": [
+            {
+                "key": "send",
+                "environments": [],
+                "links": [],
+                "name": "Send",
+                "has_active_snapshot": True,
+            }
+        ],
         "count": 1,
         "limit": 1,
         "offset": 2,
@@ -31,6 +42,23 @@ def test_handler_normalizes_input_and_bounds_project_results():
     repository.search_projects.assert_called_once_with(
         TenantScope("tenant-a"), key=None, query="Send", limit=2, offset=2
     )
+
+
+def test_handler_returns_project_search_page_with_links():
+    link_target = ProjectLinkItem(project_id=uuid4(), name="Billing", tenant_id="tenant-b")
+    repository = Mock()
+    repository.search_projects.return_value = [
+        ProjectSearchItem(key="send", name="Send", has_active_snapshot=True, links=(link_target,))
+    ]
+
+    result = SearchProjectsHandler(repository).execute({}, TenantScope("tenant-a"))
+
+    assert len(result.items) == 1
+    assert result.items[0].links == (link_target,)
+    dumped = result.model_dump(mode="json", exclude_none=True)
+    assert dumped["items"][0]["links"] == [
+        {"project_id": str(link_target.project_id), "name": "Billing", "tenant_id": "tenant-b"}
+    ]
 
 
 def test_handler_lists_projects_without_filters():
@@ -49,14 +77,14 @@ def test_handler_returns_500_projects_and_reports_next_page():
     repository = Mock()
     repository.search_projects.return_value = [
         ProjectSearchItem(
-            key=f"project-{index}", name=f"Project {index}", has_active_snapshot=False,
+            key=f"project-{index}",
+            name=f"Project {index}",
+            has_active_snapshot=False,
         )
         for index in range(501)
     ]
 
-    result = SearchProjectsHandler(repository).execute(
-        {"limit": 500}, TenantScope("tenant-a")
-    )
+    result = SearchProjectsHandler(repository).execute({"limit": 500}, TenantScope("tenant-a"))
 
     assert result.count == 500
     assert len(result.items) == 500
@@ -91,6 +119,4 @@ def test_handler_maps_invalid_repository_output_to_search_failure():
     ]
 
     with pytest.raises(ProjectSearchFailure):
-        SearchProjectsHandler(repository).execute(
-            {"key": "send"}, TenantScope("tenant-a")
-        )
+        SearchProjectsHandler(repository).execute({"key": "send"}, TenantScope("tenant-a"))

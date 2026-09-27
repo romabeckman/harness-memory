@@ -11,4 +11,3 @@ class FindIntegrationPathsInput(BaseModel):
     bounds: IntegrationPathBounds = Field(default_factory=IntegrationPathBounds)
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-

@@ -133,6 +133,28 @@ export interface CreateServiceAccountDto {
   name: string
 }
 
+export interface LinkedProjectDto {
+  project_id: string
+  key: string
+  name: string | null
+  tenant_id: string
+}
+
+export interface CreateProjectLinkDto {
+  target_project_key: string
+  target_tenant_id?: string
+}
+
+export function validateCreateProjectLinkDto(dto: CreateProjectLinkDto): {
+  valid: boolean
+  error?: string
+} {
+  if (!dto.target_project_key || !dto.target_project_key.trim()) {
+    return { valid: false, error: 'Target project key is required' }
+  }
+  return { valid: true }
+}
+
 export interface HarnessApiClientPort {
   listUsers(query?: string, limit?: number, offset?: number): Promise<UserDto[]>
   createUser(payload: CreateUserDto): Promise<UserDto>
@@ -157,6 +179,18 @@ export interface HarnessApiClientPort {
     reference: ProjectEnvironmentRef,
     name: string
   ): Promise<EnvironmentDto>
+  listProjectLinks(tenantId: string, projectKey: string): Promise<LinkedProjectDto[]>
+  createProjectLink(
+    tenantId: string,
+    projectKey: string,
+    payload: CreateProjectLinkDto
+  ): Promise<void>
+  deleteProjectLink(
+    tenantId: string,
+    projectKey: string,
+    targetKey: string,
+    targetTenantId?: string
+  ): Promise<void>
   listServiceAccounts(
     queryOrTenantId?: ServiceAccountListQuery | string,
     query?: string,

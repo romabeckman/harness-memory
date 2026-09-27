@@ -12,9 +12,7 @@ from harness_memory_mcp.services.database_token_verifier import DatabaseTokenVer
 def test_admin_token_is_global_and_keeps_all_mcp_scopes():
     repository = Mock()
     verified = asyncio.run(
-        DatabaseTokenVerifier(repository, admin_token="admin-secret").verify_token(
-            "admin-secret"
-        )
+        DatabaseTokenVerifier(repository, admin_token="admin-secret").verify_token("admin-secret")
     )
     assert verified.claims["tenant_id"] == "*"
     assert verified.claims["is_admin"] is True
@@ -25,9 +23,7 @@ def test_admin_token_is_global_and_keeps_all_mcp_scopes():
 def test_read_api_key_is_global_and_has_only_memory_read_scope():
     repository = Mock()
     verified = asyncio.run(
-        DatabaseTokenVerifier(repository, read_api_key="read-secret").verify_token(
-            "read-secret"
-        )
+        DatabaseTokenVerifier(repository, read_api_key="read-secret").verify_token("read-secret")
     )
 
     assert verified.claims["tenant_id"] == "*"

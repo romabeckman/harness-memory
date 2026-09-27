@@ -52,9 +52,9 @@ def test_all_tenant_scoped_tables_have_uuid_and_restrict_foreign_key_to_tenants(
 
     for table in tables:
         tenant_col = table.c.tenant_id
-        assert isinstance(
-            tenant_col.type, Uuid
-        ), f"Table {table.name}.tenant_id must be Uuid, got {tenant_col.type}"
+        assert isinstance(tenant_col.type, Uuid), (
+            f"Table {table.name}.tenant_id must be Uuid, got {tenant_col.type}"
+        )
 
         fk = next(
             (
@@ -62,11 +62,15 @@ def test_all_tenant_scoped_tables_have_uuid_and_restrict_foreign_key_to_tenants(
                 for c in table.constraints
                 if isinstance(c, ForeignKeyConstraint)
                 and "tenant_id" in [col.name for col in c.columns]
-                and any("tenants" in getattr(target, "_target_fullname", "") or "tenants" in getattr(target, "target_fullname", "") for target in c.elements)
+                and any(
+                    "tenants" in getattr(target, "_target_fullname", "")
+                    or "tenants" in getattr(target, "target_fullname", "")
+                    for target in c.elements
+                )
             ),
             None,
         )
         assert fk is not None, f"Table {table.name} missing foreign key to tenants.id"
-        assert (
-            fk.ondelete == "RESTRICT"
-        ), f"Table {table.name} fk to tenants must have ondelete='RESTRICT', got {fk.ondelete}"
+        assert fk.ondelete == "RESTRICT", (
+            f"Table {table.name} fk to tenants must have ondelete='RESTRICT', got {fk.ondelete}"
+        )

@@ -19,12 +19,15 @@ def test_ci_workflow_defines_required_quality_gates():
         assert coverage_target in content
     assert "pytest tests/unit tests/e2e --cov=api" in content
     assert "pytest tests/integration --ignore=tests/integration/migrations" in content
-    assert "pytest tests/integration/migrations tests/integration/core/infrastructure/postgres/test_startup_schema_compatibility.py" in content
+    assert (
+        "pytest tests/integration/migrations tests/integration/core/infrastructure/postgres/test_startup_schema_compatibility.py"
+        in content
+    )
     assert "--cov-append" in content
-    assert "coverage report --include='api/*,core/*,harness_memory_mcp/*' --fail-under=80" in content
+    assert (
+        "coverage report --include='api/*,core/*,harness_memory_mcp/*' --fail-under=80" in content
+    )
     assert "postgres:17" in content
-
-
 
 
 def test_runtime_dependency_declares_opentelemetry_api():

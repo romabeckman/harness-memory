@@ -17,7 +17,15 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.in
     PublishProjectSnapshotInput,
 )
 from core.domain.snapshot_publication.types.relation_type import RelationType
-from core.infrastructure.postgres.models import Base, Entity, Evidence, Project, Relation, Snapshot, Tenant
+from core.infrastructure.postgres.models import (
+    Base,
+    Entity,
+    Evidence,
+    Project,
+    Relation,
+    Snapshot,
+    Tenant,
+)
 from core.infrastructure.postgres.repositories.impact_analysis_repository import (
     PostgresImpactAnalysisRepository,
 )
@@ -489,22 +497,22 @@ def test_same_canonical_consumer_from_two_projects_keeps_both_project_contexts()
         session.add_all([changed, *changed_copies, *consumers])
         session.flush()
         session.add_all(
-                [
-                    Relation(
+            [
+                Relation(
                     tenant_id=tenant,
                     snapshot_id=snapshot.id,
                     source_entity_id=consumer.id,
-                        target_entity_id=changed_copy.id,
+                    target_entity_id=changed_copy.id,
                     source_identity_id=consumer_identity,
                     target_identity_id=changed_identity,
                     relation_type=RelationType.CONSUMES.value,
                     provenance_kind="declared",
                     metadata_json={},
                 )
-                    for consumer, changed_copy, snapshot in zip(
-                        consumers, changed_copies, snapshots[1:]
-                    )
-                ]
+                for consumer, changed_copy, snapshot in zip(
+                    consumers, changed_copies, snapshots[1:]
+                )
+            ]
         )
         session.commit()
 

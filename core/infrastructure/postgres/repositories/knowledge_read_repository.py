@@ -1,13 +1,14 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_, select, union_all
 from sqlalchemy.orm import Session
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
 from core.application.entity_discovery.contracts.project_environment_item import (
     ProjectEnvironmentItem,
 )
+from core.application.entity_discovery.contracts.project_link_item import ProjectLinkItem
 from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from core.domain.snapshot_publication.types.entity_type import EntityType
@@ -16,6 +17,7 @@ from core.infrastructure.postgres.models.environment import Environment
 from core.infrastructure.postgres.models.evidence import Evidence
 from core.infrastructure.postgres.models.knowledge_publication import KnowledgePublication
 from core.infrastructure.postgres.models.project import Project
+from core.infrastructure.postgres.models.project_link import ProjectLinkModel
 from core.infrastructure.postgres.models.relation import Relation
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.models.tenant import Tenant
@@ -126,6 +128,7 @@ class KnowledgeReadRepository:
         environments: dict[UUID, list[ProjectEnvironmentItem]] = {
             project_id: [] for project_id in project_ids
         }
+        links: dict[UUID, list[ProjectLinkItem]] = {project_id: [] for project_id in project_ids}
         tenant_keys: dict[str, str] = {}
         if project_ids:
             with self._session_factory() as session:
@@ -139,16 +142,65 @@ class KnowledgeReadRepository:
                 }
                 rows = session.execute(
                     select(
-                        Environment.project_id, Environment.name,
+                        Environment.project_id,
+                        Environment.name,
                         Environment.current_snapshot_id,
                     )
                     .where(Environment.project_id.in_(project_ids))
                     .order_by(Environment.project_id, Environment.name)
                 ).all()
                 for project_id, name, current_snapshot_id in rows:
-                    environments[project_id].append(ProjectEnvironmentItem(
-                        name=name, current_snapshot_id=current_snapshot_id,
-                    ))
+                    environments[project_id].append(
+                        ProjectEnvironmentItem(
+                            name=name,
+                            current_snapshot_id=current_snapshot_id,
+                        )
+                    )
+
+                q1 = (
+                    select(
+                        ProjectLinkModel.project_a_id.label("source_project_id"),
+                        Project.id.label("linked_project_id"),
+                        Project.name.label("linked_project_name"),
+                        Project.tenant_id.label("linked_tenant_id"),
+                    )
+                    .join(Project, Project.id == ProjectLinkModel.project_b_id)
+                    .where(ProjectLinkModel.project_a_id.in_(project_ids))
+                )
+                q2 = (
+                    select(
+                        ProjectLinkModel.project_b_id.label("source_project_id"),
+                        Project.id.label("linked_project_id"),
+                        Project.name.label("linked_project_name"),
+                        Project.tenant_id.label("linked_tenant_id"),
+                    )
+                    .join(Project, Project.id == ProjectLinkModel.project_a_id)
+                    .where(ProjectLinkModel.project_b_id.in_(project_ids))
+                )
+                links_subquery = union_all(q1, q2).subquery()
+                links_rows = session.execute(
+                    select(
+                        links_subquery.c.source_project_id,
+                        links_subquery.c.linked_project_id,
+                        links_subquery.c.linked_project_name,
+                        links_subquery.c.linked_tenant_id,
+                    )
+                ).all()
+                for source_id, linked_id, linked_name, linked_tenant_id in links_rows:
+                    links[source_id].append(
+                        ProjectLinkItem(
+                            project_id=linked_id,
+                            name=linked_name,
+                            tenant_id=str(linked_tenant_id),
+                        )
+                    )
+                for project_id in project_ids:
+                    links[project_id].sort(
+                        key=lambda item: (
+                            item.name if item.name is not None else "",
+                            str(item.project_id),
+                        )
+                    )
         return tuple(
             ProjectSearchItem(
                 key=project["key"],
@@ -156,6 +208,7 @@ class KnowledgeReadRepository:
                 tenant_key=tenant_keys.get(project["tenant_id"]),
                 project_id=UUID(project["id"]),
                 environments=tuple(environments[UUID(project["id"])]),
+                links=tuple(links[UUID(project["id"])]),
                 name=project["name"],
                 has_active_snapshot=project["active_snapshot_id"] is not None,
             )
@@ -373,20 +426,36 @@ class KnowledgeReadRepository:
         except ValueError:
             return []
         criteria = EntitySearchCriteria(
-            key=entity_key, name=name, type=selected_type, project=project_key,
-            query=query, tenant_id=tenant_id, project_id=project_id,
-            snapshot_id=snapshot_id, environment=environment,
-            include_history=include_history, allow_unfiltered=True,
+            key=entity_key,
+            name=name,
+            type=selected_type,
+            project=project_key,
+            query=query,
+            tenant_id=tenant_id,
+            project_id=project_id,
+            snapshot_id=snapshot_id,
+            environment=environment,
+            include_history=include_history,
+            allow_unfiltered=True,
         )
-        selected = PostgresEntitySearchRepository._statement(
-            TenantScope(tenant_id or "*", is_admin=tenant_id is None),
-            criteria, None, limit,
-        ).limit(limit).offset(offset).subquery()
+        selected = (
+            PostgresEntitySearchRepository._statement(
+                TenantScope(tenant_id or "*", is_admin=tenant_id is None),
+                criteria,
+                None,
+                limit,
+            )
+            .limit(limit)
+            .offset(offset)
+            .subquery()
+        )
         statement = (
             select(Entity, Project.key)
             .join(selected, Entity.id == selected.c.occurrence_id)
-            .join(Project, and_(Project.id == Entity.project_id,
-                                Project.tenant_id == Entity.tenant_id))
+            .join(
+                Project,
+                and_(Project.id == Entity.project_id, Project.tenant_id == Entity.tenant_id),
+            )
             .order_by(selected.c.entity_key, selected.c.occurrence_id)
         )
         with self._session_factory() as session:

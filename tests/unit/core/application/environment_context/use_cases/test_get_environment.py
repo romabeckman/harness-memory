@@ -40,7 +40,9 @@ class TestGetEnvironment:
         handler = GetEnvironmentHandler(repo)
 
         output = handler.execute(
-            GetEnvironmentInput(project_key="catalog", environment_name="staging", tenant_id="default")
+            GetEnvironmentInput(
+                project_key="catalog", environment_name="staging", tenant_id="default"
+            )
         )
 
         assert output.found is True
@@ -54,7 +56,9 @@ class TestGetEnvironment:
         handler = GetEnvironmentHandler(repo)
 
         output = handler.execute(
-            GetEnvironmentInput(project_key="catalog", environment_name="nonexistent", tenant_id="default")
+            GetEnvironmentInput(
+                project_key="catalog", environment_name="nonexistent", tenant_id="default"
+            )
         )
 
         assert output.found is False
@@ -71,7 +75,9 @@ class TestGetEnvironment:
         handler = GetEnvironmentHandler(repo)
 
         output = handler.execute(
-            GetEnvironmentInput(project_key="catalog", environment_name="staging", tenant_id="tenant-b")
+            GetEnvironmentInput(
+                project_key="catalog", environment_name="staging", tenant_id="tenant-b"
+            )
         )
 
         assert output.found is False

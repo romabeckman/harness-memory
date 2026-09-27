@@ -72,17 +72,14 @@ def install_http_security_error_mapping(server: Any) -> None:
                     if streaming_sse and not response_started:
                         initial_body = message.get("body", b"")
                         if not stream_buffer and not any(
-                            marker in initial_body[:128].lower()
-                            for marker in (b"event:", b"data:")
+                            marker in initial_body[:128].lower() for marker in (b"event:", b"data:")
                         ):
                             response_started = True
                             await send(response_start)
                             await send(message)
                             return
                         stream_buffer.extend(message.get("body", b""))
-                        complete_event = (
-                            b"\n\n" in stream_buffer or b"\r\n\r\n" in stream_buffer
-                        )
+                        complete_event = b"\n\n" in stream_buffer or b"\r\n\r\n" in stream_buffer
                         if (
                             len(stream_buffer) < stream_buffer_limit
                             and not complete_event
@@ -117,9 +114,7 @@ def install_http_security_error_mapping(server: Any) -> None:
                         if not message.get("more_body", False) and _is_authorization_error(body):
                             response_start["status"] = 403
                             headers = list(response_start.get("headers", []))
-                            headers.append(
-                                (b"www-authenticate", _authorization_challenge(body))
-                            )
+                            headers.append((b"www-authenticate", _authorization_challenge(body)))
                             response_start["headers"] = headers
                         if not message.get("more_body", False) and _is_invalid_argument(body):
                             body = _mark_invalid_argument(body)
@@ -180,9 +175,7 @@ def _authorization_challenge(body: bytes) -> bytes:
             if component_end == -1:
                 continue
             component_name = normalized[component_start:component_end].decode("ascii", "ignore")
-            required = ComponentScopePolicy().required_scope(
-                kind.decode("ascii"), component_name
-            )
+            required = ComponentScopePolicy().required_scope(kind.decode("ascii"), component_name)
             if required:
                 scope = required.encode("ascii")
                 break

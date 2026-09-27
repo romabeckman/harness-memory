@@ -10,12 +10,16 @@ from api.adapters.http.knowledge_publication_routes import (
 )
 from api.adapters.http.knowledge_read_routes import create_knowledge_read_router
 from api.adapters.http.knowledge_search_routes import create_knowledge_search_router
+from api.adapters.http.project_link_routes import create_project_link_router
 from api.adapters.http.service_account_routes import create_service_account_router
 from api.adapters.http.tenant_project_management_routes import (
     create_tenant_project_management_router,
 )
 from api.adapters.http.token_routes import create_token_router
 from api.adapters.http.user_routes import create_user_router
+from api.application.services.project_link_management_service import (
+    ProjectLinkManagementService,
+)
 from api.application.services.service_account_service import ServiceAccountService
 from api.application.services.token_service import TokenService
 from api.application.services.project_management_service import ProjectManagementService
@@ -46,6 +50,9 @@ from core.infrastructure.postgres.repositories.knowledge_publication_repository 
 from core.infrastructure.postgres.repositories.knowledge_read_repository import (
     KnowledgeReadRepository,
 )
+from core.infrastructure.postgres.repositories.project_link_repository import (
+    PostgresProjectLinkRepository,
+)
 from core.infrastructure.postgres.repositories.tenant_project_management_repository import (
     PostgresTenantProjectManagementRepository,
 )
@@ -66,9 +73,7 @@ def create_app(
             )
         )
         database_engine = PostgresEngineFactory.create(settings)
-        session_factory = sessionmaker(
-            bind=database_engine, expire_on_commit=False
-        )
+        session_factory = sessionmaker(bind=database_engine, expire_on_commit=False)
     user_repository = ApiUserRepository(session_factory)
     service_account_repository = ApiServiceAccountRepository(session_factory)
     token_repository = ApiTokenRepository(session_factory)
@@ -106,20 +111,28 @@ def create_app(
             )
         )
     )
+    project_service = ProjectManagementService(resource_repository)
     management_router.include_router(
         create_tenant_project_management_router(
             TenantManagementService(resource_repository),
-            ProjectManagementService(resource_repository),
+            project_service,
             ProjectEnvironmentManagementService(env_repository),
         )
     )
+    link_repository = PostgresProjectLinkRepository(session_factory)
+    link_service = ProjectLinkManagementService(link_repository, resource_repository)
+    management_router.include_router(create_project_link_router(link_service, project_service))
     v1_router.include_router(management_router)
-    v1_router.include_router(create_knowledge_read_router(
-        read_repository, security.require_reader, security.require_baseline_reader
-    ))
-    v1_router.include_router(create_knowledge_search_router(
-        read_repository, security.require_reader, security.require_baseline_reader
-    ))
+    v1_router.include_router(
+        create_knowledge_read_router(
+            read_repository, security.require_reader, security.require_baseline_reader
+        )
+    )
+    v1_router.include_router(
+        create_knowledge_search_router(
+            read_repository, security.require_reader, security.require_baseline_reader
+        )
+    )
     if database_engine is None:
         pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
     else:
@@ -129,9 +142,13 @@ def create_app(
         environment_repository=env_repository,
     )
     v1_router.include_router(
-        create_knowledge_publication_router(publish_handler, security.require_publisher,
-            GetPublicationBaseline(pub_repository), security.require_baseline_reader,
-            tenant_exists=lambda tenant_id: read_repository.tenant(tenant_id) is not None)
+        create_knowledge_publication_router(
+            publish_handler,
+            security.require_publisher,
+            GetPublicationBaseline(pub_repository),
+            security.require_baseline_reader,
+            tenant_exists=lambda tenant_id: read_repository.tenant(tenant_id) is not None,
+        )
     )
     application.include_router(v1_router)
 

@@ -10,9 +10,7 @@ class ProjectManagementService:
     def __init__(self, repository: TenantProjectManagementRepository) -> None:
         self._repository = repository
 
-    def create(
-        self, tenant_id: UUID, key: str, name: str | None, metadata: dict[str, Any]
-    ) -> dict:
+    def create(self, tenant_id: UUID, key: str, name: str | None, metadata: dict[str, Any]) -> dict:
         return self._repository.create_project(tenant_id, key, name, metadata)
 
     def get(self, tenant_id: UUID, key: str) -> dict:

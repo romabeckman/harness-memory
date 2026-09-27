@@ -14,4 +14,3 @@ class FindIntegrationPathsOutput(BaseModel):
     termination_reason: PathTerminationReason
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-

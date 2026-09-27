@@ -55,8 +55,12 @@ def register_get_environment(
         try:
             ctx = tenant_context.require_scope("memory:read")
             if tenant_id is not None and not ctx.is_admin and tenant_id != ctx.tenant_id:
-                return {"error": {"code": "INVALID_ARGUMENT",
-                                  "message": "tenant selector is outside the trusted read scope"}}
+                return {
+                    "error": {
+                        "code": "INVALID_ARGUMENT",
+                        "message": "tenant selector is outside the trusted read scope",
+                    }
+                }
             input_data = GetEnvironmentInput(
                 project_key=project_key,
                 environment_name=environment,

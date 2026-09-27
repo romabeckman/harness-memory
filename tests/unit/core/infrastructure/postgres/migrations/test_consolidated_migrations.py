@@ -29,6 +29,7 @@ TABLES = {
 def test_history_contains_ordered_revisions():
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
     assert [(item.revision, item.down_revision) for item in scripts.walk_revisions()] == [
+        ("005", "004"),
         ("004", "003"),
         ("003", "002"),
         ("002", "001"),
@@ -109,9 +110,9 @@ def test_full_chain_renders_upgrade_and_downgrade_without_a_database(monkeypatch
     command.upgrade(config, "head", sql=True)
 
     sql = output.getvalue()
-    assert sql.count("CREATE TABLE ") == len(TABLES) + 1  # Alembic version table.
-    assert sql.count(" FOREIGN KEY(") == 25
-    assert sql.count("CREATE INDEX ") == 34
+    assert sql.count("CREATE TABLE ") == len(TABLES) + 2  # Alembic version table and project_links.
+    assert sql.count(" FOREIGN KEY(") == 28
+    assert sql.count("CREATE INDEX ") == 36
     assert sql.count("INSERT INTO tenants ") == 1
     assert sql.count("INSERT INTO users ") == 1
     assert sql.count("INSERT INTO projects ") == 1

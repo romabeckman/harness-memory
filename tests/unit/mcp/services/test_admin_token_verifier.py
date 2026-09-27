@@ -19,9 +19,10 @@ def test_admin_token_verifier_grants_unscoped_admin_and_delegates_other_tokens()
     principal = AuthenticatedPrincipalFactory().from_verified_claims(admin.claims)
     assert principal.is_admin is True
     assert principal.tenant_id == "*"
-    assert AuthenticatedPrincipalFactory("custom_tenant").from_verified_claims(
-        admin.claims
-    ).is_admin is True
+    assert (
+        AuthenticatedPrincipalFactory("custom_tenant").from_verified_claims(admin.claims).is_admin
+        is True
+    )
     policy = ComponentScopePolicy()
     assert policy.can_access(principal, "tool", "search_entities")
     assert not policy.can_access(principal, "tool", "publish_project_snapshot")

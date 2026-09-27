@@ -10,4 +10,3 @@ class PathEntityView(BaseModel):
     owners: tuple[OwnershipView, ...] = ()
 
     model_config = ConfigDict(frozen=True, extra="forbid")
-

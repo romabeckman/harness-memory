@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastmcp import Client
 
+from core.application.entity_discovery.contracts.project_link_item import ProjectLinkItem
 from core.application.entity_discovery.contracts.project_search_item import ProjectSearchItem
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
 from harness_memory_mcp.server.factory import create_mcp_server
@@ -25,7 +26,15 @@ async def test_search_projects_returns_bounded_project_references_and_uses_tenan
         result = await client.call_tool("search_projects", {"key": "send"})
 
     assert result.data == {
-        "items": [{"key": "send", "environments": [], "name": "Send", "has_active_snapshot": True}],
+        "items": [
+            {
+                "key": "send",
+                "environments": [],
+                "links": [],
+                "name": "Send",
+                "has_active_snapshot": True,
+            }
+        ],
         "count": 1,
         "limit": 100,
         "offset": 0,
@@ -37,12 +46,43 @@ async def test_search_projects_returns_bounded_project_references_and_uses_tenan
 
 
 @pytest.mark.asyncio
+async def test_search_projects_returns_links_when_present():
+    repository = Mock()
+    link_id = uuid4()
+    link_tenant = uuid4()
+    link_item = ProjectLinkItem(project_id=link_id, name="Billing", tenant_id=link_tenant)
+    link_none_name = ProjectLinkItem(project_id=uuid4(), name=None, tenant_id="tenant-c")
+    repository.search_projects.return_value = [
+        ProjectSearchItem(
+            key="orders",
+            name="Orders",
+            has_active_snapshot=True,
+            links=(link_item, link_none_name),
+        )
+    ]
+    server = create_mcp_server(
+        project_search_repository=repository,
+        tenant_context=TenantContextProvider("tenant-a"),
+    )
+
+    async with Client(server) as client:
+        result = await client.call_tool("search_projects", {"key": "orders"})
+
+    assert result.data["items"][0]["links"] == [
+        {"project_id": str(link_id), "name": "Billing", "tenant_id": str(link_tenant)},
+        {"project_id": str(link_none_name.project_id), "name": None, "tenant_id": "tenant-c"},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_search_projects_exposes_environment_snapshot_objects_without_project_snapshot():
     repository = Mock()
     snapshot_id = uuid4()
     repository.search_projects.return_value = [
         ProjectSearchItem(
-            key="send", name="Send", has_active_snapshot=True,
+            key="send",
+            name="Send",
+            has_active_snapshot=True,
             environments=[
                 {"name": "production", "current_snapshot_id": snapshot_id},
                 {"name": "testing", "current_snapshot_id": None},
@@ -83,7 +123,13 @@ async def test_search_projects_supports_name_or_key_query_and_offset_pages():
         )
 
     assert result.data["items"] == [
-        {"key": "send", "environments": [], "name": "Send", "has_active_snapshot": False}
+        {
+            "key": "send",
+            "environments": [],
+            "links": [],
+            "name": "Send",
+            "has_active_snapshot": False,
+        }
     ]
     assert result.data["offset"] == 1
     assert result.data["has_more"] is True
@@ -123,9 +169,7 @@ async def test_search_projects_rejects_blank_filters(arguments):
     )
 
     async with Client(server) as client:
-        result = await client.call_tool(
-            "search_projects", arguments, raise_on_error=False
-        )
+        result = await client.call_tool("search_projects", arguments, raise_on_error=False)
 
     assert result.data["error"]["code"] == "INVALID_ARGUMENT"
     repository.search_projects.assert_not_called()

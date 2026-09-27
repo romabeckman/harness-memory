@@ -55,7 +55,12 @@ class FakeKnowledgePublicationRepository:
         env_repo: FakeEnvironmentRepository | None = None,
     ) -> None:
         self.publications: dict[tuple[str, str, str, str], KnowledgePublication] = {
-            (pub.project_key.value, pub.environment_name.value, pub.deployment_id.value, "default"): pub
+            (
+                pub.project_key.value,
+                pub.environment_name.value,
+                pub.deployment_id.value,
+                "default",
+            ): pub
             for pub in (publications or [])
         }
         self.saved: list[KnowledgePublication] = []
@@ -123,6 +128,7 @@ class TestPublishKnowledge:
         assert first.status == PublicationStatus.COMPLETED
         assert second.status == PublicationStatus.ALREADY_PUBLISHED
         assert second.snapshot_id == first.snapshot_id
+
     def test_rejects_unknown_entity_type(self) -> None:
         import pytest
 
@@ -153,6 +159,7 @@ class TestPublishKnowledge:
 
         expected = int.from_bytes(hashlib.sha256(b"1.2.3").digest()[:8], "big") % 2147483647 + 1
         assert snapshot.revision.value == expected
+
     def test_returns_already_published_for_idempotent_retry(self) -> None:
         existing_snapshot_id = uuid4()
         pub = KnowledgePublication(

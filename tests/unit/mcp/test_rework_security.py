@@ -137,8 +137,7 @@ def test_require_auth_builds_authenticated_production_composition():
 
     assert any(type(middleware).__name__ == "AuthMiddleware" for middleware in server.middleware)
     assert any(
-        type(middleware).__name__ == "SecurityAuditMiddleware"
-        for middleware in server.middleware
+        type(middleware).__name__ == "SecurityAuditMiddleware" for middleware in server.middleware
     )
 
 
@@ -182,7 +181,9 @@ def test_http_security_mapping_preserves_streaming_chunks():
 
     asyncio.run(server.http_app()({"type": "http"}, None, send))
     assert first_forwarded
-    assert [message.get("body") for message in messages if message["type"] == "http.response.body"] == [
+    assert [
+        message.get("body") for message in messages if message["type"] == "http.response.body"
+    ] == [
         b"first",
         b"second",
     ]

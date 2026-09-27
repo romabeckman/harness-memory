@@ -42,9 +42,7 @@ class SecurityFailureMapper:
             status_code=403,
             code="insufficient_scope",
             headers={
-                "WWW-Authenticate": (
-                    f'Bearer error="insufficient_scope", scope="{required_scope}"'
-                )
+                "WWW-Authenticate": (f'Bearer error="insufficient_scope", scope="{required_scope}"')
             },
             message="insufficient scope",
         )

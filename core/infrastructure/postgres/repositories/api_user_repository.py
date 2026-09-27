@@ -14,7 +14,9 @@ class ApiUserRepository:
 
     def add(self, user: User) -> User:
         with self._session_factory() as session:
-            session.add(ApiUser(id=user.id, tenant_id=user.tenant_id, name=user.name, email=user.email))
+            session.add(
+                ApiUser(id=user.id, tenant_id=user.tenant_id, name=user.name, email=user.email)
+            )
             session.commit()
         return user
 
@@ -27,8 +29,13 @@ class ApiUserRepository:
             return self._to_domain(session.scalar(select(ApiUser).where(ApiUser.email == email)))
 
     def list(
-        self, *, name: str | None = None, email: str | None = None,
-        q: str | None = None, limit: int = 100, offset: int = 0,
+        self,
+        *,
+        name: str | None = None,
+        email: str | None = None,
+        q: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> list[User]:
         def contains(column, value: str):
             escaped = value.casefold().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

@@ -22,7 +22,9 @@ class TokenCreate(BaseModel):
     def validate_token_create(self):
         if (self.user_id is None) == (self.service_account_id is None):
             raise ValueError("exactly one token owner is required")
-        cleaned_projects = [k.strip() for k in (self.project_keys or []) if isinstance(k, str) and k.strip()]
+        cleaned_projects = [
+            k.strip() for k in (self.project_keys or []) if isinstance(k, str) and k.strip()
+        ]
         if self.project_keys and not cleaned_projects:
             raise ValueError("at least one project key is required")
         self.project_keys = list(dict.fromkeys(cleaned_projects))

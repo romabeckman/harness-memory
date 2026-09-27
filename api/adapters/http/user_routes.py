@@ -28,10 +28,7 @@ def create_user_router(service: UserService) -> APIRouter:
         offset: int = Query(0, ge=0),
     ) -> list[UserResponse]:
         users = service.list(name=name, email=email, q=q, limit=limit, offset=offset)
-        return [
-            UserResponse(id=item.id, name=item.name, email=item.email)
-            for item in users
-        ]
+        return [UserResponse(id=item.id, name=item.name, email=item.email) for item in users]
 
     @router.get("/{user_id}", response_model=UserResponse)
     def get_user(user_id: UUID) -> UserResponse:

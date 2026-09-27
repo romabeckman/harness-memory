@@ -57,8 +57,12 @@ class RelationshipResponseMapper:
         payload["response_truncated"] = True
         for section in ("owners", "relations", "dependencies", "items"):
             for item in payload.get(section, []):
-                for nested in (item, item.get("source", {}), item.get("target", {}),
-                               item.get("peer", {})):
+                for nested in (
+                    item,
+                    item.get("source", {}),
+                    item.get("target", {}),
+                    item.get("peer", {}),
+                ):
                     if isinstance(nested, dict) and nested.get("metadata"):
                         nested["metadata"] = {}
         if self._size(payload) <= max_bytes:
@@ -87,9 +91,13 @@ class RelationshipResponseMapper:
 
     @staticmethod
     def _too_large() -> dict:
-        return {"status": "ERROR", "error": {
-            "code": "RESPONSE_TOO_LARGE", "message": "context exceeds response byte limit",
-        }}
+        return {
+            "status": "ERROR",
+            "error": {
+                "code": "RESPONSE_TOO_LARGE",
+                "message": "context exceeds response byte limit",
+            },
+        }
 
     @staticmethod
     def _size(payload: dict) -> int:

@@ -20,9 +20,7 @@ class TraceContextExtractor:
         return parsed[1] if parsed is not None else None
 
     @classmethod
-    def _parse_traceparent(
-        cls, headers: Mapping[str, str] | None
-    ) -> tuple[str, str] | None:
+    def _parse_traceparent(cls, headers: Mapping[str, str] | None) -> tuple[str, str] | None:
         if not headers:
             return None
 

@@ -12,11 +12,9 @@ from core.domain.snapshot_publication.aggregates.project_knowledge_snapshot impo
 class KnowledgePublicationRepository(Protocol):
     def find_by_deployment(
         self, project_key: str, env_name: str, deployment_id: str, tenant_id: str
-    ) -> KnowledgePublication | None:
-        ...
+    ) -> KnowledgePublication | None: ...
 
-    def save(self, publication: KnowledgePublication, tenant_id: str) -> None:
-        ...
+    def save(self, publication: KnowledgePublication, tenant_id: str) -> None: ...
 
     def publish_atomically_with_environment(
         self,
@@ -25,5 +23,4 @@ class KnowledgePublicationRepository(Protocol):
         snapshot: ProjectKnowledgeSnapshot,
         environment_id: UUID,
         expected_current_snapshot_id: UUID | None = None,
-    ) -> UUID:
-        ...
+    ) -> UUID: ...

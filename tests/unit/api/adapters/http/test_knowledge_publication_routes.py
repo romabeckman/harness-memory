@@ -15,7 +15,10 @@ from core.domain.tenant_security.value_objects.authenticated_principal import Au
 
 def authenticated_principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
-        "pipeline", "tenant-a", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"catalog"})
+        "pipeline",
+        "tenant-a",
+        frozenset({"memory:publish"}),
+        allowed_project_keys=frozenset({"catalog"}),
     )
 
 
@@ -140,7 +143,10 @@ class TestKnowledgePublicationRoutes:
             create_knowledge_publication_router(
                 handler,
                 lambda: AuthenticatedPrincipal(
-                    "pipeline", "tenant-a", frozenset({"memory:publish"}), allowed_project_keys=frozenset({"other-project"})
+                    "pipeline",
+                    "tenant-a",
+                    frozenset({"memory:publish"}),
+                    allowed_project_keys=frozenset({"other-project"}),
                 ),
             ),
             prefix="/v1",

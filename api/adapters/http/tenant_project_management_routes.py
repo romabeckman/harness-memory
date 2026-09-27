@@ -56,9 +56,7 @@ def create_tenant_project_management_router(
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
 
-    @router.post(
-        "/projects/{project_key}/environments", status_code=status.HTTP_201_CREATED
-    )
+    @router.post("/projects/{project_key}/environments", status_code=status.HTTP_201_CREATED)
     def create_project_environment(
         project_key: str,
         request: ProjectEnvironmentCreate,
@@ -78,9 +76,7 @@ def create_tenant_project_management_router(
         tenant_id: UUID = Query(...),
     ):
         try:
-            return projects.update(
-                tenant_id, project_key, request.model_dump(exclude_unset=True)
-            )
+            return projects.update(tenant_id, project_key, request.model_dump(exclude_unset=True))
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except ValueError as error:

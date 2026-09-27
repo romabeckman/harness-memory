@@ -30,9 +30,7 @@ class AuthenticatedPrincipal:
             self,
             "scopes",
             frozenset(
-                scope.strip()
-                for scope in self.scopes
-                if isinstance(scope, str) and scope.strip()
+                scope.strip() for scope in self.scopes if isinstance(scope, str) and scope.strip()
             ),
         )
         object.__setattr__(

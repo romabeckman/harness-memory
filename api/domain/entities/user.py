@@ -8,4 +8,3 @@ class User:
     name: str
     email: str
     tenant_id: UUID | None = None
-

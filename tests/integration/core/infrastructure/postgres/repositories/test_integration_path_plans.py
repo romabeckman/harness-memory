@@ -7,9 +7,7 @@ from core.infrastructure.postgres.models.relation import Relation
 
 
 def test_integration_path_plan_indexes_cover_active_graph_and_context_lookups():
-    entity_indexes = {
-        index.name for index in Entity.__table__.indexes if isinstance(index, Index)
-    }
+    entity_indexes = {index.name for index in Entity.__table__.indexes if isinstance(index, Index)}
     project_indexes = {
         index.name for index in Project.__table__.indexes if isinstance(index, Index)
     }

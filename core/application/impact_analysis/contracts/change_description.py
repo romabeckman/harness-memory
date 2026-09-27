@@ -23,8 +23,7 @@ class ChangeDescription(BaseModel):
         default="",
         max_length=4096,
         description=(
-            "Short summary of the proposed change; overrides the separate "
-            "description argument."
+            "Short summary of the proposed change; overrides the separate description argument."
         ),
     )
     changed_fields: tuple[StrictStr, ...] = Field(

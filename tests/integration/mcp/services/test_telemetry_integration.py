@@ -25,7 +25,11 @@ class StaticTokenVerifier(TokenVerifier):
             client_id="subject-1",
             scopes=["memory:impact", "memory:read"],
             subject="subject-1",
-            claims={"sub": "subject-1", "tenant_id": "tenant-test", "scope": "memory:impact memory:read"},
+            claims={
+                "sub": "subject-1",
+                "tenant_id": "tenant-test",
+                "scope": "memory:impact memory:read",
+            },
         )
 
 
@@ -73,7 +77,11 @@ def test_correlate_traceparent_with_security_audit_record():
                 "jsonrpc": "2.0",
                 "id": 1,
                 "method": "initialize",
-                "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}},
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "test", "version": "1.0"},
+                },
             },
             headers=headers,
         )
@@ -119,7 +127,16 @@ def test_tool_execution_succeeds_when_telemetry_exporter_fails():
         # Initialize
         init_res = client.post(
             "/mcp",
-            json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}},
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "t", "version": "1"},
+                },
+            },
         )
         session_id = init_res.headers["mcp-session-id"]
         headers = {"Mcp-Session-Id": session_id}

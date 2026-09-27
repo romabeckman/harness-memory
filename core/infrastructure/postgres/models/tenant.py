@@ -32,7 +32,9 @@ class Tenant(Base):
     id: Mapped[UUID] = mapped_column(TenantId(as_uuid=True), primary_key=True, default=uuid4)
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", server_default="active")
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="active", server_default="active"
+    )
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")
     )

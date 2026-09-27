@@ -24,7 +24,9 @@ class Environment(Base):
     __tablename__ = "environments"
     __table_args__ = (
         UniqueConstraint("id", "tenant_id", name="uq_environments_id_tenant"),
-        UniqueConstraint("tenant_id", "project_id", "name", name="uq_environments_tenant_project_name"),
+        UniqueConstraint(
+            "tenant_id", "project_id", "name", name="uq_environments_tenant_project_name"
+        ),
         CheckConstraint("length(trim(name)) > 0", name="ck_environments_name_non_empty"),
         CheckConstraint(
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",

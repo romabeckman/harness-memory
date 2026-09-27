@@ -30,15 +30,20 @@ class PostgresEnvironmentRepository:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
 
-    def resolve_pair(self, project_key: str, source_name: str, target_name: str,
-                     tenant_id: str | None) -> tuple[DomainEnvironment | None, DomainEnvironment | None]:
+    def resolve_pair(
+        self, project_key: str, source_name: str, target_name: str, tenant_id: str | None
+    ) -> tuple[DomainEnvironment | None, DomainEnvironment | None]:
         statement = (
             select(ModelEnvironment)
-            .join(ModelProject,
-                  (ModelProject.id == ModelEnvironment.project_id) &
-                  (ModelProject.tenant_id == ModelEnvironment.tenant_id))
-            .where(ModelProject.key == project_key,
-                   ModelEnvironment.name.in_((source_name, target_name)))
+            .join(
+                ModelProject,
+                (ModelProject.id == ModelEnvironment.project_id)
+                & (ModelProject.tenant_id == ModelEnvironment.tenant_id),
+            )
+            .where(
+                ModelProject.key == project_key,
+                ModelEnvironment.name.in_((source_name, target_name)),
+            )
         )
         if tenant_id is not None:
             statement = statement.where(ModelEnvironment.tenant_id == tenant_id)
@@ -49,12 +54,8 @@ class PostgresEnvironmentRepository:
         by_name = {row.name: row for row in rows}
 
         return (
-            self._to_domain(by_name[source_name], project_key)
-            if source_name in by_name
-            else None,
-            self._to_domain(by_name[target_name], project_key)
-            if target_name in by_name
-            else None,
+            self._to_domain(by_name[source_name], project_key) if source_name in by_name else None,
+            self._to_domain(by_name[target_name], project_key) if target_name in by_name else None,
         )
 
     def resolve(
@@ -81,9 +82,7 @@ class PostgresEnvironmentRepository:
 
             return self._to_domain(row, project_key)
 
-    def promote_active_snapshot(
-        self, env_id: UUID, snap_id: UUID, tenant_id: str
-    ) -> None:
+    def promote_active_snapshot(self, env_id: UUID, snap_id: UUID, tenant_id: str) -> None:
         with self._session_factory() as session:
             stmt = (
                 update(ModelEnvironment)
@@ -102,11 +101,18 @@ class PostgresEnvironmentRepository:
             return existing
         with self._session_factory() as session:
             with session.begin():
-                insert = postgres_insert if session.bind.dialect.name == "postgresql" else sqlite_insert
+                insert = (
+                    postgres_insert if session.bind.dialect.name == "postgresql" else sqlite_insert
+                )
                 inserted_project_id = session.execute(
-                    insert(ModelProject).values(
-                        id=uuid4(), tenant_id=tenant_id, key=project_key, name=project_key,
-                    ).on_conflict_do_nothing(index_elements=["tenant_id", "key"])
+                    insert(ModelProject)
+                    .values(
+                        id=uuid4(),
+                        tenant_id=tenant_id,
+                        key=project_key,
+                        name=project_key,
+                    )
+                    .on_conflict_do_nothing(index_elements=["tenant_id", "key"])
                     .returning(ModelProject.id)
                 ).scalar_one_or_none()
                 project = session.scalars(
@@ -120,7 +126,9 @@ class PostgresEnvironmentRepository:
                 if inserted_project_id is not None:
                     session.add(
                         ModelEnvironment(
-                            id=uuid4(), tenant_id=tenant_id, project_id=project.id,
+                            id=uuid4(),
+                            tenant_id=tenant_id,
+                            project_id=project.id,
                             name=EnvironmentType.PRODUCTION.value,
                             type=EnvironmentType.PRODUCTION.value,
                         )
@@ -131,12 +139,15 @@ class PostgresEnvironmentRepository:
                     else EnvironmentType.OTHER.value
                 )
                 session.execute(
-                    insert(ModelEnvironment).values(
-                        id=uuid4(), tenant_id=tenant_id, project_id=project.id,
-                        name=name, type=environment_type,
-                    ).on_conflict_do_nothing(
-                        index_elements=["tenant_id", "project_id", "name"]
+                    insert(ModelEnvironment)
+                    .values(
+                        id=uuid4(),
+                        tenant_id=tenant_id,
+                        project_id=project.id,
+                        name=name,
+                        type=environment_type,
                     )
+                    .on_conflict_do_nothing(index_elements=["tenant_id", "project_id", "name"])
                 )
                 row = session.scalars(
                     select(ModelEnvironment).where(
@@ -147,9 +158,7 @@ class PostgresEnvironmentRepository:
                 ).one()
                 return self._to_domain(row, project_key)
 
-    def create_for_project(
-        self, tenant_id: str, project_key: str, name: str
-    ) -> DomainEnvironment:
+    def create_for_project(self, tenant_id: str, project_key: str, name: str) -> DomainEnvironment:
         environment_name = EnvironmentName(name.strip())
         environment_type = (
             EnvironmentType(environment_name.value)

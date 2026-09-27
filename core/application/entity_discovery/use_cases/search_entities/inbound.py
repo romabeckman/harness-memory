@@ -26,8 +26,7 @@ class SearchEntitiesInput(BaseModel):
         Field(
             max_length=255,
             description=(
-                "Case-insensitive literal prefix of an entity name or key. "
-                "Blank text is invalid."
+                "Case-insensitive literal prefix of an entity name or key. Blank text is invalid."
             ),
         ),
     ] = None
@@ -80,8 +79,7 @@ class SearchEntitiesInput(BaseModel):
     project_id: UUID | None = Field(
         default=None,
         description=(
-            "Project UUID from search_projects; selects one project occurrence "
-            "when keys repeat."
+            "Project UUID from search_projects; selects one project occurrence when keys repeat."
         ),
     )
     snapshot_id: UUID | None = Field(

@@ -68,7 +68,7 @@ def create_token_router(service: TokenService) -> APIRouter:
                 scopes=set(item.scopes),
                 project_keys=sorted(item.allowed_project_keys),
             )
-            for item in tokens[offset:offset + limit]
+            for item in tokens[offset : offset + limit]
         ]
 
     @router.get("/{token_id}", response_model=TokenResponse)

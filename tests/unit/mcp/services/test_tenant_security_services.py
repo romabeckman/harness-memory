@@ -11,9 +11,17 @@ from core.application.tenant_security.use_cases.record_security_audit.handler im
 )
 from core.domain.tenant_security.value_objects.authenticated_principal import AuthenticatedPrincipal
 from harness_memory_mcp.config import RuntimeSettings, SecuritySettings
-from harness_memory_mcp.services.audited_operation import AuditPersistenceFailure, ExecuteAuditedOperation
-from harness_memory_mcp.services.authenticated_principal_factory import AuthenticatedPrincipalFactory
-from harness_memory_mcp.services.component_scope_policy import ComponentScopePolicy, component_scope_auth
+from harness_memory_mcp.services.audited_operation import (
+    AuditPersistenceFailure,
+    ExecuteAuditedOperation,
+)
+from harness_memory_mcp.services.authenticated_principal_factory import (
+    AuthenticatedPrincipalFactory,
+)
+from harness_memory_mcp.services.component_scope_policy import (
+    ComponentScopePolicy,
+    component_scope_auth,
+)
 from harness_memory_mcp.services.request_security_context import RequestSecurityContext
 from harness_memory_mcp.services.security_audit_middleware import (
     AuditingTokenVerifier,
@@ -64,11 +72,17 @@ def test_principal_factory_and_scope_policy_are_deny_by_default():
     assert policy.required_scope("resource", "memory://projects/payments") == "memory:read"
     assert policy.required_scope("resource", "memory://snapshots/123") == "memory:read"
     assert policy.required_scope("prompt", "review_change_impact") == "memory:impact"
-    assert policy.filter_components(
-        result,
-        "tool",
-        [SimpleNamespace(name="search_entities"), SimpleNamespace(name="publish_project_snapshot")],
-    )[0].name == "search_entities"
+    assert (
+        policy.filter_components(
+            result,
+            "tool",
+            [
+                SimpleNamespace(name="search_entities"),
+                SimpleNamespace(name="publish_project_snapshot"),
+            ],
+        )[0].name
+        == "search_entities"
+    )
 
 
 def test_request_context_is_reset_for_success_failure_and_concurrency():
@@ -248,6 +262,7 @@ def test_auditing_token_verifier_applies_backpressure_instead_of_dropping_record
         RecordSecurityAuditHandler(repository),
         AuthenticatedPrincipalFactory(),
     )
+
     async def run():
         for _ in range(16):
             await verifier._audit_slots.acquire()

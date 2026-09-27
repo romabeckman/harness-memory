@@ -107,9 +107,14 @@ def register_get_context(
         try:
             context = tenant_context.require_scope("memory:read")
             request = GetContextInput(
-                entity_id=entity_id, limit=limit, evidence_limit=evidence_limit,
-                snapshot_id=snapshot_id, project_id=project_id, tenant_id=tenant_id,
-                result_limit=result_limit, offset=offset,
+                entity_id=entity_id,
+                limit=limit,
+                evidence_limit=evidence_limit,
+                snapshot_id=snapshot_id,
+                project_id=project_id,
+                tenant_id=tenant_id,
+                result_limit=result_limit,
+                offset=offset,
             )
             result = handler.execute(request, TenantScope(context.tenant_id, context.is_admin))
             return mapper.success(result)

@@ -45,8 +45,12 @@ def test_compare_environments_selector_cannot_widen_trusted_tenant() -> None:
     handler = Mock()
     tool = register_compare_environments(server, handler, TenantContextProvider("tenant-a"))
 
-    result = tool(project_key="catalog", source_environment="staging",
-                  target_environment="production", tenant_id="tenant-b")
+    result = tool(
+        project_key="catalog",
+        source_environment="staging",
+        target_environment="production",
+        tenant_id="tenant-b",
+    )
 
     assert result["error"]["code"] == "INVALID_ARGUMENT"
     handler.execute.assert_not_called()

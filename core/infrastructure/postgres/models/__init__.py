@@ -9,6 +9,7 @@ from .metadata import MetadataObject
 from .environment import Environment
 from .knowledge_publication import KnowledgePublication
 from .project import Project
+from .project_link import ProjectLinkModel
 from .relation import Relation
 from .snapshot import Snapshot
 from .tenant import Tenant
@@ -27,6 +28,7 @@ __all__ = [
     "KnowledgePublication",
     "MetadataObject",
     "Project",
+    "ProjectLinkModel",
     "Relation",
     "Snapshot",
     "Tenant",

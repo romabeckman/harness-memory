@@ -3,4 +3,3 @@ class IntegrationPathEndpointNotFound(RuntimeError):
 
     def __init__(self, *_details: object):
         super().__init__("integration path endpoint not found")
-

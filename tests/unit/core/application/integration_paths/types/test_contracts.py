@@ -135,4 +135,3 @@ def test_contracts_are_immutable():
         bounds.max_depth = 8
     with pytest.raises(ValidationError):
         output.source = _entity("other")
-

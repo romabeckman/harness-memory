@@ -11,6 +11,7 @@ from core.infrastructure.postgres.models.snapshot import Snapshot
 def test_metadata_contains_all_registered_tables():
     assert set(Base.metadata.tables) == {
         "projects",
+        "project_links",
         "snapshots",
         "entities",
         "relations",

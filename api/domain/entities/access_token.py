@@ -25,9 +25,7 @@ class AccessToken:
                 self,
                 "allowed_project_keys",
                 frozenset(
-                    k.strip()
-                    for k in self.allowed_project_keys
-                    if isinstance(k, str) and k.strip()
+                    k.strip() for k in self.allowed_project_keys if isinstance(k, str) and k.strip()
                 ),
             )
         if not self.allowed_project_keys:

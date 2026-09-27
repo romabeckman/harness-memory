@@ -33,9 +33,7 @@ class TenantId(Uuid):
                     if _SLUG_REGEX.match(trimmed):
                         uuid_val = uuid5(NAMESPACE_DNS, trimmed)
                     else:
-                        raise ValueError(
-                            f"Invalid UUID or slug format for tenant_id: '{value}'"
-                        )
+                        raise ValueError(f"Invalid UUID or slug format for tenant_id: '{value}'")
                 value = uuid_val
 
             if not isinstance(value, UUID):
@@ -48,9 +46,7 @@ class TenantId(Uuid):
         return process
 
     def result_processor(self, dialect: Dialect, coltype: Any):
-        parent_proc = (
-            super().result_processor(dialect, coltype) if dialect is not None else None
-        )
+        parent_proc = super().result_processor(dialect, coltype) if dialect is not None else None
 
         def process(value: Any) -> Any:
             if value is None:
@@ -67,5 +63,3 @@ class TenantId(Uuid):
             return res
 
         return process
-
-

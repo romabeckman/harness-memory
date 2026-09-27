@@ -25,9 +25,7 @@ def _output():
         project=ProjectContextItem(
             key="payments", snapshot_id=uuid4(), revision=2, name="Payments"
         ),
-        entities=(
-            EntityContextItem(id=uuid4(), key="payments-api", type=EntityType.API),
-        ),
+        entities=(EntityContextItem(id=uuid4(), key="payments-api", type=EntityType.API),),
         entities_truncated=False,
     )
 
@@ -57,4 +55,3 @@ def test_project_handler_propagates_not_found_without_retry():
         handler.execute(ProjectResourceInput(project_key="missing"), TenantScope("tenant-a"))
 
     repository.load_active_project.assert_called_once()
-

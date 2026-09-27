@@ -107,13 +107,22 @@ async def test_search_tool_exposes_historical_option_and_publication_attribution
     snapshot_id = uuid4()
     publication_id = uuid4()
     repository.search.return_value = EntitySearchPage(
-        items=(EntitySearchItem(
-            entity_id=uuid4(), key="payments-api", type="api", project_key="payments",
-            snapshot_id=snapshot_id, revision=2, environment_name="production",
-            is_current_snapshot=False, publication_id=publication_id,
-            publication_version="2.0.0", publication_status="COMPLETED",
-            deployment_id="deploy-2",
-        ),),
+        items=(
+            EntitySearchItem(
+                entity_id=uuid4(),
+                key="payments-api",
+                type="api",
+                project_key="payments",
+                snapshot_id=snapshot_id,
+                revision=2,
+                environment_name="production",
+                is_current_snapshot=False,
+                publication_id=publication_id,
+                publication_version="2.0.0",
+                publication_status="COMPLETED",
+                deployment_id="deploy-2",
+            ),
+        ),
         limit=25,
     )
     server = create_mcp_server(
@@ -123,8 +132,7 @@ async def test_search_tool_exposes_historical_option_and_publication_attribution
 
     async with Client(server) as client:
         result = await client.call_tool(
-            "search_entities", {"request": {"query": "payments",
-                                             "include_past_snapshots": True}}
+            "search_entities", {"request": {"query": "payments", "include_past_snapshots": True}}
         )
 
     _, criteria, _, _ = repository.search.call_args.args

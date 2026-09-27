@@ -64,8 +64,11 @@ def test_input_rejects_unknown_fields_and_unsupported_type():
 
 def test_criteria_normalizes_exact_filters_and_literal_search_terms():
     criteria = EntitySearchCriteria(
-        key="Payments-API", name="Payments_%", type=EntityType.API,
-        project="Company/Payments", query=" PostgreSQL_% "
+        key="Payments-API",
+        name="Payments_%",
+        type=EntityType.API,
+        project="Company/Payments",
+        query=" PostgreSQL_% ",
     )
 
     assert criteria.key == "Payments-API"
@@ -77,9 +80,7 @@ def test_criteria_normalizes_exact_filters_and_literal_search_terms():
 
 
 def test_criteria_escapes_like_markers_without_using_backslash():
-    criteria = EntitySearchCriteria(
-        name=r"Rate_%!\X", project=r"Project_%!\X", query=r"DB_%!\X"
-    )
+    criteria = EntitySearchCriteria(name=r"Rate_%!\X", project=r"Project_%!\X", query=r"DB_%!\X")
 
     assert criteria.name_like == r"rate!_!%!!\x"
     assert criteria.project == r"Project_%!\X"
@@ -138,8 +139,12 @@ def test_empty_page_and_tenant_scope_are_valid_immutable_values():
 
 def test_entity_search_page_accepts_500_items():
     item = EntitySearchItem(
-        entity_id=uuid4(), key="payments-api", type=EntityType.API,
-        project_key="payments", snapshot_id=uuid4(), revision=1,
+        entity_id=uuid4(),
+        key="payments-api",
+        type=EntityType.API,
+        project_key="payments",
+        snapshot_id=uuid4(),
+        revision=1,
     )
 
     page = EntitySearchPage(items=(item,) * 500, limit=500)

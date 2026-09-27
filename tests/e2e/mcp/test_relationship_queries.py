@@ -89,9 +89,7 @@ async def test_relationship_tools_require_read_scope_before_handler_access():
 
     async with Client(server) as client:
         context = await client.call_tool("get_context", {"entity_id": str(uuid4())})
-        dependencies = await client.call_tool(
-            "get_dependencies", {"entity_id": str(uuid4())}
-        )
+        dependencies = await client.call_tool("get_dependencies", {"entity_id": str(uuid4())})
 
     assert context.data["error"]["code"] == "RELATIONSHIP_UNAUTHORIZED"
     assert dependencies.data["error"]["code"] == "RELATIONSHIP_UNAUTHORIZED"
@@ -104,7 +102,11 @@ async def test_relationship_tools_require_read_scope_before_handler_access():
 async def test_get_context_lists_by_scope_selector(selector):
     repository = Mock()
     repository.list_contexts.return_value = {
-        "items": [], "count": 0, "limit": 25, "offset": 0, "has_more": False,
+        "items": [],
+        "count": 0,
+        "limit": 25,
+        "offset": 0,
+        "has_more": False,
     }
     server = create_mcp_server(
         relationship_repository=repository,

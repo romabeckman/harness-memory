@@ -33,8 +33,17 @@ class DummyRepo:
         if status:
             items = [t for t in items if t["status"] == status]
         if query:
-            items = [t for t in items if query.lower() in t["name"].lower() or query.lower() in t["key"].lower()]
-        return {"items": items[offset : offset + limit], "total": len(items), "limit": limit, "offset": offset}
+            items = [
+                t
+                for t in items
+                if query.lower() in t["name"].lower() or query.lower() in t["key"].lower()
+            ]
+        return {
+            "items": items[offset : offset + limit],
+            "total": len(items),
+            "limit": limit,
+            "offset": offset,
+        }
 
 
 def test_tenant_management_service_list_and_get():

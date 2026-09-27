@@ -20,11 +20,19 @@ class SearchCursor:
         if self.version == 2:
             for field in ("scope_hash", "context_hash"):
                 value = getattr(self, field)
-                if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+                if (
+                    not isinstance(value, str)
+                    or len(value) != 64
+                    or any(c not in "0123456789abcdef" for c in value)
+                ):
                     raise ValueError(f"invalid cursor {field}")
-            if self.pinned_snapshot_id is not None and not isinstance(self.pinned_snapshot_id, UUID):
+            if self.pinned_snapshot_id is not None and not isinstance(
+                self.pinned_snapshot_id, UUID
+            ):
                 try:
-                    object.__setattr__(self, "pinned_snapshot_id", UUID(str(self.pinned_snapshot_id)))
+                    object.__setattr__(
+                        self, "pinned_snapshot_id", UUID(str(self.pinned_snapshot_id))
+                    )
                 except (TypeError, ValueError) as error:
                     raise ValueError("invalid pinned snapshot") from error
         fingerprint = (

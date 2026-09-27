@@ -125,9 +125,7 @@ def _entity(key: str) -> EntityContextItem:
 def _consumer(depth: int) -> ImpactConsumerView:
     return ImpactConsumerView(
         entity=_entity("consumer"),
-        project=ProjectContextItem(
-            key="project", name="Project", snapshot_id=uuid4(), revision=1
-        ),
+        project=ProjectContextItem(key="project", name="Project", snapshot_id=uuid4(), revision=1),
         depth=depth,
         relation_id=uuid4(),
         relation_type=RelationType.CONSUMES,

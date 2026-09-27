@@ -321,9 +321,7 @@ def test_repository_traverses_both_relation_directions_and_excludes_non_integrat
     session_factory = _repository()
     ids = _seed(session_factory)
     repository = PostgresIntegrationPathRepository(session_factory)
-    result = repository.find_paths(
-        TenantScope("tenant-a"), _query(ids["source"], ids["third"])
-    )
+    result = repository.find_paths(TenantScope("tenant-a"), _query(ids["source"], ids["third"]))
     assert len(result.paths) == 1
     assert [hop.traversal_direction.value for hop in result.paths[0].hops] == [
         "outbound",

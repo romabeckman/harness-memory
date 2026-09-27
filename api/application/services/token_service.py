@@ -58,9 +58,7 @@ class TokenService:
                 raise LookupError("service account not found")
 
         cleaned_projects = [
-            k.strip()
-            for k in (project_keys or ())
-            if isinstance(k, str) and k.strip()
+            k.strip() for k in (project_keys or ()) if isinstance(k, str) and k.strip()
         ]
         if project_keys and not cleaned_projects:
             raise ValueError("at least one project is required")

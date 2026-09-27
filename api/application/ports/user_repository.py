@@ -12,8 +12,13 @@ class UserRepository(Protocol):
     def find_by_email(self, email: str) -> User | None: ...
 
     def list(
-        self, *, name: str | None = None, email: str | None = None,
-        q: str | None = None, limit: int = 100, offset: int = 0,
+        self,
+        *,
+        name: str | None = None,
+        email: str | None = None,
+        q: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> list[User]: ...
 
     def update(self, user: User) -> User: ...

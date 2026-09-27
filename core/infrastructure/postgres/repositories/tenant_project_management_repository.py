@@ -169,9 +169,7 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
                 "offset": offset,
             }
 
-    def update_project(
-        self, tenant_id: UUID, key: str, values: dict[str, Any]
-    ) -> dict | None:
+    def update_project(self, tenant_id: UUID, key: str, values: dict[str, Any]) -> dict | None:
         with self._session_factory() as session, session.begin():
             project = session.scalar(
                 select(Project).where(Project.tenant_id == tenant_id, Project.key == key)
@@ -195,21 +193,22 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
                 return False
             related_models = (Snapshot, KnowledgePublication)
             if any(
-                session.scalar(
-                    select(model.id).where(model.project_id == project.id).limit(1)
-                )
+                session.scalar(select(model.id).where(model.project_id == project.id).limit(1))
                 is not None
                 for model in related_models
             ):
                 raise ValueError("project cannot be deleted while it has snapshots or environments")
-            has_non_default_environment = session.scalar(
-                select(Environment.id)
-                .where(
-                    Environment.project_id == project.id,
-                    Environment.name != EnvironmentType.PRODUCTION.value,
+            has_non_default_environment = (
+                session.scalar(
+                    select(Environment.id)
+                    .where(
+                        Environment.project_id == project.id,
+                        Environment.name != EnvironmentType.PRODUCTION.value,
+                    )
+                    .limit(1)
                 )
-                .limit(1)
-            ) is not None
+                is not None
+            )
             if has_non_default_environment:
                 raise ValueError("project cannot be deleted while it has snapshots or environments")
             session.execute(

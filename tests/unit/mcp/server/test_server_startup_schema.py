@@ -13,7 +13,9 @@ def test_production_server_refuses_startup_when_schema_incompatible():
         head_revision="0002",
     )
     mock_checker = MagicMock()
-    mock_checker.check.return_value = MagicMock(is_compatible=lambda: False, current_revision="0001", head_revision="0002")
+    mock_checker.check.return_value = MagicMock(
+        is_compatible=lambda: False, current_revision="0001", head_revision="0002"
+    )
 
     settings = RuntimeSettings(
         mcp_issuer="https://issuer.example",

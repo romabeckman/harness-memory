@@ -14,6 +14,5 @@ def test_entity_search_models_declare_four_f003_indexes():
         "ix_projects_tenant_active_snapshot",
     } <= names
     assert all(
-        isinstance(index, Index)
-        for index in Entity.__table__.indexes | Project.__table__.indexes
+        isinstance(index, Index) for index in Entity.__table__.indexes | Project.__table__.indexes
     )

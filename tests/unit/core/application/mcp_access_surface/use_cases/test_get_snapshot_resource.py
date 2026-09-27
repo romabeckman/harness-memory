@@ -34,4 +34,3 @@ def test_snapshot_handler_returns_tenant_owned_historical_snapshot_and_bounds():
     repository.load_snapshot.assert_called_once_with(
         request, TenantScope("tenant-a"), ResourceReadBounds()
     )
-

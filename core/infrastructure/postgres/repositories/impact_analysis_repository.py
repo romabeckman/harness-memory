@@ -61,9 +61,7 @@ class PostgresImpactAnalysisRepository:
             raise ValueError("session_factory or engine is required")
         self._session_factory = session_factory
 
-    def analyze_impact(
-        self, scope: TenantScope, query: AnalyzeImpactInput
-    ) -> AnalyzeImpactOutput:
+    def analyze_impact(self, scope: TenantScope, query: AnalyzeImpactInput) -> AnalyzeImpactOutput:
         request = (
             query
             if isinstance(query, AnalyzeImpactInput)
@@ -101,8 +99,7 @@ class PostgresImpactAnalysisRepository:
                         owner_rows, request.bounds.owner_limit
                     )
                     owners_truncated = (
-                        owner_limit_truncated
-                        or len(owner_rows) > self._MAX_IMPACT_OWNER_ROWS
+                        owner_limit_truncated or len(owner_rows) > self._MAX_IMPACT_OWNER_ROWS
                     )
                     owner_rows = owner_rows[: self._MAX_IMPACT_OWNER_ROWS]
                     relation_ids = [
@@ -130,9 +127,7 @@ class PostgresImpactAnalysisRepository:
                         owners_by_entity,
                         evidence,
                     )
-                    affected_projects = self._map_projects(
-                        records, project_by_node
-                    )
+                    affected_projects = self._map_projects(records, project_by_node)
                     affected_teams, teams_truncated = self._map_teams(
                         owners_by_entity, impacted_ids
                     )
@@ -219,9 +214,7 @@ class PostgresImpactAnalysisRepository:
             depth = frontier[0][3]
             current_ids = tuple(dict.fromkeys(item[0] for item in frontier))
             if depth >= max_depth:
-                if self._has_unvisited_adjacent_relations(
-                    session, scope, current_ids, visited
-                ):
+                if self._has_unvisited_adjacent_relations(session, scope, current_ids, visited):
                     truncated = True
                 break
             remaining = max_consumers - len(records)
@@ -235,15 +228,11 @@ class PostgresImpactAnalysisRepository:
             for edge in edges:
                 source_node_id = edge["source_node_id"]
                 entity_by_node.setdefault(source_node_id, edge["source"])
-                project_by_node.setdefault(
-                    source_node_id, (edge["project"], edge["snapshot"])
-                )
+                project_by_node.setdefault(source_node_id, (edge["project"], edge["snapshot"]))
             for edge in edges:
                 target_node_id = edge["target_node_id"]
                 entity_by_node.setdefault(target_node_id, edge["target"])
-                project_by_node.setdefault(
-                    target_node_id, (edge["project"], edge["snapshot"])
-                )
+                project_by_node.setdefault(target_node_id, (edge["project"], edge["snapshot"]))
                 adjacency[target_node_id].append(edge)
             for edges in adjacency.values():
                 edges.sort(
@@ -449,12 +438,8 @@ class PostgresImpactAnalysisRepository:
             "relation": relation,
             "source": source,
             "target": target,
-            "source_node_id": relation.source_identity_id
-            or source.identity_id
-            or source.id,
-            "target_node_id": relation.target_identity_id
-            or target.identity_id
-            or target.id,
+            "source_node_id": relation.source_identity_id or source.identity_id or source.id,
+            "target_node_id": relation.target_identity_id or target.identity_id or target.id,
             "project": project,
             "snapshot": snapshot,
         }
@@ -472,14 +457,18 @@ class PostgresImpactAnalysisRepository:
             rank_source.identity_id,
             Relation.source_entity_id,
         )
-        rank = func.row_number().over(
-            partition_by=source_node,
-            order_by=(
-                rank_source.entity_key.asc(),
-                rank_target.entity_key.asc(),
-                Relation.id.asc(),
-            ),
-        ).label("impact_owner_rank")
+        rank = (
+            func.row_number()
+            .over(
+                partition_by=source_node,
+                order_by=(
+                    rank_source.entity_key.asc(),
+                    rank_target.entity_key.asc(),
+                    Relation.id.asc(),
+                ),
+            )
+            .label("impact_owner_rank")
+        )
         ranked = (
             select(Relation.id.label("relation_id"), rank)
             .join(
@@ -564,7 +553,7 @@ class PostgresImpactAnalysisRepository:
                 ),
             )
             .where(
-                    tenant_scope_predicate(scope, Relation.tenant_id),
+                tenant_scope_predicate(scope, Relation.tenant_id),
                 Relation.relation_type == RelationType.OWNED_BY.value,
                 target.entity_type == EntityType.TEAM.value,
                 ranked.c.impact_owner_rank <= owner_limit + 1,
@@ -598,15 +587,19 @@ class PostgresImpactAnalysisRepository:
         consumed = 0
         truncated = False
         for relation_id in dict.fromkeys(relation_ids):
-            rows = session.execute(
-                select(Evidence)
-                .where(
-                    tenant_scope_predicate(scope, Evidence.tenant_id),
-                    Evidence.relation_id == relation_id,
+            rows = (
+                session.execute(
+                    select(Evidence)
+                    .where(
+                        tenant_scope_predicate(scope, Evidence.tenant_id),
+                        Evidence.relation_id == relation_id,
+                    )
+                    .order_by(Evidence.id.asc())
+                    .limit(evidence_limit + 1)
                 )
-                .order_by(Evidence.id.asc())
-                .limit(evidence_limit + 1)
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             if len(rows) > evidence_limit:
                 truncated = True
             for row in rows[:evidence_limit]:
@@ -670,9 +663,7 @@ class PostgresImpactAnalysisRepository:
             final_edge = record["edges"][-1]
             consumer = record["entity"]
             consumer_evidence = tuple(
-                item
-                for edge in record["edges"]
-                for item in evidence.get(edge["relation"].id, ())
+                item for edge in record["edges"] for item in evidence.get(edge["relation"].id, ())
             )
             view = ImpactConsumerView(
                 entity=cls._map_entity(consumer),
@@ -682,10 +673,7 @@ class PostgresImpactAnalysisRepository:
                 relation_type=final_edge["relation"].relation_type,
                 provenance=final_edge["relation"].provenance_kind,
                 metadata=final_edge["relation"].metadata_json or {},
-                owners=tuple(
-                    owner.owner
-                    for owner in owners_by_entity.get(record["node_id"], ())
-                ),
+                owners=tuple(owner.owner for owner in owners_by_entity.get(record["node_id"], ())),
                 evidence=consumer_evidence,
             )
             (direct if record["depth"] == 1 else indirect).append(view)
@@ -695,9 +683,7 @@ class PostgresImpactAnalysisRepository:
     def _map_projects(cls, records, project_by_entity):
         projects = {}
         for record in records:
-            contexts = record.get(
-                "project_contexts", (project_by_entity[record["node_id"]],)
-            )
+            contexts = record.get("project_contexts", (project_by_entity[record["node_id"]],))
             for project in contexts:
                 projects[project[0].key] = cls._map_project(project)
         return tuple(projects[key] for key in sorted(projects))
@@ -861,8 +847,10 @@ class PostgresImpactAnalysisRepository:
         unknowns = []
         if not records:
             unknowns.append("No known consumers were found in the active graph.")
-        if evidence_requested and relation_ids and any(
-            relation_id not in evidence for relation_id in relation_ids
+        if (
+            evidence_requested
+            and relation_ids
+            and any(relation_id not in evidence for relation_id in relation_ids)
         ):
             unknowns.append("Some impacted relationships have no linked evidence.")
         if truncated:
@@ -890,9 +878,7 @@ class PostgresImpactAnalysisRepository:
             key=project.key,
             name=project.name,
             snapshot_id=snapshot.id if snapshot is not None else project.active_snapshot_id,
-            revision=snapshot.revision
-            if snapshot is not None
-            else 1,
+            revision=snapshot.revision if snapshot is not None else 1,
         )
 
 
