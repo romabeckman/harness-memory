@@ -11,7 +11,7 @@ export async function listServiceAccountsAction(
     const data = await client.listServiceAccounts(tenantId)
     return { data }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Falha ao listar contas de serviço'
+    const msg = err instanceof Error ? err.message : 'Failed to list service accounts'
     return { error: msg }
   }
 }
@@ -39,7 +39,7 @@ export async function ensureServiceAccountAction(
     const msg =
       err instanceof Error
         ? err.message
-        : 'Falha ao provisionar conta de serviço para o tenant'
+        : 'Failed to provision a service account for the tenant'
     return { error: msg }
   }
 }

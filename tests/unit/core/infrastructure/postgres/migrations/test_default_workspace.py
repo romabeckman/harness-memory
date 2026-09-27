@@ -51,6 +51,7 @@ def _database():
         sa.Column("id", sa.String(36), primary_key=True),
         sa.Column("project_id", sa.String(36), nullable=False),
         sa.Column("tenant_id", sa.String(255), nullable=False),
+        sa.Column("environment_id", sa.String(36)),
     )
     sa.Table(
         "entities",
@@ -59,12 +60,38 @@ def _database():
         sa.Column("project_id", sa.String(36), nullable=False),
         sa.Column("tenant_id", sa.String(255), nullable=False),
     )
+    sa.Table(
+        "environments",
+        metadata,
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("tenant_id", sa.String(36), nullable=False),
+        sa.Column("project_id", sa.String(36), nullable=False),
+        sa.Column("name", sa.String(64), nullable=False),
+        sa.Column("type", sa.String(32), nullable=False),
+        sa.Column("current_snapshot_id", sa.String(36)),
+        sa.Column("metadata", sa.String(1000), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+    )
+    sa.Table(
+        "knowledge_publications",
+        metadata,
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("project_id", sa.String(36), nullable=False),
+        sa.Column("environment_id", sa.String(36), nullable=False),
+    )
+    sa.Table(
+        "service_accounts",
+        metadata,
+        sa.Column("id", sa.String(36), primary_key=True),
+        sa.Column("tenant_id", sa.String(36), nullable=False),
+    )
     metadata.create_all(engine)
     return engine, engine.connect()
 
 
 def _migration(connection, monkeypatch):
-    migration = import_module("migrations.versions.006_default_workspace")
+    migration = import_module("migrations.versions.003_default_workspace")
     monkeypatch.setattr(
         migration,
         "op",
@@ -96,6 +123,9 @@ def test_upgrade_seeds_admin_user_default_tenant_and_project(database, monkeypat
     assert UUID(project.tenant_id) == UUID(admin.id)
     assert project.key == "default"
     assert project.name == "Default Project"
+    environment = database.execute(sa.text("SELECT project_id, name, type FROM environments")).one()
+    assert UUID(environment.project_id) == UUID(project.id)
+    assert environment.name == environment.type == "production"
 
 
 def test_downgrade_removes_only_unused_seed_rows(database, monkeypatch):
@@ -107,6 +137,7 @@ def test_downgrade_removes_only_unused_seed_rows(database, monkeypatch):
     assert database.scalar(sa.text("SELECT count(*) FROM tenants")) == 0
     assert database.scalar(sa.text("SELECT count(*) FROM users")) == 0
     assert database.scalar(sa.text("SELECT count(*) FROM projects")) == 0
+    assert database.scalar(sa.text("SELECT count(*) FROM environments")) == 0
 
 
 def test_downgrade_preserves_seed_rows_with_user_data(database, monkeypatch):
@@ -131,3 +162,15 @@ def test_downgrade_preserves_seed_rows_with_user_data(database, monkeypatch):
 
     assert database.scalar(sa.text("SELECT count(*) FROM users")) == 1
     assert database.scalar(sa.text("SELECT count(*) FROM projects")) == 1
+
+
+def test_downgrade_preserves_modified_seed_environment(database, monkeypatch):
+    migration = _migration(database, monkeypatch)
+    migration.upgrade()
+    database.execute(sa.text("UPDATE environments SET name = 'custom'"))
+
+    migration.downgrade()
+
+    assert database.scalar(sa.text("SELECT name FROM environments")) == "custom"
+    assert database.scalar(sa.text("SELECT count(*) FROM projects")) == 1
+    assert database.scalar(sa.text("SELECT count(*) FROM tenants")) == 1

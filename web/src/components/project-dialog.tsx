@@ -54,7 +54,7 @@ export function ProjectDialog({
       if (res.success) {
         onSuccess()
       } else {
-        setError(res.error || 'Erro ao atualizar projeto.')
+        setError(res.error || 'Failed to update project.')
       }
     } else {
       const res = await createProjectAction({
@@ -65,7 +65,7 @@ export function ProjectDialog({
       if (res.success) {
         onSuccess()
       } else {
-        setError(res.error || 'Erro ao criar projeto.')
+        setError(res.error || 'Failed to create project.')
       }
     }
     setLoading(false)
@@ -81,12 +81,12 @@ export function ProjectDialog({
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">
-                {isEditing ? 'Editar Projeto' : 'Novo Projeto'}
+                {isEditing ? 'Edit Project' : 'New Project'}
               </h2>
               <p className="text-[11px] text-gray-400">
                 {isEditing
-                  ? 'Atualize o nome de exibição do projeto'
-                  : 'Cadastre um projeto sob uma organização'}
+                  ? 'Update the project display name'
+                  : 'Create a project under an organization'}
               </p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export function ProjectDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Organização Proprietária (Tenant)
+              Owning Organization (Tenant)
             </label>
             <select
               value={tenantId}
@@ -124,33 +124,33 @@ export function ProjectDialog({
 
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Chave do Projeto (Slug)
+              Project Key (Slug)
             </label>
             <input
               type="text"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               disabled={isEditing}
-              placeholder="ex: core-service"
+              placeholder="e.g., core-service"
               required
               className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 font-mono"
             />
             {!isEditing && (
               <p className="text-[10px] text-gray-500 mt-1">
-                Identificador único dentro desta organização. Imutável após cadastro.
+                Unique identifier within this organization. Cannot be changed after creation.
               </p>
             )}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Nome Amigável (Opcional)
+              Display Name (Optional)
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ex: Core Processing Service"
+              placeholder="e.g., Core Processing Service"
               className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
@@ -162,14 +162,14 @@ export function ProjectDialog({
               disabled={loading}
               className="px-3.5 py-2 text-xs font-medium text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
               className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-blue-500 transition disabled:opacity-50"
             >
-              {loading ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Projeto'}
+              {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Project'}
             </button>
           </div>
         </form>

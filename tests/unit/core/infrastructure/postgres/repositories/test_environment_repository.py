@@ -109,11 +109,11 @@ class TestPostgresEnvironmentRepository:
         assert repo.resolve("checkout", "staging", tenant_id="tenant-b") is None
         assert repo.resolve("checkout", "production", tenant_id="tenant-a") is None
 
-    def test_global_lookup_rejects_ambiguous_project_key(self) -> None:
+    def test_global_lookup_resolves_unique_project_key_across_tenants(self) -> None:
         engine = create_engine("sqlite://")
         Base.metadata.create_all(engine)
         first = _seed_project(engine, "tenant-a", "checkout")
-        second = _seed_project(engine, "tenant-b", "checkout")
+        second = _seed_project(engine, "tenant-b", "catalog")
         with Session(engine) as session:
             session.add_all([
                 ModelEnvironment(id=uuid4(), tenant_id="tenant-a", project_id=first.id,
@@ -124,12 +124,14 @@ class TestPostgresEnvironmentRepository:
             session.commit()
 
         repo = PostgresEnvironmentRepository(engine=engine)
-        try:
-            repo.resolve("checkout", "staging", tenant_id=None)
-        except ValueError as error:
-            assert "multiple tenants" in str(error)
-        else:
-            raise AssertionError("global lookup must reject ambiguous project keys")
+        checkout = repo.resolve("checkout", "staging", tenant_id=None)
+        catalog = repo.resolve("catalog", "staging", tenant_id=None)
+        assert checkout is not None
+        assert catalog is not None
+        assert checkout.project_key.value == "checkout"
+        assert catalog.project_key.value == "catalog"
+        assert checkout.id != catalog.id
+        assert repo.resolve("checkout", "staging", tenant_id="tenant-b") is None
 
     def test_promotes_active_snapshot(self) -> None:
         engine = create_engine("sqlite://")

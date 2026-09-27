@@ -22,9 +22,9 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { name: 'Tokens & Credenciais', href: '/', icon: Key },
-  { name: 'Tenants (Organizações)', href: '/tenants', icon: Database },
-  { name: 'Projetos', href: '/projects', icon: Layers },
+  { name: 'Tokens & Credentials', href: '/', icon: Key },
+  { name: 'Tenants (Organizations)', href: '/tenants', icon: Database },
+  { name: 'Projects', href: '/projects', icon: Layers },
 ]
 
 export function AdminSidebar() {
@@ -62,8 +62,8 @@ export function AdminSidebar() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition mx-auto"
-          title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          title={collapsed ? 'Expand menu' : 'Collapse menu'}
+          aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
@@ -98,10 +98,10 @@ export function AdminSidebar() {
           <button
             type="submit"
             className="flex w-full items-center space-x-3 px-3 py-2 rounded-lg text-xs font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition"
-            title={collapsed ? 'Sair' : undefined}
+            title={collapsed ? 'Sign Out' : undefined}
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Encerrar Sessão</span>}
+            {!collapsed && <span>Sign Out</span>}
           </button>
         </form>
       </div>

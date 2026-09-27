@@ -25,6 +25,7 @@ class Project(Base):
     __tablename__ = "projects"
     __table_args__ = (
         UniqueConstraint("id", "tenant_id", name="uq_projects_id_tenant"),
+        UniqueConstraint("key", name="uq_projects_key"),
         UniqueConstraint("tenant_id", "key", name="uq_projects_tenant_key"),
         CheckConstraint(
             "length(trim(CAST(tenant_id AS TEXT))) > 0",

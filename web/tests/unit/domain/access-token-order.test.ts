@@ -45,15 +45,15 @@ describe('AccessTokenOrder', () => {
     ).toThrow('Token name cannot be empty')
   })
 
-  it('should reject AccessTokenOrder when projectKeys is empty or only whitespace', () => {
-    expect(() =>
+  it('should allow an empty project list for global access but reject blank keys', () => {
+    expect(
       AccessTokenOrder.create({
         name: 'test-token',
         serviceAccountId: VALID_SA_ID,
         scopes: [SCOPE_READ],
         projectKeys: [],
-      })
-    ).toThrow('At least one project must be selected')
+      }).projectKeys
+    ).toEqual([])
 
     expect(() =>
       AccessTokenOrder.create({

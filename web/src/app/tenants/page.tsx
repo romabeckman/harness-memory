@@ -38,7 +38,7 @@ export default function TenantsPage() {
       setTenants(res.data)
       setHasMore(res.data.length === PAGE_SIZE)
     } else {
-      setError(res.error || 'Erro ao carregar organizações.')
+      setError(res.error || 'Failed to load organizations.')
     }
     setLoading(false)
   }, [debouncedSearch, page])
@@ -60,8 +60,8 @@ export default function TenantsPage() {
               <Database className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-white tracking-tight">Organizações (Tenants)</h1>
-              <p className="text-[11px] text-gray-400">Controle de clientes e segregação de dados</p>
+              <h1 className="text-sm font-bold text-white tracking-tight">Organizations (Tenants)</h1>
+              <p className="text-[11px] text-gray-400">Client management and data isolation</p>
             </div>
           </div>
 
@@ -70,7 +70,7 @@ export default function TenantsPage() {
               onClick={() => fetchData()}
               disabled={loading}
               className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition"
-              title="Atualizar lista"
+              title="Refresh list"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -79,7 +79,7 @@ export default function TenantsPage() {
               className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow hover:bg-blue-500 transition"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Novo Tenant
+              New Tenant
             </button>
           </div>
         </header>
@@ -87,7 +87,7 @@ export default function TenantsPage() {
         <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-8 space-y-6">
           {error && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-300">
-              <span className="font-semibold block mb-0.5">Erro de conexão:</span>
+              <span className="font-semibold block mb-0.5">Connection error:</span>
               {error}
             </div>
           )}
@@ -95,7 +95,7 @@ export default function TenantsPage() {
           {loading && tenants.length === 0 ? (
             <div className="py-16 text-center text-xs text-gray-500">
               <RefreshCw className="mx-auto h-6 w-6 animate-spin text-gray-600 mb-2" />
-              Carregando organizações...
+              Loading organizations...
             </div>
           ) : (
             <TenantTable

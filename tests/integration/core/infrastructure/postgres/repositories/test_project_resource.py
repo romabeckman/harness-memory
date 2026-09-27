@@ -62,7 +62,7 @@ def _seed_project(session_factory):
                 for index in range(27)
             ]
         )
-        foreign_project = Project(tenant_id="tenant-b", key=project.key, name="Foreign")
+        foreign_project = Project(tenant_id="tenant-b", key="github.com/other/payments-api", name="Foreign")
         session.add(foreign_project)
         session.commit()
         return project.id, historical.id, active.id

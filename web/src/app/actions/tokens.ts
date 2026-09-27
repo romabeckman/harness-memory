@@ -25,7 +25,7 @@ export async function loadDashboardDataAction(): Promise<{ data?: DashboardData;
 
     return { data: { bootstrap, tokens, tenants } }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Falha ao carregar dados do dashboard'
+    const msg = err instanceof Error ? err.message : 'Failed to load dashboard data'
     return { error: msg }
   }
 }
@@ -59,7 +59,7 @@ export async function createTokenAction(
     revalidatePath('/')
     return { success: true, plaintext: result.plaintextToken }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao emitir token'
+    const msg = err instanceof Error ? err.message : 'Failed to issue token'
     return { success: false, error: msg }
   }
 }
@@ -73,7 +73,7 @@ export async function revokeTokenAction(tokenId: string): Promise<{ success: boo
     revalidatePath('/')
     return { success: true }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Erro ao revogar token'
+    const msg = err instanceof Error ? err.message : 'Failed to revoke token'
     return { success: false, error: msg }
   }
 }

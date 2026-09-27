@@ -14,7 +14,7 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     // 2. Submit invalid token
     await page.fill('input[name="token"]', 'invalid-token-123')
     await page.click('button[type="submit"]')
-    await expect(page.locator('text=Credencial inválida')).toBeVisible()
+    await expect(page.locator('text=Invalid credential')).toBeVisible()
 
     // 3. Submit valid admin token
     await page.fill('input[name="token"]', ADMIN_TOKEN)
@@ -22,7 +22,7 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
 
     // 4. Redirect to dashboard
     await expect(page).toHaveURL('/')
-    await expect(page.locator('text=Tokens de Acesso & Credenciais')).toBeVisible()
+    await expect(page.locator('text=Access Tokens & Credentials')).toBeVisible()
   })
 
   test('SCN-E2E-02: should display active tenant and pre-existing seeded tokens', async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     // Verify seeded token in table
     await expect(page.locator('text=pre-existing-e2e-token')).toBeVisible()
     await expect(page.locator('text=read').first()).toBeVisible()
-    await expect(page.locator('text=Ativo').first()).toBeVisible()
+    await expect(page.locator('text=Active').first()).toBeVisible()
   })
 
   test('SCN-E2E-03 & 04: should issue new token with scopes and display one-time reveal modal with copy', async ({
@@ -47,8 +47,8 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await page.click('button[type="submit"]')
     await expect(page).toHaveURL('/')
 
-    // Click "Novo Token"
-    await page.click('button:has-text("Novo Token")')
+    // Click "New Token"
+    await page.click('button:has-text("New Token")')
 
     // Fill form in dialog
     const tokenName = `playwright-e2e-${Date.now()}`
@@ -61,32 +61,32 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     }
 
     // Select 30 days lifetime
-    await page.click('button:has-text("30 Dias")')
+    await page.click('button:has-text("30 Days")')
 
     // Submit
-    await page.click('button:has-text("Criar Token")')
+    await page.click('button:has-text("Create Token")')
 
     // Verify One-Time Reveal Modal
-    await expect(page.locator('text=Token Emitido com Sucesso!')).toBeVisible()
-    await expect(page.locator('text=Aviso de Exibição Única')).toBeVisible()
+    await expect(page.locator('text=Token Issued Successfully!')).toBeVisible()
+    await expect(page.locator('text=One-Time Reveal Notice')).toBeVisible()
 
     const secretInput = page.locator('input[readonly]')
     const secretValue = await secretInput.inputValue()
     expect(secretValue).toMatch(/^hm_/)
 
-    // Click Copiar
-    await page.click('button:has-text("Copiar")')
-    await expect(page.locator('text=Copiado!')).toBeVisible()
+    // Click Copy
+    await page.click('button:has-text("Copy")')
+    await expect(page.locator('text=Copied!')).toBeVisible()
 
     // Close modal
-    await page.click('button:has-text("Concluir e Fechar")')
-    await expect(page.locator('text=Token Emitido com Sucesso!')).not.toBeVisible()
+    await page.click('button:has-text("Done and Close")')
+    await expect(page.locator('text=Token Issued Successfully!')).not.toBeVisible()
 
     // Verify new token exists in table
     await expect(page.locator(`text=${tokenName}`)).toBeVisible()
   })
 
-  test('SCN-E2E-04B: should switch tenant in CreateTokenDialog and update scoped projects dynamically', async ({
+  test('SCN-E2E-04B: should hide projects for all tenants', async ({
     page,
   }) => {
     // Authenticate
@@ -95,21 +95,42 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await page.click('button[type="submit"]')
     await expect(page).toHaveURL('/')
 
-    // Click "Novo Token"
-    await page.click('button:has-text("Novo Token")')
+    // Click "New Token"
+    await page.click('button:has-text("New Token")')
 
     // Scoped projects should load
-    const dialog = page.locator('div:has-text("Emitir Novo Access Token")')
+    const dialog = page.locator('div:has-text("Issue New Access Token")')
     await expect(dialog.first()).toBeVisible()
 
     const tenantSelect = page.locator('form select')
-    if (await tenantSelect.isVisible()) {
-      await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
-      await expect(page.locator('text=e2e-project')).toBeVisible()
-    }
+    await expect(tenantSelect.locator('option').first()).toHaveText(
+      'All projects (all tenants)'
+    )
+    await expect(tenantSelect).toHaveValue('__all_tenants__')
 
-    // Close dialog
-    await page.click('button:has-text("Cancelar")')
+    const project = page.getByRole('checkbox', { name: /e2e-project/ })
+    await expect(project).toBeHidden()
+    await expect(page.getByText(/projects selected/)).toBeHidden()
+    await expect(page.getByText('Authorized Projects (Required)', { exact: true })).toBeHidden()
+
+    await tenantSelect.selectOption({ label: 'E2E Test Organization (e2e-tenant)' })
+    await expect(project).toBeVisible()
+    await expect(project).toBeChecked()
+    await expect(page.getByText('Authorized Projects (Required)', { exact: true })).toBeVisible()
+
+    await tenantSelect.selectOption('__all_tenants__')
+    await expect(project).toBeHidden()
+    await expect(page.getByText(/projects selected/)).toBeHidden()
+    await expect(page.getByText('Authorized Projects (Required)', { exact: true })).toBeHidden()
+
+    const tokenName = `playwright-all-tenants-${Date.now()}`
+    await page.fill('input[placeholder*="github-actions"]', tokenName)
+    await page.click('button:has-text("Create Token")')
+    await expect(page.getByText('Token Issued Successfully!')).toBeVisible()
+    await page.click('button:has-text("Done and Close")')
+
+    const tokenRow = page.locator('tr').filter({ hasText: tokenName })
+    await expect(tokenRow).toContainText('All (*)')
   })
 
   test('SCN-E2E-05: should revoke a token and update its status immediately', async ({ page }) => {
@@ -123,11 +144,11 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     const row = page.locator('tr:has-text("pre-existing-e2e-token")')
     await expect(row).toBeVisible()
 
-    await row.locator('button[title="Revogar token"]').click()
-    await expect(row.locator('button:has-text("Confirmar")')).toBeVisible()
+    await row.locator('button[title="Revoke token"]').click()
+    await expect(row.locator('button:has-text("Confirm")')).toBeVisible()
 
     // Confirm revocation
-    await row.locator('button:has-text("Confirmar")').click()
+    await row.locator('button:has-text("Confirm")').click()
 
     // The revoked token is removed from the active tokens list
     await expect(page.locator('tr:has-text("pre-existing-e2e-token")')).not.toBeVisible()
@@ -140,8 +161,8 @@ test.describe('Harness Memory Admin Console — E2E Suite', () => {
     await page.click('button[type="submit"]')
     await expect(page).toHaveURL('/')
 
-    // Click Sair
-    await page.click('button:has-text("Sair")')
+    // Click Sign Out
+    await page.click('button:has-text("Sign Out")')
     await expect(page).toHaveURL(/\/login/)
 
     // Try going to / directly

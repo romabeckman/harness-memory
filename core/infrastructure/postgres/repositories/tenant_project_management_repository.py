@@ -124,6 +124,11 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
             )
             return self._project(project) if project else None
 
+    def get_project_by_key(self, key: str) -> dict | None:
+        with self._session_factory() as session:
+            project = session.scalar(select(Project).where(Project.key == key))
+            return self._project(project) if project else None
+
     def list_projects(
         self,
         tenant_id: UUID | None = None,

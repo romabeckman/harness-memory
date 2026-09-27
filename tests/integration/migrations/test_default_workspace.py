@@ -17,7 +17,7 @@ pytestmark = pytest.mark.skipif(
 
 
 def test_migration_head_creates_default_admin_tenant_and_project():
-    migration = importlib.import_module("migrations.versions.006_default_workspace")
+    migration = importlib.import_module("migrations.versions.003_default_workspace")
     runtime = AlembicRuntime(PostgresSettings(database_url=DATABASE_URL))
 
     try:

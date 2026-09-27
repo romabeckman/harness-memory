@@ -36,29 +36,29 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     // 1. Navigate to Tenants
     await page.click('aside a[href="/tenants"]')
     await expect(page).toHaveURL('/tenants')
-    await expect(page.locator('h1')).toContainText('Organizações (Tenants)')
+    await expect(page.locator('h1')).toContainText('Organizations (Tenants)')
     await expect(page.locator('aside a[href="/tenants"]')).toHaveClass(/text-blue-400/)
 
     // 2. Navigate to Projects
     await page.click('aside a[href="/projects"]')
     await expect(page).toHaveURL('/projects')
-    await expect(page.locator('h1')).toContainText('Projetos de Software')
+    await expect(page.locator('h1')).toContainText('Software Projects')
     await expect(page.locator('aside a[href="/projects"]')).toHaveClass(/text-blue-400/)
 
     // 3. Return to Tokens (Dashboard)
     await page.click('aside a[href="/"]')
     await expect(page).toHaveURL('/')
-    await expect(page.locator('h1')).toContainText('Tokens de Acesso & Credenciais')
+    await expect(page.locator('h1')).toContainText('Access Tokens & Credentials')
     await expect(page.locator('aside a[href="/"]')).toHaveClass(/text-blue-400/)
 
     // 4. Test sidebar collapse/expand toggle
-    const toggleButton = page.locator('aside button[title="Recolher menu"]')
+    const toggleButton = page.locator('aside button[title="Collapse menu"]')
     if (await toggleButton.isVisible()) {
       await toggleButton.click()
-      await expect(page.locator('aside button[title="Expandir menu"]')).toBeVisible()
+      await expect(page.locator('aside button[title="Expand menu"]')).toBeVisible()
       // Expand back
-      await page.click('aside button[title="Expandir menu"]')
-      await expect(page.locator('aside button[title="Recolher menu"]')).toBeVisible()
+      await page.click('aside button[title="Expand menu"]')
+      await expect(page.locator('aside button[title="Collapse menu"]')).toBeVisible()
     }
   })
 
@@ -67,29 +67,29 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.click('aside a[href="/tenants"]')
     await expect(page).toHaveURL('/tenants')
 
-    // 1. Open "Novo Tenant" Dialog
-    await page.click('button:has-text("Novo Tenant")')
-    await expect(page.locator('h2:has-text("Novo Tenant")')).toBeVisible()
+    // 1. Open "New Tenant" Dialog
+    await page.click('button:has-text("New Tenant")')
+    await expect(page.locator('h2:has-text("New Tenant")')).toBeVisible()
 
     const timestamp = Date.now()
     const tenantKey = `e2e-org-${timestamp}`
     const tenantName = `Org Test E2E ${timestamp}`
 
     // 2. Fill form
-    await page.fill('input[placeholder="ex: acme-corp"]', tenantKey)
-    await page.fill('input[placeholder="ex: Acme Corporation"]', tenantName)
+    await page.fill('input[placeholder="e.g., acme-corp"]', tenantKey)
+    await page.fill('input[placeholder="e.g., Acme Corporation"]', tenantName)
 
     // 3. Submit
-    await page.click('button[type="submit"]:has-text("Criar Tenant")')
+    await page.click('button[type="submit"]:has-text("Create Tenant")')
 
     // 4. Verify listed in table
     const tenantRow = page.locator(`tr:has-text("${tenantName}")`)
     await expect(tenantRow).toBeVisible()
-    await expect(tenantRow.locator('text=Ativo')).toBeVisible()
+    await expect(tenantRow.locator('text=Active')).toBeVisible()
     await expect(tenantRow.locator(`text=${tenantKey}`)).toBeVisible()
 
     // 5. Test search filter
-    const searchInput = page.locator('input[placeholder*="Buscar"]')
+    const searchInput = page.locator('input[placeholder*="Search"]')
     await searchInput.fill(tenantKey)
     await page.waitForTimeout(400) // allow debounce
     await expect(page.locator(`tr:has-text("${tenantName}")`)).toBeVisible()
@@ -99,23 +99,23 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.waitForTimeout(400)
 
     // 6. Edit Tenant
-    await tenantRow.locator('button[title="Editar tenant"]').click()
-    await expect(page.locator('h2:has-text("Editar Organização")')).toBeVisible()
+    await tenantRow.locator('button[title="Edit tenant"]').click()
+    await expect(page.locator('h2:has-text("Edit Organization")')).toBeVisible()
 
     // Key should be disabled when editing
-    await expect(page.locator('input[placeholder="ex: acme-corp"]')).toBeDisabled()
+    await expect(page.locator('input[placeholder="e.g., acme-corp"]')).toBeDisabled()
 
     // Update name and change status to disabled
-    const updatedName = `${tenantName} Alterada`
-    await page.fill('input[placeholder="ex: Acme Corporation"]', updatedName)
+    const updatedName = `${tenantName} Updated`
+    await page.fill('input[placeholder="e.g., Acme Corporation"]', updatedName)
     await page.selectOption('select', 'disabled')
 
-    await page.click('button[type="submit"]:has-text("Salvar Alterações")')
+    await page.click('button[type="submit"]:has-text("Save Changes")')
 
     // Verify updated values in table
     const updatedRow = page.locator(`tr:has-text("${updatedName}")`)
     await expect(updatedRow).toBeVisible()
-    await expect(updatedRow.locator('text=Desativado')).toBeVisible()
+    await expect(updatedRow.locator('text=Disabled')).toBeVisible()
   })
 
   test('SCN-E2E-PROJECT-01: should create, filter by tenant, and edit a Project', async ({ page }) => {
@@ -123,20 +123,20 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.click('aside a[href="/projects"]')
     await expect(page).toHaveURL('/projects')
 
-    // 1. Open "Novo Projeto" Dialog
-    await page.click('button:has-text("Novo Projeto")')
-    await expect(page.locator('h2:has-text("Novo Projeto")')).toBeVisible()
+    // 1. Open "New Project" Dialog
+    await page.click('button:has-text("New Project")')
+    await expect(page.locator('h2:has-text("New Project")')).toBeVisible()
 
     const timestamp = Date.now()
     const projectKey = `proj-${timestamp}`
     const projectName = `Microservice E2E ${timestamp}`
 
     // 2. Fill form
-    await page.fill('input[placeholder="ex: core-service"]', projectKey)
-    await page.fill('input[placeholder="ex: Core Processing Service"]', projectName)
+    await page.fill('input[placeholder="e.g., core-service"]', projectKey)
+    await page.fill('input[placeholder="e.g., Core Processing Service"]', projectName)
 
     // 3. Submit
-    await page.click('button[type="submit"]:has-text("Criar Projeto")')
+    await page.click('button[type="submit"]:has-text("Create Project")')
 
     // 4. Verify listed in table
     const projectRow = page.locator(`tr:has-text("${projectKey}")`)
@@ -144,7 +144,7 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await expect(projectRow.locator(`text=${projectName}`)).toBeVisible()
 
     // 5. Test search filter
-    const searchInput = page.locator('input[placeholder*="Buscar"]')
+    const searchInput = page.locator('input[placeholder*="Search"]')
     await searchInput.fill(projectKey)
     await page.waitForTimeout(400) // allow debounce
     await expect(page.locator(`tr:has-text("${projectKey}")`)).toBeVisible()
@@ -154,15 +154,15 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await page.waitForTimeout(400)
 
     // 6. Edit Project
-    await projectRow.locator('button[title="Editar projeto"]').click()
-    await expect(page.locator('h2:has-text("Editar Projeto")')).toBeVisible()
+    await projectRow.locator('button[title="Edit project"]').click()
+    await expect(page.locator('h2:has-text("Edit Project")')).toBeVisible()
 
     // Tenant and Key should be disabled when editing
-    await expect(page.locator('input[placeholder="ex: core-service"]')).toBeDisabled()
+    await expect(page.locator('input[placeholder="e.g., core-service"]')).toBeDisabled()
 
     const updatedProjectName = `${projectName} Updated`
-    await page.fill('input[placeholder="ex: Core Processing Service"]', updatedProjectName)
-    await page.click('button[type="submit"]:has-text("Salvar Alterações")')
+    await page.fill('input[placeholder="e.g., Core Processing Service"]', updatedProjectName)
+    await page.click('button[type="submit"]:has-text("Save Changes")')
 
     // Verify updated name
     const updatedRow = page.locator(`tr:has-text("${projectKey}")`)
@@ -183,19 +183,19 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     const projectKey = `del-proj-${timestamp}`
     const projectName = `Del Proj ${timestamp}`
 
-    await page.click('button:has-text("Novo Projeto")')
-    await page.fill('input[placeholder="ex: core-service"]', projectKey)
-    await page.fill('input[placeholder="ex: Core Processing Service"]', projectName)
-    await page.click('button[type="submit"]:has-text("Criar Projeto")')
+    await page.click('button:has-text("New Project")')
+    await page.fill('input[placeholder="e.g., core-service"]', projectKey)
+    await page.fill('input[placeholder="e.g., Core Processing Service"]', projectName)
+    await page.click('button[type="submit"]:has-text("Create Project")')
 
     const projectRow = page.locator(`tr:has-text("${projectKey}")`)
     await expect(projectRow).toBeVisible()
 
     // 2. Trigger Delete Project -> ConfirmDeleteDialog
-    await projectRow.locator('button[title="Excluir projeto com confirmação"]').click()
-    await expect(page.locator('h3:has-text("Confirmar Exclusão de Projeto")')).toBeVisible()
+    await projectRow.locator('button[title="Delete project with confirmation"]').click()
+    await expect(page.locator('h3:has-text("Confirm Project Deletion")')).toBeVisible()
 
-    const deleteBtn = page.locator('button[type="submit"]:has-text("Excluir Definitivamente")')
+    const deleteBtn = page.locator('button[type="submit"]:has-text("Delete Permanently")')
     const confirmInput = page.locator('input[placeholder="' + projectKey + '"]')
 
     // Submit button should be disabled initially
@@ -211,7 +211,7 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
 
     // Confirm deletion
     await deleteBtn.click()
-    await expect(page.locator('h3:has-text("Confirmar Exclusão de Projeto")')).not.toBeVisible()
+    await expect(page.locator('h3:has-text("Confirm Project Deletion")')).not.toBeVisible()
 
     // Verify removed from table
     await expect(page.locator(`tr:has-text("${projectKey}")`)).not.toBeVisible()
@@ -223,19 +223,19 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     const tenantKey = `del-org-${timestamp}`
     const tenantName = `Del Org ${timestamp}`
 
-    await page.click('button:has-text("Novo Tenant")')
-    await page.fill('input[placeholder="ex: acme-corp"]', tenantKey)
-    await page.fill('input[placeholder="ex: Acme Corporation"]', tenantName)
-    await page.click('button[type="submit"]:has-text("Criar Tenant")')
+    await page.click('button:has-text("New Tenant")')
+    await page.fill('input[placeholder="e.g., acme-corp"]', tenantKey)
+    await page.fill('input[placeholder="e.g., Acme Corporation"]', tenantName)
+    await page.click('button[type="submit"]:has-text("Create Tenant")')
 
     const tenantRow = page.locator(`tr:has-text("${tenantName}")`)
     await expect(tenantRow).toBeVisible()
 
     // 4. Trigger Delete Tenant -> ConfirmDeleteDialog
-    await tenantRow.locator('button[title="Excluir tenant com confirmação"]').click()
-    await expect(page.locator('h3:has-text("Confirmar Exclusão de Organização")')).toBeVisible()
+    await tenantRow.locator('button[title="Delete tenant with confirmation"]').click()
+    await expect(page.locator('h3:has-text("Confirm Organization Deletion")')).toBeVisible()
 
-    const tenantDeleteBtn = page.locator('button[type="submit"]:has-text("Excluir Definitivamente")')
+    const tenantDeleteBtn = page.locator('button[type="submit"]:has-text("Delete Permanently")')
     const tenantConfirmInput = page.locator('input[placeholder="' + tenantKey + '"]')
 
     // Button disabled initially
@@ -251,7 +251,7 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
 
     // Confirm deletion
     await tenantDeleteBtn.click()
-    await expect(page.locator('h3:has-text("Confirmar Exclusão de Organização")')).not.toBeVisible()
+    await expect(page.locator('h3:has-text("Confirm Organization Deletion")')).not.toBeVisible()
 
     // Verify removed from table
     await expect(page.locator(`tr:has-text("${tenantName}")`)).not.toBeVisible()

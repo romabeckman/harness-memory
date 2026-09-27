@@ -57,7 +57,7 @@ def _seed(session_factory):
             payload_hash="2" * 64,
             metadata_json={},
         )
-        other_project = Project(tenant_id="tenant-b", key="payments", name="Other")
+        other_project = Project(tenant_id="tenant-b", key="other-payments", name="Other")
         session.add_all([old, active, other_project])
         session.flush()
         project.active_snapshot_id = active.id

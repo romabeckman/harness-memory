@@ -49,7 +49,7 @@ def test_project_search_supports_exact_key_and_partial_name_without_snapshot():
     assert exact[0].has_active_snapshot is False
 
 
-def test_project_discovery_attributes_duplicate_keys_and_lists_environments():
+def test_project_discovery_attributes_tenants_and_lists_environments():
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -61,7 +61,7 @@ def test_project_discovery_attributes_duplicate_keys_and_lists_environments():
     with session_factory() as session:
         for index, tenant_id in enumerate(tenants):
             session.add(Tenant(id=tenant_id, key=f"tenant-{index}", name=f"Tenant {index}"))
-            project = Project(tenant_id=tenant_id, key="shared", name="Shared")
+            project = Project(tenant_id=tenant_id, key=f"shared-{index}", name="Shared")
             session.add(project)
             session.flush()
             session.add(Environment(tenant_id=tenant_id, project_id=project.id,
@@ -69,10 +69,11 @@ def test_project_discovery_attributes_duplicate_keys_and_lists_environments():
         session.commit()
 
     rows = KnowledgeReadRepository(session_factory).search_projects(
-        TenantScope("*", is_admin=True), key="shared", query=None, limit=25, offset=0
+        TenantScope("*", is_admin=True), key=None, query="Shared", limit=25, offset=0
     )
 
     assert len(rows) == 2
+    assert {item.key for item in rows} == {"shared-0", "shared-1"}
     assert {item.tenant_id for item in rows} == {str(tenant) for tenant in tenants}
     assert {item.tenant_key for item in rows} == {"tenant-0", "tenant-1"}
     assert len({item.project_id for item in rows}) == 2

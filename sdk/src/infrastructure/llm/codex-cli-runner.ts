@@ -10,6 +10,7 @@ export class CodexCliRunner implements LlmAgentRunner {
     return [
       "exec",
       "--json",
+      '--dangerously-bypass-approvals-and-sandbox',
       "--model",
       options.model,
       "--config",

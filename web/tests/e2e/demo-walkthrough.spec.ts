@@ -20,8 +20,8 @@ test('Full UI Walkthrough Video Recording', async ({ page }) => {
   await expect(page).toHaveURL('/')
   await page.waitForTimeout(2000)
 
-  // 4. Open "Novo Token" modal
-  await page.click('button:has-text("Novo Token")')
+  // 4. Open "New Token" modal
+  await page.click('button:has-text("New Token")')
   await page.waitForTimeout(1000)
 
   // 5. Fill token form
@@ -37,25 +37,25 @@ test('Full UI Walkthrough Video Recording', async ({ page }) => {
   }
 
   // Select 30 days lifetime
-  await page.click('button:has-text("30 Dias")')
+  await page.click('button:has-text("30 Days")')
   await page.waitForTimeout(1000)
 
   // 6. Submit token creation
-  await page.click('button:has-text("Criar Token")')
+  await page.click('button:has-text("Create Token")')
 
   // 7. Verify One-Time Reveal Modal
-  await expect(page.locator('text=Token Emitido com Sucesso!')).toBeVisible()
-  await expect(page.locator('text=Aviso de Exibição Única')).toBeVisible()
+  await expect(page.locator('text=Token Issued Successfully!')).toBeVisible()
+  await expect(page.locator('text=One-Time Reveal Notice')).toBeVisible()
   await page.waitForTimeout(2500)
 
   // 8. Copy secret
-  await page.click('button:has-text("Copiar")')
-  await expect(page.locator('text=Copiado!')).toBeVisible()
+  await page.click('button:has-text("Copy")')
+  await expect(page.locator('text=Copied!')).toBeVisible()
   await page.waitForTimeout(1500)
 
   // 9. Close modal
-  await page.click('button:has-text("Concluir e Fechar")')
-  await expect(page.locator('text=Token Emitido com Sucesso!')).not.toBeVisible()
+  await page.click('button:has-text("Done and Close")')
+  await expect(page.locator('text=Token Issued Successfully!')).not.toBeVisible()
   await page.waitForTimeout(2000)
 
   // 10. Locate newly created token in table and revoke it
@@ -63,16 +63,16 @@ test('Full UI Walkthrough Video Recording', async ({ page }) => {
   await expect(newRow).toBeVisible()
   await page.waitForTimeout(1000)
 
-  await newRow.locator('button[title="Revogar token"]').click()
-  await expect(newRow.locator('button:has-text("Confirmar")')).toBeVisible()
+  await newRow.locator('button[title="Revoke token"]').click()
+  await expect(newRow.locator('button:has-text("Confirm")')).toBeVisible()
   await page.waitForTimeout(1000)
 
-  await newRow.locator('button:has-text("Confirmar")').click()
+  await newRow.locator('button:has-text("Confirm")').click()
   await expect(page.locator('tr:has-text("ci-production-pipeline")')).not.toBeVisible()
   await page.waitForTimeout(2000)
 
   // 11. Logout
-  await page.click('button:has-text("Sair")')
+  await page.click('button:has-text("Sign Out")')
   await expect(page).toHaveURL(/\/login/)
   await page.waitForTimeout(1500)
 

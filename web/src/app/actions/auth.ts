@@ -11,7 +11,7 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
   const expectedToken = process.env.API_ADMIN_TOKEN || ''
 
   if (!token) {
-    return { error: 'O token de administração é obrigatório.' }
+    return { error: 'An admin token is required.' }
   }
 
   try {
@@ -23,7 +23,7 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
     const cookieStore = await cookies()
     cookieStore.set(SessionManager.COOKIE_NAME, jwtString, cookieOptions)
   } catch {
-    return { error: 'Credencial inválida. Verifique o API_ADMIN_TOKEN.' }
+    return { error: 'Invalid credential. Check API_ADMIN_TOKEN.' }
   }
 
   redirect('/')

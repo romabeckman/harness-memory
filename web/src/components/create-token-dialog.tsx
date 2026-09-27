@@ -16,6 +16,9 @@ import { listProjectsAction } from '@/app/actions/projects'
 import { ensureServiceAccountAction } from '@/app/actions/service-accounts'
 import { ProjectDto, TenantDto } from '@/application/ports/harness-api-client.port'
 
+const ALL_TENANTS_VALUE = '__all_tenants__'
+const NO_TENANTS: TenantDto[] = []
+
 interface CreateTokenDialogProps {
   isOpen: boolean
   onClose: () => void
@@ -35,10 +38,11 @@ export function CreateTokenDialog({
   serviceAccountName: initialServiceAccountName,
   tenantId: initialTenantId,
   tenantName: initialTenantName,
-  tenants = [],
+  tenants = NO_TENANTS,
 }: CreateTokenDialogProps) {
   const [name, setName] = useState('')
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('')
+  const [selectedTenantId, setSelectedTenantId] = useState<string>(ALL_TENANTS_VALUE)
+  const [tenantSelectionInitialized, setTenantSelectionInitialized] = useState(false)
   const [currentServiceAccountId, setCurrentServiceAccountId] = useState<string>('')
   const [currentServiceAccountName, setCurrentServiceAccountName] = useState<string>('')
   const [loadingServiceAccount, setLoadingServiceAccount] = useState<boolean>(false)
@@ -52,61 +56,80 @@ export function CreateTokenDialog({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Initialize selected tenant when dialog opens
+  // Default token destination to all tenants when dialog opens.
   useEffect(() => {
-    if (!isOpen) return
-    const defaultId =
-      initialTenantId ||
-      (tenants.length > 0 ? tenants[0].id : '')
-    setSelectedTenantId(defaultId)
+    if (!isOpen) {
+      setTenantSelectionInitialized(false)
+      return
+    }
+    setSelectedTenantId(ALL_TENANTS_VALUE)
+    setProjectKeys([])
     if (initialServiceAccountId) {
       setCurrentServiceAccountId(initialServiceAccountId)
     }
     if (initialServiceAccountName) {
       setCurrentServiceAccountName(initialServiceAccountName)
     }
-  }, [isOpen, initialTenantId, initialServiceAccountId, initialServiceAccountName, tenants])
+    setTenantSelectionInitialized(true)
+  }, [isOpen, initialServiceAccountId, initialServiceAccountName])
 
   // Fetch Service Account and Projects when selected tenant changes
   const loadTenantContext = useCallback(async (tId: string) => {
-    if (!tId) return
+    const serviceAccountTenantId =
+      tId === ALL_TENANTS_VALUE ? initialTenantId || tenants[0]?.id : tId
+    if (!serviceAccountTenantId) {
+      setLoadingProjects(false)
+      setLoadingServiceAccount(false)
+      setCurrentServiceAccountId('')
+      setCurrentServiceAccountName('')
+      setAvailableProjects([])
+      setProjectKeys([])
+      setError('No tenant is available to own this token.')
+      return
+    }
     setLoadingProjects(true)
     setLoadingServiceAccount(true)
     setError(null)
 
     try {
       // 1. Resolve Service Account for this tenant
-      const saRes = await ensureServiceAccountAction(tId)
+      const saRes = await ensureServiceAccountAction(serviceAccountTenantId)
       if (saRes.data) {
         setCurrentServiceAccountId(saRes.data.id)
         setCurrentServiceAccountName(saRes.data.name)
       } else {
-        setError(saRes.error || 'Não foi possível resolver a Service Account do tenant.')
+        setError(saRes.error || 'Could not find a service account for this tenant.')
       }
 
-      // 2. Fetch Projects for this tenant
+      if (tId === ALL_TENANTS_VALUE) {
+        setAvailableProjects([])
+        setProjectKeys([])
+        return
+      }
+
+      // Fetch projects only for a selected tenant.
       const projRes = await listProjectsAction(tId, undefined, 100, 0)
       if (projRes.data) {
         setAvailableProjects(projRes.data)
-        // By default select all projects of the active tenant
+        // Default to every project in the selected tenant scope.
         setProjectKeys(projRes.data.map((p) => p.key))
       } else {
         setAvailableProjects([])
         setProjectKeys([])
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Falha ao carregar dados do tenant')
+      setError(err instanceof Error ? err.message : 'Failed to load tenant data')
     } finally {
       setLoadingProjects(false)
       setLoadingServiceAccount(false)
     }
-  }, [])
+  }, [initialTenantId, tenants])
 
   useEffect(() => {
-    if (isOpen && selectedTenantId) {
+    if (isOpen && tenantSelectionInitialized && selectedTenantId) {
       loadTenantContext(selectedTenantId)
     }
-  }, [isOpen, selectedTenantId, loadTenantContext])
+  }, [isOpen, tenantSelectionInitialized, selectedTenantId, loadTenantContext])
 
   if (!isOpen) return null
 
@@ -137,31 +160,33 @@ export function CreateTokenDialog({
   )
 
   const activeTenantName =
-    tenants.find((t) => t.id === selectedTenantId)?.name ||
-    initialTenantName ||
-    selectedTenantId
+    selectedTenantId === ALL_TENANTS_VALUE
+      ? 'All tenants'
+      : tenants.find((t) => t.id === selectedTenantId)?.name ||
+        initialTenantName ||
+        selectedTenantId
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
     if (!name.trim()) {
-      setError('Por favor, defina um nome para o token.')
+      setError('Enter a name for the token.')
       return
     }
 
     if (!currentServiceAccountId) {
-      setError('Nenhuma conta de serviço vinculada para este tenant.')
+      setError('No service account is linked to this tenant.')
       return
     }
 
     if (scopes.length === 0) {
-      setError('Selecione pelo menos um escopo de permissão.')
+      setError('Select at least one permission scope.')
       return
     }
 
-    if (projectKeys.length === 0) {
-      setError('Selecione pelo menos um projeto para autorizar o token.')
+    if (selectedTenantId !== ALL_TENANTS_VALUE && projectKeys.length === 0) {
+      setError('Select at least one project for this token.')
       return
     }
 
@@ -169,11 +194,15 @@ export function CreateTokenDialog({
 
     try {
       const lifetimeDays = lifetime === 'never' ? undefined : Number(lifetime)
+      const tokenProjectKeys =
+        selectedTenantId === ALL_TENANTS_VALUE
+          ? []
+          : projectKeys
       const res = await createTokenAction({
         name: name.trim(),
         serviceAccountId: currentServiceAccountId,
         scopes,
-        projectKeys,
+        projectKeys: tokenProjectKeys,
         lifetimeDays,
       })
 
@@ -181,10 +210,10 @@ export function CreateTokenDialog({
         setName('')
         onSuccess(res.plaintext)
       } else {
-        setError(res.error || 'Falha ao emitir token.')
+        setError(res.error || 'Failed to issue token.')
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro inesperado')
+      setError(err instanceof Error ? err.message : 'Unexpected error')
     } finally {
       setLoading(false)
     }
@@ -196,7 +225,7 @@ export function CreateTokenDialog({
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center space-x-2 text-white">
             <PlusCircle className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-semibold">Emitir Novo Access Token</h2>
+            <h2 className="text-lg font-semibold">Issue New Access Token</h2>
           </div>
           <button
             onClick={onClose}
@@ -216,12 +245,12 @@ export function CreateTokenDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
-              Nome do Token
+              Token Name
             </label>
             <input
               type="text"
               required
-              placeholder="ex: github-actions-checkout, cursor-mcp"
+              placeholder="e.g., github-actions-checkout, cursor-mcp"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -231,7 +260,7 @@ export function CreateTokenDialog({
           {/* Tenant Selector */}
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-1">
-              Organização Destino (Tenant)
+              Destination Organization (Tenant)
             </label>
             {tenants.length > 0 ? (
               <div className="relative">
@@ -241,6 +270,9 @@ export function CreateTokenDialog({
                   disabled={loading || loadingProjects || loadingServiceAccount}
                   className="w-full rounded-lg border border-border bg-black/40 px-3 py-2 text-xs text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
+                  <option value={ALL_TENANTS_VALUE}>
+                    All projects (all tenants)
+                  </option>
                   {tenants.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name} ({t.key})
@@ -260,10 +292,10 @@ export function CreateTokenDialog({
           <div className="rounded-lg border border-border bg-black/20 p-2.5 text-xs text-gray-400 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Shield className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Titular (Service Account):</span>
+              <span>Owner (Service Account):</span>
               <span className="font-semibold text-white">
                 {loadingServiceAccount
-                  ? 'Identificando...'
+                  ? 'Identifying...'
                   : currentServiceAccountName || 'default-automation'}
               </span>
             </div>
@@ -275,33 +307,35 @@ export function CreateTokenDialog({
           </div>
 
           {/* Project Permissions Selector */}
+          {selectedTenantId !== ALL_TENANTS_VALUE && (
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
-                Projetos Autorizados (Obrigatório)
-              </label>
-              {availableProjects.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleSelectAllProjects}
-                  className="text-xs text-blue-400 hover:text-blue-300 transition"
-                >
-                  {projectKeys.length === availableProjects.length
-                    ? 'Desmarcar Todos'
-                    : 'Selecionar Todos'}
-                </button>
-              )}
-            </div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Authorized Projects (Required)
+                </label>
+                {availableProjects.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSelectAllProjects}
+                    disabled={loading || loadingProjects || loadingServiceAccount}
+                    className="text-xs text-blue-400 hover:text-blue-300 transition"
+                  >
+                    {projectKeys.length === availableProjects.length
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </button>
+                )}
+              </div>
 
             {loadingProjects ? (
               <div className="rounded-lg border border-border bg-black/20 p-4 text-center text-xs text-gray-400">
-                Carregando projetos da organização...
+                Loading projects...
               </div>
             ) : availableProjects.length === 0 ? (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300 flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                 <span>
-                  Nenhum projeto encontrado nesta organização ({activeTenantName}). Cadastre ao menos um projeto na aba Projetos antes de emitir tokens de acesso.
+                  No projects found in {activeTenantName}. Create at least one project before issuing access tokens.
                 </span>
               </div>
             ) : (
@@ -311,7 +345,7 @@ export function CreateTokenDialog({
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-500" />
                     <input
                       type="text"
-                      placeholder="Filtrar projetos..."
+                      placeholder="Filter projects..."
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
                       className="w-full rounded-lg border border-border bg-black/30 pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
@@ -348,20 +382,22 @@ export function CreateTokenDialog({
                   })}
                   {filteredProjects.length === 0 && (
                     <div className="p-2 text-center text-xs text-gray-500">
-                      Nenhum projeto corresponde ao filtro.
+                      No projects match the filter.
                     </div>
                   )}
                 </div>
                 <div className="text-[11px] text-gray-400">
-                  {projectKeys.length} de {availableProjects.length} projeto(s) selecionado(s).
+                  {projectKeys.length} of {availableProjects.length} projects selected.
                 </div>
               </div>
             )}
           </div>
 
+          )}
+
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
-              Escopos Permitidos (Menor Privilégio)
+              Allowed Scopes (Least Privilege)
             </label>
             <div className="space-y-2">
               <label className="flex items-start space-x-3 p-2.5 rounded-lg border border-border bg-black/20 hover:bg-black/30 cursor-pointer">
@@ -374,7 +410,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:read</span>
                   <span className="block text-xs text-gray-400">
-                    Permite leitura contextual e consultas via FastMCP para agentes de IA e desenvolvedores.
+                    Allows contextual reads and FastMCP queries for AI agents and developers.
                   </span>
                 </div>
               </label>
@@ -389,7 +425,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:publish</span>
                   <span className="block text-xs text-gray-400">
-                    Permite publicação de snapshots imutáveis em esteiras de CI/CD (SDK Publisher).
+                    Allows publishing immutable snapshots from CI/CD pipelines (SDK Publisher).
                   </span>
                 </div>
               </label>
@@ -404,7 +440,7 @@ export function CreateTokenDialog({
                 <div>
                   <span className="block text-sm font-medium text-white">memory:impact</span>
                   <span className="block text-xs text-gray-400">
-                    Permite execução de análises de impacto e raio de alcance transversal no grafo.
+                    Allows impact and blast radius analysis across the graph.
                   </span>
                 </div>
               </label>
@@ -413,7 +449,7 @@ export function CreateTokenDialog({
 
           <div>
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
-              Prazo de Validade / Expiração
+              Validity / Expiration
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -425,7 +461,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                30 Dias
+                30 Days
               </button>
               <button
                 type="button"
@@ -436,7 +472,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                90 Dias
+                90 Days
               </button>
               <button
                 type="button"
@@ -447,7 +483,7 @@ export function CreateTokenDialog({
                     : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
                 }`}
               >
-                Nunca Expira
+                Never Expires
               </button>
             </div>
           </div>
@@ -459,14 +495,14 @@ export function CreateTokenDialog({
               disabled={loading}
               className="rounded-lg border border-border bg-gray-800 px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 transition"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               type="submit"
               disabled={loading || loadingProjects || loadingServiceAccount}
               className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-500 transition disabled:opacity-50"
             >
-              {loading ? 'Emitindo...' : 'Criar Token'}
+              {loading ? 'Issuing...' : 'Create Token'}
             </button>
           </div>
         </form>

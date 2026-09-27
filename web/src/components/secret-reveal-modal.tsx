@@ -27,20 +27,20 @@ export function SecretRevealModal({ token, onClose }: SecretRevealModalProps) {
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center space-x-3 text-emerald-400">
           <ShieldCheck className="h-6 w-6" />
-          <h2 className="text-xl font-semibold text-white">Token Emitido com Sucesso!</h2>
+          <h2 className="text-xl font-semibold text-white">Token Issued Successfully!</h2>
         </div>
 
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200 flex items-start space-x-3">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-400 mt-0.5" />
           <div>
-            <span className="font-semibold text-amber-300 block mb-1">Aviso de Exibição Única (One-Time Reveal):</span>
-            Por motivos de segurança, este segredo em texto puro só pode ser visualizado agora. Ele não será exibido novamente e não pode ser recuperado no banco.
+            <span className="font-semibold text-amber-300 block mb-1">One-Time Reveal Notice:</span>
+            For security, this plaintext secret is shown only now. It will not be shown again and cannot be recovered from the database.
           </div>
         </div>
 
         <div className="space-y-2">
           <label className="text-xs font-medium uppercase tracking-wider text-gray-400">
-            Credencial Gerada (Plaintext Secret)
+            Generated Credential (Plaintext Secret)
           </label>
           <div className="flex items-center space-x-2">
             <input
@@ -56,12 +56,12 @@ export function SecretRevealModal({ token, onClose }: SecretRevealModalProps) {
               {copied ? (
                 <>
                   <Check className="mr-1.5 h-4 w-4 text-emerald-300" />
-                  Copiado!
+                  Copied!
                 </>
               ) : (
                 <>
                   <Copy className="mr-1.5 h-4 w-4" />
-                  Copiar
+                  Copy
                 </>
               )}
             </button>
@@ -73,7 +73,7 @@ export function SecretRevealModal({ token, onClose }: SecretRevealModalProps) {
             onClick={onClose}
             className="rounded-lg border border-border bg-gray-800 px-5 py-2 text-sm font-medium text-gray-200 transition hover:bg-gray-700 focus:outline-none"
           >
-            Concluir e Fechar
+            Done and Close
           </button>
         </div>
       </div>

@@ -44,7 +44,7 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
       if (res.success) {
         onSuccess()
       } else {
-        setError(res.error || 'Erro ao atualizar tenant.')
+        setError(res.error || 'Failed to update tenant.')
       }
     } else {
       const res = await createTenantAction({
@@ -54,7 +54,7 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
       if (res.success) {
         onSuccess()
       } else {
-        setError(res.error || 'Erro ao criar tenant.')
+        setError(res.error || 'Failed to create tenant.')
       }
     }
     setLoading(false)
@@ -70,12 +70,12 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
             </div>
             <div>
               <h2 className="text-sm font-semibold text-white">
-                {isEditing ? 'Editar Organização (Tenant)' : 'Novo Tenant'}
+                {isEditing ? 'Edit Organization (Tenant)' : 'New Tenant'}
               </h2>
               <p className="text-[11px] text-gray-400">
                 {isEditing
-                  ? 'Atualize o nome ou altere o status de operação'
-                  : 'Cadastre uma nova organização no Harness Memory'}
+                  ? 'Update the name or operating status'
+                  : 'Create a new organization in Harness Memory'}
               </p>
             </div>
           </div>
@@ -94,33 +94,33 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Chave Identificadora (Slug)
+              Identifier Key (Slug)
             </label>
             <input
               type="text"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               disabled={isEditing}
-              placeholder="ex: acme-corp"
+              placeholder="e.g., acme-corp"
               required
               className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50 font-mono"
             />
             {!isEditing && (
               <p className="text-[10px] text-gray-500 mt-1">
-                Identificador único global, imutável após criação. Use letras, números e hífens.
+                Globally unique identifier. Cannot be changed after creation. Use letters, numbers, and hyphens.
               </p>
             )}
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-300 mb-1.5">
-              Nome da Organização
+              Organization Name
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ex: Acme Corporation"
+              placeholder="e.g., Acme Corporation"
               required
               className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
@@ -134,8 +134,8 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
                 onChange={(e) => setStatus(e.target.value as 'active' | 'disabled')}
                 className="w-full rounded-lg border border-border bg-black/30 px-3 py-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="active">Ativo (Permite leituras e publicações)</option>
-                <option value="disabled">Desativado (Operações suspensas)</option>
+                <option value="active">Active (Allows reads and publications)</option>
+                <option value="disabled">Disabled (Operations suspended)</option>
               </select>
             </div>
           )}
@@ -147,14 +147,14 @@ export function TenantDialog({ isOpen, onClose, onSuccess, tenantToEdit }: Tenan
               disabled={loading}
               className="px-3.5 py-2 text-xs font-medium text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
               className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-blue-500 transition disabled:opacity-50"
             >
-              {loading ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Criar Tenant'}
+              {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Tenant'}
             </button>
           </div>
         </form>
