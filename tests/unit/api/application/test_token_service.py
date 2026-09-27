@@ -71,6 +71,31 @@ def test_rejects_update_that_extends_user_token_beyond_original_one_year_window(
         )
 
 
+def test_update_accepts_user_token_expiration_at_original_one_year_limit():
+    issued_at = datetime(2026, 8, 1, tzinfo=UTC)
+    now = datetime(2026, 9, 20, tzinfo=UTC)
+    token_repository = Mock()
+    token_repository.get.return_value = AccessToken(
+        id=uuid4(),
+        user_id=uuid4(),
+        name="automation",
+        token_hash="a" * 64,
+        expires_at=issued_at + timedelta(days=60),
+        created_at=issued_at,
+        allowed_project_keys=frozenset({"catalog"}),
+    )
+    token_repository.update.side_effect = lambda token: token
+
+    updated = TokenService(token_repository, Mock()).update(
+        token_repository.get.return_value.id,
+        name=None,
+        expires_at=issued_at + timedelta(days=365),
+        now=now,
+    )
+
+    assert updated.expires_at == issued_at + timedelta(days=365)
+
+
 def test_service_account_finite_lifetime_remains_limited_to_ninety_days():
     issued_at = datetime(2026, 9, 20, tzinfo=UTC)
     account = ServiceAccount(uuid4(), uuid4(), "Build agent")
