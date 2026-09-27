@@ -17,7 +17,7 @@ from core.application.snapshot_publication.use_cases.publish_project_snapshot.in
     PublishProjectSnapshotInput,
 )
 from core.domain.snapshot_publication.types.relation_type import RelationType
-from core.infrastructure.postgres.models import Base, Entity, Evidence, Project, Relation, Snapshot
+from core.infrastructure.postgres.models import Base, Entity, Evidence, Project, Relation, Snapshot, Tenant
 from core.infrastructure.postgres.repositories.impact_analysis_repository import (
     PostgresImpactAnalysisRepository,
 )
@@ -37,6 +37,9 @@ def _session_factory():
     engine = create_engine(TEST_DATABASE_URL)
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as session:
+        session.add(Tenant(id="tenant-a", key="tenant-a", name="Tenant A"))
+        session.commit()
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
@@ -189,6 +192,9 @@ def _publish_cross_project_graph():
     engine = create_engine(TEST_DATABASE_URL)
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as session:
+        session.add(Tenant(id="tenant-a", key="tenant-a", name="Tenant A"))
+        session.commit()
     store = PostgresSnapshotPublicationRepository(sessionmaker(bind=engine))
     handler = PublishProjectSnapshotHandler(store)
     context = PublicationContext("tenant-a")
@@ -415,6 +421,9 @@ def test_same_canonical_consumer_from_two_projects_keeps_both_project_contexts()
     engine = create_engine(TEST_DATABASE_URL)
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as session:
+        session.add(Tenant(id="tenant-a", key="tenant-a", name="Tenant A"))
+        session.commit()
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     tenant = "tenant-a"
     changed_identity = __import__("uuid").uuid4()
