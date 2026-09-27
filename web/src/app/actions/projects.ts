@@ -6,6 +6,8 @@ import {
   ProjectDto,
   CreateProjectDto,
   UpdateProjectDto,
+  EnvironmentDto,
+  ProjectEnvironmentRef,
 } from '@/application/ports/harness-api-client.port'
 
 export async function listProjectsAction(
@@ -122,5 +124,48 @@ export async function deleteProjectAction(
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to delete project'
     return { success: false, error: msg }
+  }
+}
+
+export async function listProjectEnvironmentsAction(
+  reference: ProjectEnvironmentRef
+): Promise<{ data?: EnvironmentDto[]; error?: string }> {
+  try {
+    const client = ClientFactory.getHarnessClient()
+    const data = await client.listProjectEnvironments(reference)
+    return { data }
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : 'Failed to list environments' }
+  }
+}
+
+export async function addProjectEnvironmentAction(
+  reference: ProjectEnvironmentRef,
+  submittedName: string
+): Promise<{ success: boolean; data?: EnvironmentDto; error?: string }> {
+  const name = submittedName.trim()
+  if (!reference.tenantId.trim() || !reference.projectKey.trim()) {
+    return { success: false, error: 'Tenant and project are required' }
+  }
+  if (!name) {
+    return { success: false, error: 'Environment name is required' }
+  }
+  if (name.length > 64) {
+    return { success: false, error: 'Environment name must be 64 characters or fewer' }
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return { success: false, error: 'Environment name contains invalid characters' }
+  }
+
+  try {
+    const client = ClientFactory.getHarnessClient()
+    const data = await client.addProjectEnvironment(reference, name)
+    revalidatePath('/projects')
+    return { success: true, data }
+  } catch (err: unknown) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Failed to add environment',
+    }
   }
 }

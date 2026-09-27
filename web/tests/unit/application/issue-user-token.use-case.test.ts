@@ -18,6 +18,8 @@ describe('IssueTokenUseCase user ownership', () => {
       createProject: vi.fn(),
       updateProject: vi.fn(),
       deleteProject: vi.fn(),
+      listProjectEnvironments: vi.fn(),
+      addProjectEnvironment: vi.fn(),
       listServiceAccounts: vi.fn(),
       createServiceAccount: vi.fn(),
       updateServiceAccount: vi.fn(),

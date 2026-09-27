@@ -6,6 +6,7 @@ import { TenantDto, ProjectDto } from '@/application/ports/harness-api-client.po
 import { deleteProjectAction } from '@/app/actions/projects'
 import { ProjectDialog } from './project-dialog'
 import { ConfirmDeleteDialog } from './confirm-delete-dialog'
+import { ProjectEnvironmentPanel } from './project-environment-panel'
 
 interface ProjectTableProps {
   projects: ProjectDto[]
@@ -135,6 +136,9 @@ export function ProjectTable({
                     )}
                   </td>
                   <td className="px-5 py-3.5 text-right space-x-1">
+                    <ProjectEnvironmentPanel
+                      project={{ tenantId: proj.tenant_id, projectKey: proj.key }}
+                    />
                     <button
                       onClick={() => setEditingProject(proj)}
                       className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition"

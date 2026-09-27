@@ -48,7 +48,23 @@ publication requires a `tenant_id` destination in the JSON body.
 | `GET` | `/v1/tenants/current` | Read authenticated tenant metadata. |
 | `POST`, `GET` | `/v1/projects` | Admin creates projects; credentials read within their scope. |
 | `GET`, `PATCH`, `DELETE` | `/v1/projects/{project_key}` | Read project; admin updates or deletes a project without dependent data. |
+| `POST` | `/v1/projects/{project_key}/environments` | Admin creates a tenant-scoped project environment. |
 | `GET` | `/v1/projects/{project_key}/snapshots`, `/v1/snapshots/{snapshot_id}` | Read snapshot history or one stored payload; snapshots have no write methods. |
+
+Create an environment with the admin credential and both project identifiers:
+
+```bash
+curl -X POST 'http://localhost:8080/v1/projects/catalog/environments?tenant_id=<TENANT_UUID>' \
+  -H 'Authorization: Bearer <API_ADMIN_TOKEN>' \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"staging"}'
+```
+
+The name is trimmed and must contain 1 to 64 letters, digits, underscores, or hyphens.
+Standard names map to their matching environment types; other accepted names use type
+`other`. The route returns `201`, `404` for an unknown tenant/project pair, `409` for a
+duplicate name, and `422` for invalid input. Projects created through the API include one
+`production` environment in the same database transaction.
 
 Management endpoints use the `/v1` prefix. Health, Swagger UI, and OpenAPI routes remain unversioned. API-issued tokens do not authorize management calls. Ordinary data calls derive tenant from the authenticated owner. Admin and read-key knowledge reads span all tenants; `?tenant_id=` can filter by tenant or disambiguate duplicate project keys. Ordinary tokens cannot use that parameter to change their tenant. Collection searches accept `limit` (1–500) and `offset` (0 or greater).
 

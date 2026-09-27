@@ -143,6 +143,44 @@ test.describe('Harness Memory Admin Console — Tenants & Projects E2E Suite', (
     await expect(projectRow).toBeVisible()
     await expect(projectRow.locator(`text=${projectName}`)).toBeVisible()
 
+    const environmentsButton = page.getByRole('button', {
+      name: `View environments for ${projectKey}`,
+    })
+    await environmentsButton.focus()
+    await page.keyboard.press('Enter')
+    const environmentsPanel = page.getByRole('region', {
+      name: `Environments for ${projectKey}`,
+    })
+    await expect(
+      environmentsPanel.getByRole('listitem').filter({ hasText: 'production' })
+    ).toHaveCount(1)
+
+    const environmentName = environmentsPanel.getByLabel('Environment name')
+    await environmentName.focus()
+    await page.keyboard.press('s')
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Enter')
+    await expect(
+      environmentsPanel.getByRole('listitem').filter({ hasText: 'staging' })
+    ).toHaveCount(1)
+
+    await environmentName.selectOption('other')
+    await environmentsPanel.getByLabel('Custom environment name').fill(' qa-canary ')
+    await environmentsPanel.getByRole('button', { name: 'Add environment' }).click()
+    const customEnvironment = environmentsPanel
+      .getByRole('listitem')
+      .filter({ hasText: 'qa-canary' })
+    await expect(customEnvironment).toContainText('other')
+
+    await environmentName.selectOption('production')
+    await environmentsPanel.getByRole('button', { name: 'Add environment' }).click()
+    await expect(environmentsPanel.getByRole('alert')).toBeVisible()
+    await expect(environmentName).toHaveValue('production')
+    await expect(
+      environmentsPanel.getByRole('listitem').filter({ hasText: 'production' })
+    ).toHaveCount(1)
+
     // 5. Test search filter
     const searchInput = page.locator('input[placeholder*="Search"]')
     await searchInput.fill(projectKey)

@@ -1,6 +1,7 @@
 from uuid import uuid4
 
-from sqlalchemy import create_engine
+import pytest
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from core.domain.environment.value_objects.environment_type import EnvironmentType
@@ -157,3 +158,86 @@ class TestPostgresEnvironmentRepository:
         with Session(engine) as session:
             updated = session.get(ModelEnvironment, env_id)
             assert updated.current_snapshot_id == new_snap_id
+
+    def test_create_for_project_trims_name_and_maps_standard_and_custom_types(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project(engine, "tenant-a", "checkout")
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        standard = repository.create_for_project("tenant-a", "checkout", " staging ")
+        custom = repository.create_for_project("tenant-a", "checkout", "Production")
+
+        assert (standard.name.value, standard.environment_type) == (
+            "staging", EnvironmentType.STAGING
+        )
+        assert (custom.name.value, custom.environment_type) == (
+            "Production", EnvironmentType.OTHER
+        )
+
+    def test_create_for_project_rejects_missing_project_and_duplicate_name(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project(engine, "tenant-a", "checkout")
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        with pytest.raises(LookupError):
+            repository.create_for_project("tenant-a", "missing", "staging")
+
+        repository.create_for_project("tenant-a", "checkout", "staging")
+        with pytest.raises(ValueError, match="already exists"):
+            repository.create_for_project("tenant-a", "checkout", "staging")
+
+    def test_create_for_project_allows_same_name_in_another_project(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project(engine, "tenant-a", "checkout")
+        _seed_project(engine, "tenant-a", "catalog")
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        first = repository.create_for_project("tenant-a", "checkout", "staging")
+        second = repository.create_for_project("tenant-a", "catalog", "staging")
+
+        assert first.id != second.id
+
+    def test_first_publication_materialization_creates_one_production_environment(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        repository.resolve_or_create("checkout", "development", "tenant-a")
+
+        with Session(engine) as session:
+            environments = session.scalars(select(ModelEnvironment)).all()
+        assert sorted((environment.name, environment.type) for environment in environments) == [
+            ("development", "development"),
+            ("production", "production"),
+        ]
+
+    def test_first_production_publication_does_not_create_a_duplicate(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        result = repository.resolve_or_create("checkout", "production", "tenant-a")
+
+        with Session(engine) as session:
+            environments = session.scalars(select(ModelEnvironment)).all()
+        assert result.environment_type == EnvironmentType.PRODUCTION
+        assert [(environment.name, environment.type) for environment in environments] == [
+            ("production", "production")
+        ]
+
+    def test_existing_project_is_not_backfilled_with_production(self) -> None:
+        engine = create_engine("sqlite://")
+        Base.metadata.create_all(engine)
+        _seed_project(engine, "tenant-a", "checkout")
+        repository = PostgresEnvironmentRepository(engine=engine)
+
+        repository.resolve_or_create("checkout", "development", "tenant-a")
+
+        with Session(engine) as session:
+            environments = session.scalars(select(ModelEnvironment)).all()
+        assert [(environment.name, environment.type) for environment in environments] == [
+            ("development", "development")
+        ]

@@ -125,4 +125,57 @@ describe('RestHarnessApiClient - Tenants and Projects Management', () => {
       },
     })
   })
+
+  it('should list environments using both tenant and project filters', async () => {
+    const environments = [{ id: 'e-1', name: 'staging', type: 'staging' }]
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => environments,
+    } as Response)
+
+    const result = await client.listProjectEnvironments({
+      tenantId: 'tenant-1',
+      projectKey: 'catalog',
+    })
+
+    expect(result).toEqual(environments)
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api:8080/v1/environments?tenant_id=tenant-1&project_key=catalog&limit=500&offset=0',
+      {
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer test_admin_token',
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  })
+
+  it('should create an environment through the tenant-scoped administrator route', async () => {
+    const environment = { id: 'e-1', name: 'qa-canary', type: 'other' }
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => environment,
+    } as Response)
+
+    const result = await client.addProjectEnvironment(
+      { tenantId: 'tenant-1', projectKey: 'catalog' },
+      'qa-canary'
+    )
+
+    expect(result).toEqual(environment)
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://api:8080/v1/projects/catalog/environments?tenant_id=tenant-1',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test_admin_token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'qa-canary' }),
+      }
+    )
+  })
 })

@@ -19,6 +19,9 @@ from api.adapters.http.user_routes import create_user_router
 from api.application.services.service_account_service import ServiceAccountService
 from api.application.services.token_service import TokenService
 from api.application.services.project_management_service import ProjectManagementService
+from api.application.services.project_environment_management_service import (
+    ProjectEnvironmentManagementService,
+)
 from api.application.services.tenant_management_service import TenantManagementService
 from api.application.services.user_service import UserService
 from core.application.knowledge_publication.use_cases.get_publication_baseline import (
@@ -88,6 +91,11 @@ def create_app(
         create_service_account_router(ServiceAccountService(service_account_repository))
     )
     resource_repository = PostgresTenantProjectManagementRepository(session_factory)
+    env_repository = (
+        PostgresEnvironmentRepository(engine=database_engine)
+        if database_engine is not None
+        else PostgresEnvironmentRepository(session_factory=session_factory)
+    )
     management_router.include_router(
         create_token_router(
             TokenService(
@@ -102,6 +110,7 @@ def create_app(
         create_tenant_project_management_router(
             TenantManagementService(resource_repository),
             ProjectManagementService(resource_repository),
+            ProjectEnvironmentManagementService(env_repository),
         )
     )
     v1_router.include_router(management_router)
@@ -111,11 +120,6 @@ def create_app(
     v1_router.include_router(create_knowledge_search_router(
         read_repository, security.require_reader, security.require_baseline_reader
     ))
-    env_repository = (
-        PostgresEnvironmentRepository(engine=database_engine)
-        if database_engine is not None
-        else PostgresEnvironmentRepository(session_factory=session_factory)
-    )
     if database_engine is None:
         pub_repository = PostgresKnowledgePublicationRepository(session_factory=session_factory)
     else:

@@ -13,3 +13,8 @@ class EnvironmentRepository(Protocol):
 
     def resolve_or_create(self, project_key: str, name: str, tenant_id: str) -> Environment:
         ...
+
+    def create_for_project(
+        self, tenant_id: str, project_key: str, name: str
+    ) -> Environment:
+        ...

@@ -1,6 +1,7 @@
 from hashlib import sha256
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -11,6 +12,15 @@ from core.infrastructure.postgres.models.api_access_token import ApiAccessToken
 from core.infrastructure.postgres.models.api_service_account import ApiServiceAccount
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.tenant import Tenant
+
+
+def _create_project(client: TestClient, tenant_id: str, key: str = "catalog") -> None:
+    response = client.post(
+        "/v1/projects",
+        headers={"Authorization": "Bearer admin-secret"},
+        json={"tenant_id": tenant_id, "key": key, "name": "Catalog"},
+    )
+    assert response.status_code == 201
 
 
 def _client(
@@ -160,3 +170,88 @@ def test_snapshots_remain_read_only_even_for_admin() -> None:
     assert client.patch(f"/v1/snapshots/{snapshot_id}", headers=admin, json={}).status_code == 405
     assert client.delete(f"/v1/snapshots/{snapshot_id}", headers=admin).status_code == 405
     assert client.put(f"/v1/snapshots/{snapshot_id}", headers=admin, json={}).status_code == 405
+
+
+def test_admin_can_create_project_environment_and_openapi_exposes_contract() -> None:
+    client, tenant_id, _ = _client(include_reader=False)
+    _create_project(client, tenant_id)
+    response = client.post(
+        "/v1/projects/catalog/environments",
+        params={"tenant_id": tenant_id},
+        headers={"Authorization": "Bearer admin-secret"},
+        json={"name": " staging "},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["tenant_id"] == tenant_id
+    assert response.json()["project_key"] == "catalog"
+    assert (response.json()["name"], response.json()["type"]) == ("staging", "staging")
+    operation = client.get("/openapi.json").json()["paths"][
+        "/v1/projects/{project_key}/environments"
+    ]["post"]
+    assert operation["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith(
+        "ProjectEnvironmentCreate"
+    )
+    assert any(parameter["name"] == "tenant_id" for parameter in operation["parameters"])
+
+
+def test_non_admin_cannot_create_project_environment() -> None:
+    client, tenant_id, reader_token = _client()
+    _create_project(client, tenant_id)
+    response = client.post(
+        "/v1/projects/catalog/environments",
+        params={"tenant_id": tenant_id},
+        headers={"Authorization": f"Bearer {reader_token}"},
+        json={"name": "staging"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_create_project_environment_returns_not_found_for_wrong_project_scope() -> None:
+    client, tenant_id, _ = _client(include_reader=False)
+    response = client.post(
+        "/v1/projects/missing/environments",
+        params={"tenant_id": tenant_id},
+        headers={"Authorization": "Bearer admin-secret"},
+        json={"name": "staging"},
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("name", ["", "   ", "x" * 65, "qa canary", "qa.canary"])
+def test_create_project_environment_rejects_invalid_names(name: str) -> None:
+    client, tenant_id, _ = _client(include_reader=False)
+    _create_project(client, tenant_id)
+
+    response = client.post(
+        "/v1/projects/catalog/environments",
+        params={"tenant_id": tenant_id},
+        headers={"Authorization": "Bearer admin-secret"},
+        json={"name": name},
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_project_environment_returns_conflict_without_duplicate_row() -> None:
+    client, tenant_id, _ = _client(include_reader=False)
+    _create_project(client, tenant_id)
+    request = {
+        "params": {"tenant_id": tenant_id},
+        "headers": {"Authorization": "Bearer admin-secret"},
+        "json": {"name": "staging"},
+    }
+
+    first = client.post("/v1/projects/catalog/environments", **request)
+    duplicate = client.post("/v1/projects/catalog/environments", **request)
+    environments = client.get(
+        "/v1/environments",
+        params={"tenant_id": tenant_id, "project_key": "catalog"},
+        headers={"Authorization": "Bearer admin-secret"},
+    )
+
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert [item["name"] for item in environments.json()].count("staging") == 1
