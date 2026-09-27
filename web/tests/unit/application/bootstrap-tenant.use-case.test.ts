@@ -8,10 +8,16 @@ describe('BootstrapTenantUseCase', () => {
 
   beforeEach(() => {
     mockClient = {
+      listUsers: vi.fn(),
+      createUser: vi.fn(),
+      updateUser: vi.fn(),
+      deleteUser: vi.fn(),
       listTenants: vi.fn(),
       createTenant: vi.fn(),
       listServiceAccounts: vi.fn(),
       createServiceAccount: vi.fn(),
+      updateServiceAccount: vi.fn(),
+      deleteServiceAccount: vi.fn(),
       listTokens: vi.fn(),
       createToken: vi.fn(),
       revokeToken: vi.fn(),

@@ -12,9 +12,14 @@ export class IssueTokenUseCase {
   public async execute(order: AccessTokenOrder): Promise<SecretRevealView> {
     const expiresAt = order.calculateExpiresAt()
 
+    const ownerPayload =
+      order.owner.kind === 'user'
+        ? { user_id: order.owner.id }
+        : { service_account_id: order.owner.id }
+
     const created = await this.client.createToken({
       name: order.name,
-      service_account_id: order.serviceAccountId,
+      ...ownerPayload,
       scopes: order.scopes.map((s) => s.value),
       project_keys: order.projectKeys,
       expires_at: expiresAt,

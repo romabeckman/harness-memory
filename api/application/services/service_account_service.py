@@ -18,8 +18,24 @@ class ServiceAccountService:
             raise LookupError("service account not found")
         return account
 
-    def list(self, tenant_id: UUID | None = None) -> list[ServiceAccount]:
-        return self._repository.list(tenant_id)
+    def list(
+        self,
+        tenant_id: UUID | None = None,
+        *,
+        name: str | None = None,
+        q: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> list[ServiceAccount]:
+        if name is None and q is None and limit is None and offset is None:
+            return self._repository.list(tenant_id)
+        return self._repository.list(
+            tenant_id,
+            name=name,
+            q=q,
+            limit=limit if limit is not None else 100,
+            offset=offset if offset is not None else 0,
+        )
 
     def update(self, account_id: UUID, *, name: str | None) -> ServiceAccount:
         account = self.get(account_id)

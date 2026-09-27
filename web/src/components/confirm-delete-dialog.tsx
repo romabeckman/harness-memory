@@ -11,6 +11,7 @@ interface ConfirmDeleteDialogProps {
   onConfirm: () => Promise<void> | void
   onClose: () => void
   isDeleting?: boolean
+  error?: string
 }
 
 export function ConfirmDeleteDialog({
@@ -21,6 +22,7 @@ export function ConfirmDeleteDialog({
   onConfirm,
   onClose,
   isDeleting = false,
+  error,
 }: ConfirmDeleteDialogProps) {
   const [typedKey, setTypedKey] = useState('')
 
@@ -42,12 +44,17 @@ export function ConfirmDeleteDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in">
-      <div className="w-full max-w-md rounded-xl border border-red-500/30 bg-[#0f172a] shadow-2xl overflow-hidden">
+      <div
+        aria-labelledby="confirm-delete-title"
+        aria-modal="true"
+        className="w-full max-w-md rounded-xl border border-red-500/30 bg-[#0f172a] shadow-2xl overflow-hidden"
+        role="alertdialog"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 bg-red-950/20">
           <div className="flex items-center space-x-2.5 text-red-400">
             <AlertTriangle className="h-5 w-5" />
-            <h3 className="text-sm font-semibold text-white">{title}</h3>
+            <h3 className="text-sm font-semibold text-white" id="confirm-delete-title">{title}</h3>
           </div>
           <button
             onClick={onClose}
@@ -62,15 +69,22 @@ export function ConfirmDeleteDialog({
         <form onSubmit={handleConfirm} className="p-5 space-y-4">
           <p className="text-xs text-gray-300 leading-relaxed">{description}</p>
 
+          {error && (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300" role="alert">
+              {error}
+            </p>
+          )}
+
           <div className="rounded-lg border border-red-500/20 bg-red-950/30 p-3 text-xs text-red-200">
             To confirm, type exactly <strong className="font-mono text-white select-all">{targetKey}</strong> below:
           </div>
 
           <div>
-            <label className="block text-[11px] font-medium text-gray-400 mb-1">
+            <label className="block text-[11px] font-medium text-gray-400 mb-1" htmlFor="delete-confirmation-key">
               Confirmation key
             </label>
             <input
+              id="delete-confirmation-key"
               type="text"
               value={typedKey}
               onChange={(e) => setTypedKey(e.target.value)}

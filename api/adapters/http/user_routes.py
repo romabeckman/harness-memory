@@ -27,22 +27,10 @@ def create_user_router(service: UserService) -> APIRouter:
         limit: int = Query(100, ge=1, le=500),
         offset: int = Query(0, ge=0),
     ) -> list[UserResponse]:
-        users = service.list()
-        if name:
-            needle = name.casefold()
-            users = [item for item in users if needle in item.name.casefold()]
-        if email:
-            needle = email.casefold()
-            users = [item for item in users if needle in item.email.casefold()]
-        if q:
-            needle = q.casefold()
-            users = [
-                item for item in users
-                if needle in item.name.casefold() or needle in item.email.casefold()
-            ]
+        users = service.list(name=name, email=email, q=q, limit=limit, offset=offset)
         return [
             UserResponse(id=item.id, name=item.name, email=item.email)
-            for item in users[offset:offset + limit]
+            for item in users
         ]
 
     @router.get("/{user_id}", response_model=UserResponse)

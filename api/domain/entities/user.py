@@ -9,6 +9,3 @@ class User:
     email: str
     tenant_id: UUID | None = None
 
-    def __post_init__(self) -> None:
-        if self.tenant_id is None:
-            object.__setattr__(self, "tenant_id", self.id)

@@ -11,6 +11,11 @@ import {
   CreateProjectDto,
   UpdateProjectDto,
   CreateServiceAccountDto,
+  ServiceAccountListQuery,
+  UpdateServiceAccountDto,
+  UserDto,
+  CreateUserDto,
+  UpdateUserDto,
 } from '@/application/ports/harness-api-client.port'
 
 export class RestHarnessApiClient implements HarnessApiClientPort {
@@ -37,8 +42,7 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     }
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Harness API request failed with status ${response.status}: ${errorText}`)
+      throw new Error(`Harness API request failed with status ${response.status}`)
     }
 
     if (response.status === 204) {
@@ -46,6 +50,39 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     }
 
     return (await response.json()) as T
+  }
+
+  public async listUsers(
+    query?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<UserDto[]> {
+    const params = new URLSearchParams()
+    if (query) params.set('q', query)
+    if (limit !== undefined) params.set('limit', String(limit))
+    if (offset !== undefined) params.set('offset', String(offset))
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request<UserDto[]>(`/v1/users${qs}`, { method: 'GET' })
+  }
+
+  public async createUser(payload: CreateUserDto): Promise<UserDto> {
+    return this.request<UserDto>('/v1/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  public async updateUser(userId: string, payload: UpdateUserDto): Promise<UserDto> {
+    return this.request<UserDto>(`/v1/users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  public async deleteUser(userId: string): Promise<void> {
+    await this.request<void>(`/v1/users/${encodeURIComponent(userId)}`, {
+      method: 'DELETE',
+    })
   }
 
   public async listTenants(
@@ -134,9 +171,32 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     )
   }
 
-  public async listServiceAccounts(tenantId?: string): Promise<ServiceAccountDto[]> {
-    const query = tenantId ? `?tenant_id=${encodeURIComponent(tenantId)}` : ''
-    return this.request<ServiceAccountDto[]>(`/v1/service-accounts${query}`, { method: 'GET' })
+  public async listServiceAccounts(query?: ServiceAccountListQuery): Promise<ServiceAccountDto[]>
+  public async listServiceAccounts(
+    tenantId?: string,
+    search?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<ServiceAccountDto[]>
+  public async listServiceAccounts(
+    queryOrTenantId?: ServiceAccountListQuery | string,
+    search?: string,
+    limit?: number,
+    offset?: number
+  ): Promise<ServiceAccountDto[]> {
+    const query: ServiceAccountListQuery =
+      typeof queryOrTenantId === 'string'
+        ? { tenantId: queryOrTenantId, query: search, limit, offset }
+        : queryOrTenantId || {}
+    const params = new URLSearchParams()
+    if (query.tenantId || query.tenant_id) {
+      params.set('tenant_id', query.tenantId || query.tenant_id || '')
+    }
+    if (query.query) params.set('q', query.query)
+    if (query.limit !== undefined) params.set('limit', String(query.limit))
+    if (query.offset !== undefined) params.set('offset', String(query.offset))
+    const suffix = params.toString() ? `?${params.toString()}` : ''
+    return this.request<ServiceAccountDto[]>(`/v1/service-accounts${suffix}`, { method: 'GET' })
   }
 
   public async createServiceAccount(payload: CreateServiceAccountDto): Promise<ServiceAccountDto> {
@@ -146,8 +206,31 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     })
   }
 
-  public async listTokens(): Promise<TokenMetadataDto[]> {
-    return this.request<TokenMetadataDto[]>('/v1/tokens', { method: 'GET' })
+  public async updateServiceAccount(
+    serviceAccountId: string,
+    payload: UpdateServiceAccountDto
+  ): Promise<ServiceAccountDto> {
+    return this.request<ServiceAccountDto>(
+      `/v1/service-accounts/${encodeURIComponent(serviceAccountId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    )
+  }
+
+  public async deleteServiceAccount(serviceAccountId: string): Promise<void> {
+    await this.request<void>(`/v1/service-accounts/${encodeURIComponent(serviceAccountId)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  public async listTokens(limit?: number, offset?: number): Promise<TokenMetadataDto[]> {
+    const params = new URLSearchParams()
+    if (limit !== undefined) params.set('limit', String(limit))
+    if (offset !== undefined) params.set('offset', String(offset))
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    return this.request<TokenMetadataDto[]>(`/v1/tokens${qs}`, { method: 'GET' })
   }
 
   public async createToken(payload: CreateTokenDto): Promise<CreatedTokenDto> {

@@ -21,8 +21,11 @@ class UserService:
             raise LookupError("user not found")
         return user
 
-    def list(self) -> list[User]:
-        return self._repository.list()
+    def list(
+        self, *, name: str | None = None, email: str | None = None,
+        q: str | None = None, limit: int = 100, offset: int = 0,
+    ) -> list[User]:
+        return self._repository.list(name=name, email=email, q=q, limit=limit, offset=offset)
 
     def update(self, user_id: UUID, *, name: str | None, email: str | None) -> User:
         user = self.get(user_id)

@@ -7,10 +7,12 @@ import {
   Key,
   Database,
   Layers,
+  Users,
   ChevronLeft,
   ChevronRight,
   LogOut,
   Shield,
+  Bot,
 } from 'lucide-react'
 import { logoutAction } from '@/app/actions/auth'
 
@@ -23,8 +25,10 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Tokens & Credentials', href: '/', icon: Key },
+  { name: 'Users', href: '/users', icon: Users },
   { name: 'Tenants (Organizations)', href: '/tenants', icon: Database },
   { name: 'Projects', href: '/projects', icon: Layers },
+  { name: 'Service Accounts', href: '/service-accounts', icon: Bot },
 ]
 
 export function AdminSidebar() {

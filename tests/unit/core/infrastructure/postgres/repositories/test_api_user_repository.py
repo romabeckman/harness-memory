@@ -11,7 +11,42 @@ from core.infrastructure.postgres.repositories.api_user_repository import ApiUse
 
 
 class TestApiUserRepository:
-    def test_add_provisions_tenant_with_full_uuid_key(self):
+    def test_add_does_not_create_tenant_or_project(self):
+        engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        Base.metadata.create_all(engine, tables=[Tenant.__table__, ApiUser.__table__])
+        session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+        user = User(uuid4(), "Alice", "alice@example.com")
+
+        ApiUserRepository(session_factory).add(user)
+
+        with session_factory() as session:
+            assert session.query(Tenant).count() == 0
+            assert session.get(ApiUser, user.id).tenant_id is None
+
+    def test_list_filters_and_pages_in_database(self):
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        Base.metadata.create_all(engine, tables=[Tenant.__table__, ApiUser.__table__])
+        session_factory = sessionmaker(bind=engine, expire_on_commit=False)
+        repo = ApiUserRepository(session_factory)
+        for index in range(25):
+            repo.add(User(uuid4(), f"Member {index}", f"member{index:02d}@example.com"))
+
+        statements = []
+        from sqlalchemy import event
+
+        @event.listens_for(engine, "before_cursor_execute")
+        def record_query(connection, cursor, statement, parameters, context, executemany):
+            if statement.lstrip().upper().startswith("SELECT") and "FROM users" in statement:
+                statements.append(statement.upper())
+
+        result = repo.list(q="MEMBER", limit=5, offset=20)
+        assert [user.email for user in result] == [f"member{index:02d}@example.com" for index in range(20, 25)]
+        assert len(statements) == 1
+        assert "LIMIT" in statements[0] and "OFFSET" in statements[0] and "LIKE" in statements[0]
+
+    def test_add_preserves_explicit_tenant_binding(self):
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
         )
@@ -20,15 +55,15 @@ class TestApiUserRepository:
         repo = ApiUserRepository(session_factory)
 
         user_id = uuid4()
-        user = User(id=user_id, name="Alice", email="alice@example.com")
+        with session_factory() as session:
+            session.add(Tenant(id=user_id, key=f"user-{user_id}", name="Existing", status="active"))
+            session.commit()
+        user = User(id=uuid4(), name="Alice", email="alice@example.com", tenant_id=user_id)
         repo.add(user)
 
         with session_factory() as session:
-            tenant = session.get(Tenant, user_id)
-            assert tenant is not None
-            assert tenant.key == f"user-{user_id}"
-            assert tenant.name == "User Alice Tenant"
-            assert tenant.status == "active"
+            assert session.get(ApiUser, user.id).tenant_id == user_id
+            assert session.query(Tenant).count() == 1
 
     def test_add_concurrent_tenant_collision_recovers_via_savepoint(self):
         engine = create_engine(
@@ -59,44 +94,5 @@ class TestApiUserRepository:
         with session_factory() as session:
             assert session.get(ApiUser, user_id) is not None
 
-    def test_add_flush_integrity_error_rolls_back_savepoint_without_poisoning_session(
-        self, monkeypatch
-    ):
-        engine = create_engine(
-            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
-        )
-        Base.metadata.create_all(engine, tables=[Tenant.__table__, ApiUser.__table__])
-        session_factory = sessionmaker(bind=engine, expire_on_commit=False)
-        repo = ApiUserRepository(session_factory)
-
-        user_id = uuid4()
-        user = User(id=user_id, name="Charlie", email="charlie@example.com")
-
-        with session_factory() as session:
-            session.add(
-                Tenant(
-                    id=user_id,
-                    key=f"user-{user_id}",
-                    name="Existing",
-                    status="active",
-                )
-            )
-            session.commit()
-
-        def failing_ensure(session, t_id, name):
-            from sqlalchemy.exc import IntegrityError
-            try:
-                with session.begin_nested():
-                    raise IntegrityError("simulated duplicate key", params=None, orig=Exception())
-            except IntegrityError:
-                pass
-
-        monkeypatch.setattr(repo, "_ensure_tenant", failing_ensure)
-
-        saved = repo.add(user)
-        assert saved.id == user_id
-
-        with session_factory() as session:
-            assert session.get(ApiUser, user_id) is not None
 
 

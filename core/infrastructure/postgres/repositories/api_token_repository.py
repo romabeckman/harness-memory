@@ -113,9 +113,10 @@ class ApiTokenRepository:
             try:
                 from core.infrastructure.postgres.models.tenant import Tenant
 
-                tenant = session.get(Tenant, owner.tenant_id)
-                if tenant is None or tenant.status != "active":
-                    return None
+                if owner.tenant_id is not None:
+                    tenant = session.get(Tenant, owner.tenant_id)
+                    if tenant is None or tenant.status != "active":
+                        return None
             except Exception:
                 pass
 

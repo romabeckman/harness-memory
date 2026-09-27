@@ -86,4 +86,23 @@ describe('RestHarnessApiClient', () => {
       },
     })
   })
+
+  it('should list bounded token pages with limit and offset', async () => {
+    const tokens = [{ id: 'token-123', name: 'release-token' }]
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => tokens,
+    } as Response)
+
+    await expect(client.listTokens(20, 40)).resolves.toEqual(tokens)
+
+    expect(fetchSpy).toHaveBeenCalledWith('http://api:8080/v1/tokens?limit=20&offset=40', {
+      method: 'GET',
+      headers: {
+        Authorization: 'Bearer test_admin_token',
+        'Content-Type': 'application/json',
+      },
+    })
+  })
 })
