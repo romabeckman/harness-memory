@@ -41,7 +41,7 @@ describe('user-owned access token orders', () => {
         scopes: [scope],
         projectKeys: [],
       })
-    ).toThrow('User token lifetime must be 30 or 90 days')
+    ).toThrow('User token lifetime must be 30, 90, or 365 days')
 
     expect(() =>
       AccessTokenOrder.create({
@@ -51,7 +51,7 @@ describe('user-owned access token orders', () => {
         projectKeys: [],
         lifetimeDays: 31,
       })
-    ).toThrow('User token lifetime must be 30 or 90 days')
+    ).toThrow('User token lifetime must be 30, 90, or 365 days')
   })
 
   it('preserves service-account order compatibility', () => {

@@ -126,8 +126,11 @@ export class AccessTokenOrder {
 
   private static validateLifetime(owner: TokenOwner, lifetimeDays?: number): void {
     if (owner.kind === 'user') {
-      if (lifetimeDays !== 30 && lifetimeDays !== 90) {
-        throw new Error('User token lifetime must be 30 or 90 days')
+      if (lifetimeDays !== undefined && lifetimeDays > 365) {
+        throw new Error('User token lifetime cannot exceed 365 days')
+      }
+      if (lifetimeDays !== 30 && lifetimeDays !== 90 && lifetimeDays !== 365) {
+        throw new Error('User token lifetime must be 30, 90, or 365 days')
       }
       return
     }

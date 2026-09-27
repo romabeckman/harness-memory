@@ -61,7 +61,7 @@ test('admin manages global users, issues owner-bound tokens, and confirms cascad
     await expect(editedRow).toContainText(editedName)
 
     const expectedTokenIds: string[] = []
-    for (const lifetime of ['30', '90'] as const) {
+    for (const lifetime of ['30', '90', '365'] as const) {
       await editedRow.getByRole('button', { name: `Create token for ${editedName}` }).click()
       const tokenDialog = page.getByRole('dialog', { name: 'Issue New Access Token' })
       await expect(tokenDialog.getByText('Owner (User):')).toBeVisible()
@@ -70,6 +70,7 @@ test('admin manages global users, issues owner-bound tokens, and confirms cascad
       const tokenName = `user-${lifetime}-day-${suffix}`
       await tokenDialog.getByLabel('Token Name').fill(tokenName)
       if (lifetime === '90') await tokenDialog.getByRole('button', { name: '90 Days' }).click()
+      if (lifetime === '365') await tokenDialog.getByRole('button', { name: '1 Year (365 Days)' }).click()
       await tokenDialog.getByRole('button', { name: 'Create Token' }).click()
       await expect(page.getByText('One-Time Reveal Notice')).toBeVisible()
       await page.getByRole('button', { name: 'Done and Close' }).click()

@@ -7,6 +7,22 @@ describe('AccessTokenOrder', () => {
   const SCOPE_PUBLISH = TokenScope.create('memory:publish')
   const SCOPE_READ = TokenScope.create('memory:read')
 
+  it('allows a user token for 365 days and rejects 366 days', () => {
+    const props = {
+      name: 'annual-user-token',
+      owner: { kind: 'user' as const, id: 'user-1', name: 'Ada' },
+      scopes: [SCOPE_READ],
+      projectKeys: [],
+    }
+
+    const order = AccessTokenOrder.create({ ...props, lifetimeDays: 365 })
+
+    expect(order.calculateExpiresAt(new Date('2026-09-23T20:00:00Z')))
+      .toBe('2027-09-23T20:00:00.000Z')
+    expect(() => AccessTokenOrder.create({ ...props, lifetimeDays: 366 }))
+      .toThrow('User token lifetime cannot exceed 365 days')
+  })
+
   it('preserves an immutable service-account owner selected from a row', () => {
     const owner = {
       kind: 'service-account' as const,

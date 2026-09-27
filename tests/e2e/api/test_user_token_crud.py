@@ -82,7 +82,7 @@ def test_user_and_token_crud_http_contract():
     assert client.delete(f"/v1/users/{user_id}").status_code == 204
 
 
-def test_http_rejects_token_lifetime_over_ninety_days():
+def test_http_accepts_one_year_user_token_and_rejects_longer_lifetime():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
@@ -95,16 +95,26 @@ def test_http_rejects_token_lifetime_over_ninety_days():
         "id"
     ]
 
-    response = client.post(
+    accepted = client.post(
         "/v1/tokens",
         json={
             "user_id": user_id,
             "name": "agent",
-            "project_keys": ["backend"],
-            "expires_at": (datetime.now(UTC) + timedelta(days=91)).isoformat(),
+            "project_keys": [],
+            "expires_at": (datetime.now(UTC) + timedelta(days=365)).isoformat(),
+        },
+    )
+    response = client.post(
+        "/v1/tokens",
+        json={
+            "user_id": user_id,
+            "name": "too-long",
+            "project_keys": [],
+            "expires_at": (datetime.now(UTC) + timedelta(days=366)).isoformat(),
         },
     )
 
+    assert accepted.status_code == 201
     assert response.status_code == 422
 
 

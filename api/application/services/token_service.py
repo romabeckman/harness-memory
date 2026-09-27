@@ -71,7 +71,12 @@ class TokenService:
         normalized_name = self._normalize_name(name)
         created_at = self._as_utc(now or datetime.now(UTC))
         expiration = (
-            self._expiration_policy.validate(expires_at, now=created_at, issued_at=created_at)
+            self._expiration_policy.validate(
+                expires_at,
+                now=created_at,
+                issued_at=created_at,
+                user_owned=user_id is not None,
+            )
             if expires_at is not None
             else None
         )
@@ -129,6 +134,7 @@ class TokenService:
                 expires_at,
                 now=now,
                 issued_at=token.created_at,
+                user_owned=token.user_id is not None,
             )
         return self._repository.update(token)
 

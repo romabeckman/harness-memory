@@ -72,6 +72,7 @@ describe('user management components', () => {
     expect(markup).toContain('Ada Lovelace')
     expect(markup).toContain('30 Days')
     expect(markup).toContain('90 Days')
+    expect(markup).toContain('1 Year (365 Days)')
     expect(markup).not.toContain('Never Expires')
     expect(markup).not.toContain('Owner (Service Account):')
   })

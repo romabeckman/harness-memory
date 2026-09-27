@@ -59,7 +59,7 @@ export function CreateTokenDialog({
   const [availableProjects, setAvailableProjects] = useState<ProjectDto[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
-  const [lifetime, setLifetime] = useState<'30' | '90' | 'never'>('30')
+  const [lifetime, setLifetime] = useState<'30' | '90' | '365' | 'never'>('30')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -638,7 +638,7 @@ export function CreateTokenDialog({
             <label className="block text-xs font-medium uppercase tracking-wider text-gray-400 mb-2">
               Validity / Expiration
             </label>
-            <div className={`grid gap-2 ${userOwner ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setLifetime('30')}
@@ -661,6 +661,19 @@ export function CreateTokenDialog({
               >
                 90 Days
               </button>
+              {userOwner && (
+                <button
+                  type="button"
+                  onClick={() => setLifetime('365')}
+                  className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${
+                    lifetime === '365'
+                      ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                      : 'border-border bg-black/20 text-gray-400 hover:bg-black/40'
+                  }`}
+                >
+                  1 Year (365 Days)
+                </button>
+              )}
               {!userOwner && (
                 <button
                   type="button"
