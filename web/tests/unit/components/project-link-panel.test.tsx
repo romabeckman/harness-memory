@@ -77,4 +77,22 @@ describe('ProjectLinkPanel', () => {
     expect(selectable[0].key).toBe('billing')
     expect(selectable[0].tenant_id).toBe('tenant-2')
   })
+
+  it('renders correctly when users list is provided', () => {
+    const sampleUsers = [
+      { id: 'user-1', name: 'Alice', email: 'alice@example.com' },
+      { id: 'user-2', name: 'Bob', email: 'bob@example.com' },
+    ]
+
+    const markup = renderToStaticMarkup(
+      React.createElement(ProjectLinkPanel, {
+        project: sampleProject,
+        allProjects: sampleAllProjects,
+        tenants: sampleTenants,
+        users: sampleUsers,
+      })
+    )
+
+    expect(markup).toContain('aria-label="Manage links for catalog"')
+  })
 })

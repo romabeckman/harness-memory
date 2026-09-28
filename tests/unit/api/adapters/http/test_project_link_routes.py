@@ -51,6 +51,49 @@ def test_post_project_link_success():
     assert data["linked_project"]["key"] == "beta"
     assert data["linked_project"]["name"] == "Beta"
     assert data["linked_project"]["tenant_id"] == str(t2_id)
+    assert data["created_by"] is None
+
+
+def test_post_project_link_with_created_by():
+    client, service, projects = _client()
+    t1_id = uuid4()
+    t2_id = uuid4()
+    p1_id = uuid4()
+    p2_id = uuid4()
+    user_id = uuid4()
+
+    projects.get.side_effect = lambda tenant_id, key: {
+        (t1_id, "alpha"): {
+            "id": str(p1_id),
+            "tenant_id": str(t1_id),
+            "key": "alpha",
+            "name": "Alpha",
+        },
+        (t2_id, "beta"): {"id": str(p2_id), "tenant_id": str(t2_id), "key": "beta", "name": "Beta"},
+    }.get((tenant_id, key))
+
+    created_link = ProjectLink(pair=CanonicalProjectPair(p1_id, p2_id), created_by=user_id)
+    service.create_link.return_value = created_link
+
+    response = client.post(
+        f"/v1/projects/alpha/links?tenant_id={t1_id}",
+        json={
+            "target_project_key": "beta",
+            "target_tenant_id": str(t2_id),
+            "created_by": str(user_id),
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["created_by"] == str(user_id)
+    service.create_link.assert_called_once_with(
+        origin_tenant_id=t1_id,
+        origin_key="alpha",
+        target_key="beta",
+        target_tenant_id=t2_id,
+        created_by=user_id,
+    )
 
 
 def test_post_project_link_self_referential_422():

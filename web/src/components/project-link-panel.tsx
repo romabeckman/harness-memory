@@ -5,6 +5,7 @@ import {
   LinkedProjectDto,
   ProjectDto,
   TenantDto,
+  UserDto,
 } from '@/application/ports/harness-api-client.port'
 import {
   listProjectLinksAction,
@@ -19,6 +20,7 @@ export interface ProjectLinkPanelProps {
   project: { tenantId: string; projectKey: string; name?: string | null }
   allProjects?: ProjectDto[]
   tenants?: TenantDto[]
+  users?: UserDto[]
 }
 
 export function getSelectableProjects(
@@ -41,11 +43,13 @@ export function ProjectLinkPanel({
   project,
   allProjects = [],
   tenants = [],
+  users = [],
 }: ProjectLinkPanelProps) {
   const [state, setState] = useState<PanelState>('closed')
   const [links, setLinks] = useState<LinkedProjectDto[]>([])
   const [selectedTargetKey, setSelectedTargetKey] = useState('')
   const [selectedTargetTenantId, setSelectedTargetTenantId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [actionInProgress, setActionInProgress] = useState(false)
 
@@ -101,6 +105,7 @@ export function ProjectLinkPanel({
     const result = await createProjectLinkAction(project.tenantId, project.projectKey, {
       target_project_key: selectedTargetKey,
       target_tenant_id: selectedTargetTenantId || undefined,
+      created_by: selectedUserId || undefined,
     })
 
     if (!result.success) {
@@ -112,6 +117,7 @@ export function ProjectLinkPanel({
 
     setSelectedTargetKey('')
     setSelectedTargetTenantId('')
+    setSelectedUserId('')
 
     const refreshed = await listProjectLinksAction(project.tenantId, project.projectKey)
     if (refreshed.data) {
@@ -287,6 +293,26 @@ export function ProjectLinkPanel({
                     ))}
                   </select>
                 </label>
+
+                {users.length > 0 && (
+                  <label className="block text-xs text-gray-300">
+                    Created by user (optional)
+                    <select
+                      aria-label="Select creator user"
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      disabled={state === 'submitting' || actionInProgress}
+                      className="mt-1 block w-full rounded border border-border bg-black/30 px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Admin / System (None)</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.email})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <button
                   type="submit"

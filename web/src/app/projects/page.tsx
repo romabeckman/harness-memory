@@ -7,13 +7,15 @@ import { ProjectTable } from '@/components/project-table'
 import { ProjectDialog } from '@/components/project-dialog'
 import { listProjectsAction } from '@/app/actions/projects'
 import { listTenantsAction } from '@/app/actions/tenants'
-import { TenantDto, ProjectDto } from '@/application/ports/harness-api-client.port'
+import { listUsersAction } from '@/app/actions/users'
+import { TenantDto, ProjectDto, UserDto } from '@/application/ports/harness-api-client.port'
 
 const PAGE_SIZE = 20
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectDto[]>([])
   const [tenants, setTenants] = useState<TenantDto[]>([])
+  const [users, setUsers] = useState<UserDto[]>([])
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,9 +33,18 @@ export default function ProjectsPage() {
     }
   }, [])
 
+  // Load users once on mount
+  const fetchUsers = useCallback(async () => {
+    const res = await listUsersAction(undefined, 200, 0)
+    if (res.data) {
+      setUsers(res.data)
+    }
+  }, [])
+
   useEffect(() => {
     fetchTenants()
-  }, [fetchTenants])
+    fetchUsers()
+  }, [fetchTenants, fetchUsers])
 
   // Debounce search
   useEffect(() => {
@@ -95,6 +106,7 @@ export default function ProjectsPage() {
             <button
               onClick={() => {
                 fetchTenants()
+                fetchUsers()
                 fetchProjects()
               }}
               disabled={loading}
@@ -131,6 +143,7 @@ export default function ProjectsPage() {
             <ProjectTable
               projects={projects}
               tenants={tenants}
+              users={users}
               selectedTenantId={selectedTenantId}
               onSelectTenant={handleSelectTenant}
               onRefresh={fetchProjects}

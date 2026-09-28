@@ -171,3 +171,29 @@ def test_security_authorization():
         headers=reader_headers,
     )
     assert forbidden_resp.status_code == 403
+
+
+def test_create_project_link_with_created_by():
+    client, session_factory, admin_token = _setup_app()
+    with session_factory() as session, session.begin():
+        t1 = Tenant(id=uuid4(), key="t-1", name="Tenant 1", status="active", metadata_json={})
+        t2 = Tenant(id=uuid4(), key="t-2", name="Tenant 2", status="active", metadata_json={})
+        user = ApiUser(id=uuid4(), tenant_id=t1.id, name="Test User", email="test@test.com")
+        p1 = Project(id=uuid4(), tenant_id=t1.id, key="p1", name="Project 1")
+        p2 = Project(id=uuid4(), tenant_id=t2.id, key="p2", name="Project 2")
+        session.add_all([t1, t2, user, p1, p2])
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    resp = client.post(
+        f"/v1/projects/p1/links?tenant_id={t1.id}",
+        json={
+            "target_project_key": "p2",
+            "target_tenant_id": str(t2.id),
+            "created_by": str(user.id),
+        },
+        headers=headers,
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created_by"] == str(user.id)

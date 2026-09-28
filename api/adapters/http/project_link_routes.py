@@ -35,6 +35,7 @@ def create_project_link_router(
                 origin_key=project_key,
                 target_key=request.target_project_key,
                 target_tenant_id=request.target_tenant_id,
+                created_by=request.created_by,
             )
             target_tenant = (
                 request.target_tenant_id if request.target_tenant_id is not None else tenant_id
@@ -66,6 +67,7 @@ def create_project_link_router(
                     tenant_id=target_tenant,
                 ),
                 created_at=created_link.created_at,
+                created_by=created_link.created_by,
             )
         except LookupError as error:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error

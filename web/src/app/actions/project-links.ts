@@ -37,6 +37,7 @@ export async function createProjectLinkAction(
     await client.createProjectLink(tenantId, projectKey, {
       target_project_key: dto.target_project_key.trim(),
       target_tenant_id: dto.target_tenant_id?.trim() || undefined,
+      created_by: dto.created_by?.trim() || undefined,
     })
     revalidatePath('/projects')
     return { success: true }
