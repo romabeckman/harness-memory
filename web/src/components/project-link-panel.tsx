@@ -21,6 +21,7 @@ export interface ProjectLinkPanelProps {
   allProjects?: ProjectDto[]
   tenants?: TenantDto[]
   users?: UserDto[]
+  initialState?: PanelState
 }
 
 export function getSelectableProjects(
@@ -44,8 +45,9 @@ export function ProjectLinkPanel({
   allProjects = [],
   tenants = [],
   users = [],
+  initialState = 'closed',
 }: ProjectLinkPanelProps) {
-  const [state, setState] = useState<PanelState>('closed')
+  const [state, setState] = useState<PanelState>(initialState)
   const [links, setLinks] = useState<LinkedProjectDto[]>([])
   const [selectedTargetKey, setSelectedTargetKey] = useState('')
   const [selectedTargetTenantId, setSelectedTargetTenantId] = useState('')

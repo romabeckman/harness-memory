@@ -95,4 +95,66 @@ describe('ProjectLinkPanel', () => {
 
     expect(markup).toContain('aria-label="Manage links for catalog"')
   })
+
+  it('renders full modal dialog structure when opened', () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(ProjectLinkPanel, {
+        project: sampleProject,
+        allProjects: sampleAllProjects,
+        tenants: sampleTenants,
+        initialState: 'loaded',
+      })
+    )
+
+    // Modal dialog attributes and backdrop
+    expect(markup).toContain('role="dialog"')
+    expect(markup).toContain('aria-modal="true"')
+    expect(markup).toContain('fixed inset-0')
+    expect(markup).toContain('Project Links: Catalog Service')
+    expect(markup).toContain('aria-label="Close dialog"')
+
+    // Sections
+    expect(markup).toContain('Linked Projects (0)')
+    expect(markup).toContain('No linked projects')
+    expect(markup).toContain('Add New Link')
+    expect(markup).toContain('Target Project')
+    expect(markup).toContain('Link Project')
+    expect(markup).toContain('Close')
+  })
+
+  it('renders creator user selector in modal dialog when users are provided', () => {
+    const sampleUsers = [
+      { id: 'u1', name: 'Admin User', email: 'admin@corp.io' },
+      { id: 'u2', name: 'Dev User', email: 'dev@corp.io' },
+    ]
+
+    const markup = renderToStaticMarkup(
+      React.createElement(ProjectLinkPanel, {
+        project: sampleProject,
+        allProjects: sampleAllProjects,
+        tenants: sampleTenants,
+        users: sampleUsers,
+        initialState: 'loaded',
+      })
+    )
+
+    expect(markup).toContain('Created by user (optional)')
+    expect(markup).toContain('Admin / System (None)')
+    expect(markup).toContain('Admin User (admin@corp.io)')
+    expect(markup).toContain('Dev User (dev@corp.io)')
+  })
+
+  it('renders loading feedback inside modal dialog when state is loading', () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(ProjectLinkPanel, {
+        project: sampleProject,
+        allProjects: sampleAllProjects,
+        tenants: sampleTenants,
+        initialState: 'loading',
+      })
+    )
+
+    expect(markup).toContain('role="dialog"')
+    expect(markup).toContain('Loading links...')
+  })
 })
