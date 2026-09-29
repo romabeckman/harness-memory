@@ -32,10 +32,19 @@ describe('Project Link DTOs and Contracts', () => {
     const validDto: CreateProjectLinkDto = {
       target_project_key: 'send',
       target_tenant_id: 'tenant-2',
+      created_by: 'user-789',
     }
 
     const validResult = validateCreateProjectLinkDto(validDto)
     expect(validResult.valid).toBe(true)
     expect(validResult.error).toBeUndefined()
+  })
+
+  it('should accept optional created_by field in CreateProjectLinkDto', () => {
+    const dto: CreateProjectLinkDto = {
+      target_project_key: 'send',
+      created_by: 'user-123',
+    }
+    expect(dto.created_by).toBe('user-123')
   })
 })

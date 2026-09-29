@@ -74,6 +74,26 @@ describe('project link server actions', () => {
       expect(revalidatePath).toHaveBeenCalledWith('/projects')
     })
 
+    it('should forward created_by to client when provided', async () => {
+      const createProjectLink = vi.fn().mockResolvedValue(undefined)
+      vi.spyOn(ClientFactory, 'getHarnessClient').mockReturnValue({
+        createProjectLink,
+      } as never)
+
+      const result = await createProjectLinkAction('tenant-1', 'catalog', {
+        target_project_key: 'send',
+        target_tenant_id: 'tenant-2',
+        created_by: 'user-uuid-123',
+      })
+
+      expect(result).toEqual({ success: true })
+      expect(createProjectLink).toHaveBeenCalledWith('tenant-1', 'catalog', {
+        target_project_key: 'send',
+        target_tenant_id: 'tenant-2',
+        created_by: 'user-uuid-123',
+      })
+    })
+
     it('should return error string when backend returns conflict error', async () => {
       const createProjectLink = vi
         .fn()

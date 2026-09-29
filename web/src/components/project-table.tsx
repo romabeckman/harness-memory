@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Edit2, Trash2, Search, Layers, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
-import { TenantDto, ProjectDto } from '@/application/ports/harness-api-client.port'
+import { TenantDto, ProjectDto, UserDto } from '@/application/ports/harness-api-client.port'
 import { deleteProjectAction } from '@/app/actions/projects'
 import { ProjectDialog } from './project-dialog'
 import { ConfirmDeleteDialog } from './confirm-delete-dialog'
@@ -12,6 +12,7 @@ import { ProjectLinkPanel } from './project-link-panel'
 interface ProjectTableProps {
   projects: ProjectDto[]
   tenants: TenantDto[]
+  users?: UserDto[]
   selectedTenantId?: string
   onSelectTenant: (tenantId: string) => void
   onRefresh: () => void
@@ -26,6 +27,7 @@ interface ProjectTableProps {
 export function ProjectTable({
   projects,
   tenants,
+  users = [],
   selectedTenantId,
   onSelectTenant,
   onRefresh,
@@ -148,6 +150,7 @@ export function ProjectTable({
                       }}
                       allProjects={projects}
                       tenants={tenants}
+                      users={users}
                     />
                     <button
                       onClick={() => setEditingProject(proj)}

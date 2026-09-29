@@ -143,6 +143,7 @@ export interface LinkedProjectDto {
 export interface CreateProjectLinkDto {
   target_project_key: string
   target_tenant_id?: string
+  created_by?: string
 }
 
 export function validateCreateProjectLinkDto(dto: CreateProjectLinkDto): {

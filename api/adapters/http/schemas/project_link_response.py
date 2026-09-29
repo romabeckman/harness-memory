@@ -12,3 +12,4 @@ class ProjectLinkResponse(BaseModel):
     id: UUID
     linked_project: LinkedProjectSummarySchema
     created_at: datetime
+    created_by: UUID | None = None

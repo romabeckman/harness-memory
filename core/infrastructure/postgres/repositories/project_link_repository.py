@@ -39,6 +39,8 @@ class PostgresProjectLinkRepository(ProjectLinkRepository):
                     created_at=model.created_at,
                 )
         except IntegrityError as error:
+            if "fk_project_links_created_by" in str(error).lower():
+                raise LookupError("creator user not found") from error
             raise ValueError("project link already exists") from error
 
     def get_link(self, pair: CanonicalProjectPair) -> ProjectLink | None:
