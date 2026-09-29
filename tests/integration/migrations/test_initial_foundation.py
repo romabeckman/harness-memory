@@ -34,6 +34,7 @@ def test_initial_migration_creates_all_final_tables():
         "security_audit_events",
         "environments",
         "knowledge_publications",
+        "project_links",
         "alembic_version",
     } <= tables
 
@@ -48,7 +49,7 @@ def test_initial_migration_is_idempotent_and_status_is_read_only():
 
     assert before == after
     assert after.is_current
-    assert after.head_revision == "004"
+    assert after.head_revision == "003"
 
 
 def test_initial_migration_downgrades_to_base():

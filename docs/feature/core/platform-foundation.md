@@ -13,7 +13,7 @@ edges:
     target: "adr:mcp"
   - relation: references
     target: "feature:tenant-foundation"
-updated: 2026-09-26
+updated: 2026-09-29
 ---
 # Platform Foundation
 Provide the runnable DDD structure, PostgreSQL schema, migration boundary, and MCP registration base for Harness Memory.
@@ -40,7 +40,7 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 ## MAIN CONCEPTS / COMPONENTS
 
 - **Runtime boundary**: Build the FastMCP server without database connections, migrations, or transport startup.
-- **Persistence boundary**: Keep five tenant-scoped foundation tables: projects, snapshots, entities, relations, and evidence.
+- **Persistence boundary**: Keep tenant-scoped projects, snapshots, entities, relations, and evidence.
 - **Snapshot storage**: Create normalized graph facts and snapshot header fields directly; no redundant snapshot payload column is created.
 - **Migration boundary**: Use explicit Alembic revisions through the CLI; keep startup schema creation disabled.
 - **Default workspace seed**: Revision 003 inserts the default tenant, `Admin` API user, `Default Project`, and its production environment. Seed downgrade retains referenced or modified workspace rows.
@@ -49,8 +49,8 @@ tests/{unit,integration,e2e}/ # Mirrored verification tiers
 
 ## MIGRATION LAYOUT
 
-- **001** creates all 12 final tables, columns, primary keys, unique constraints, and check constraints.
-- **002** creates 25 foreign keys and 34 explicit indexes, including PostgreSQL trigram search indexes.
+- **001** creates all 13 final tables, columns, primary keys, unique constraints, and check constraints. Users may have no tenant. Projects have no snapshot pointer.
+- **002** creates 27 foreign keys and 35 explicit indexes, including PostgreSQL trigram search indexes and project link relationships.
 - **003** loads the default workspace data.
 
 REQUIRED: Use this consolidated history only for a fresh database. Old revision numbers overlap the new history; do not stamp or upgrade an existing installation with these files. Preserve existing databases and plan a separate, verified transition when needed.

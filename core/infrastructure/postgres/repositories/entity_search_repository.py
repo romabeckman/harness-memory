@@ -2,7 +2,7 @@ import hashlib
 from typing import Callable
 from uuid import UUID
 
-from sqlalchemy import Text, and_, case, cast, exists, func, or_, select
+from sqlalchemy import Text, and_, cast, func, or_, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
@@ -147,19 +147,7 @@ class PostgresEntitySearchRepository:
             )
             .where(Environment.current_snapshot_id.is_not(None), *project_predicates)
         ).all()
-        legacy_snapshots = session.scalars(
-            select(Project.active_snapshot_id).where(
-                Project.active_snapshot_id.is_not(None),
-                *project_predicates,
-                ~exists(
-                    select(Environment.id).where(
-                        Environment.project_id == Project.id,
-                        Environment.tenant_id == Project.tenant_id,
-                    )
-                ),
-            )
-        ).all()
-        return tuple(sorted(set((*environment_snapshots, *legacy_snapshots)), key=str))
+        return tuple(sorted(set(environment_snapshots), key=str))
 
     @staticmethod
     def _history_manifest(
@@ -290,10 +278,7 @@ class PostgresEntitySearchRepository:
                 Snapshot.id,
                 Snapshot.revision,
                 Environment.name.label("environment_name"),
-                case(
-                    (Environment.id.is_not(None), Environment.current_snapshot_id == Snapshot.id),
-                    else_=Project.active_snapshot_id == Snapshot.id,
-                ).label("is_current_snapshot"),
+                current_snapshot_predicate().label("is_current_snapshot"),
                 KnowledgePublication.id.label("publication_id"),
                 KnowledgePublication.version.label("publication_version"),
                 KnowledgePublication.status.label("publication_status"),

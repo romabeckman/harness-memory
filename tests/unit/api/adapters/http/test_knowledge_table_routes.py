@@ -44,7 +44,6 @@ def test_read_key_searches_all_knowledge_tables_with_filters() -> None:
                     tenant_id=tenant_id,
                     key="catalog",
                     name="Catalog",
-                    active_snapshot_id=snapshot_id,
                 ),
                 Project(
                     id=other_project_id,

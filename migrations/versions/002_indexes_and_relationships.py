@@ -103,17 +103,6 @@ def upgrade() -> None:
     )
 
     op.create_foreign_key(
-        "fk_projects_active_snapshot",
-        "projects",
-        "snapshots",
-        ["active_snapshot_id", "id", "tenant_id"],
-        ["id", "project_id", "tenant_id"],
-        ondelete="SET NULL",
-        deferrable=True,
-        initially="DEFERRED",
-    )
-
-    op.create_foreign_key(
         "fk_users_tenant_id", "users", "tenants", ["tenant_id"], ["id"], ondelete="RESTRICT"
     )
 
@@ -161,9 +150,9 @@ def upgrade() -> None:
         "fk_environments_current_snapshot",
         "environments",
         "snapshots",
-        ["current_snapshot_id", "tenant_id"],
-        ["id", "tenant_id"],
-        ondelete="SET NULL",
+        ["current_snapshot_id", "project_id", "tenant_id"],
+        ["id", "project_id", "tenant_id"],
+        ondelete="RESTRICT",
     )
 
     op.create_foreign_key(
@@ -254,13 +243,6 @@ def upgrade() -> None:
     )
 
     op.create_index(
-        "ix_projects_tenant_active_snapshot",
-        "projects",
-        ["tenant_id", "active_snapshot_id", "id"],
-        postgresql_where=sa.text("active_snapshot_id IS NOT NULL"),
-    )
-
-    op.create_index(
         "ix_entities_tenant_identity", "entities", ["tenant_id", "identity_id", "snapshot_id"]
     )
 
@@ -332,8 +314,40 @@ def upgrade() -> None:
         " IS NOT NULL"
     )
 
+    op.create_foreign_key(
+        "fk_project_links_project_a_id",
+        "project_links",
+        "projects",
+        ["project_a_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "fk_project_links_project_b_id",
+        "project_links",
+        "projects",
+        ["project_b_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_foreign_key(
+        "fk_project_links_created_by",
+        "project_links",
+        "users",
+        ["created_by"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+    op.create_index("ix_project_links_project_a_id", "project_links", ["project_a_id"])
+    op.create_index("ix_project_links_project_b_id", "project_links", ["project_b_id"])
+
 
 def downgrade() -> None:
+    op.drop_index("ix_project_links_project_b_id", table_name="project_links")
+    op.drop_index("ix_project_links_project_a_id", table_name="project_links")
+    op.drop_constraint("fk_project_links_created_by", "project_links", type_="foreignkey")
+    op.drop_constraint("fk_project_links_project_b_id", "project_links", type_="foreignkey")
+    op.drop_constraint("fk_project_links_project_a_id", "project_links", type_="foreignkey")
     op.drop_index("ix_environments_name_current_snapshot")
     op.drop_index("ix_projects_key_tenant_id")
     op.drop_index("ix_entities_name_global_prefix")
@@ -353,7 +367,6 @@ def downgrade() -> None:
     op.drop_index("ix_relations_target_identity", table_name="relations")
     op.drop_index("ix_relations_source_identity", table_name="relations")
     op.drop_index("ix_entities_tenant_identity", table_name="entities")
-    op.drop_index("ix_projects_tenant_active_snapshot", table_name="projects")
     op.drop_index("ix_entities_tenant_name_prefix_search", table_name="entities")
     op.drop_index("ix_entities_tenant_type_active_search", table_name="entities")
     op.drop_index("ix_entities_tenant_key_active_search", table_name="entities")
@@ -389,7 +402,6 @@ def downgrade() -> None:
     op.drop_constraint("fk_service_accounts_tenant_id", "service_accounts", type_="foreignkey")
     op.drop_constraint("tokens_user_id_fkey", "tokens", type_="foreignkey")
     op.drop_constraint("fk_users_tenant_id", "users", type_="foreignkey")
-    op.drop_constraint("fk_projects_active_snapshot", "projects", type_="foreignkey")
     op.drop_constraint("fk_evidence_relation_scope", "evidence", type_="foreignkey")
     op.drop_constraint("fk_evidence_snapshot_tenant", "evidence", type_="foreignkey")
     op.drop_constraint("fk_relations_target_entity_scope", "relations", type_="foreignkey")

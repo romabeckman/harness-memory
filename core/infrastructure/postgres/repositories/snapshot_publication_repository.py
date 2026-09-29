@@ -23,6 +23,7 @@ from core.domain.snapshot_publication.value_objects.payload_hash import PayloadH
 from core.domain.snapshot_publication.value_objects.revision import Revision
 
 from ..models.entity import Entity
+from ..models.environment import Environment
 from ..models.evidence import Evidence
 from ..models.project import Project
 from ..models.relation import Relation
@@ -100,11 +101,23 @@ class PostgresSnapshotPublicationRepository:
                         session.add(project)
                         session.flush()
 
+                    environment = next(
+                        (item for item in project.environments if item.name == "production"),
+                        None,
+                    )
+                    if environment is None:
+                        environment = Environment(
+                            name="production", type="production", metadata_json={}
+                        )
+                        project.environments.append(environment)
+                        session.flush()
+
                     existing = session.execute(
                         select(Snapshot)
                         .where(
                             Snapshot.tenant_id == tenant_id,
                             Snapshot.project_id == project.id,
+                            Snapshot.environment_id == environment.id,
                             Snapshot.revision == snapshot.revision.value,
                         )
                         .with_for_update()
@@ -113,15 +126,15 @@ class PostgresSnapshotPublicationRepository:
                         if existing.payload_hash != payload_hash.value:
                             raise RevisionConflict("revision already contains different content")
                         return self._record(
-                            session, "ALREADY_PUBLISHED", existing, project.active_snapshot_id
+                            session, "ALREADY_PUBLISHED", existing, environment.current_snapshot_id
                         )
 
                     active = None
-                    if project.active_snapshot_id is not None:
+                    if environment.current_snapshot_id is not None:
                         active = session.execute(
                             select(Snapshot)
                             .where(
-                                Snapshot.id == project.active_snapshot_id,
+                                Snapshot.id == environment.current_snapshot_id,
                                 Snapshot.tenant_id == tenant_id,
                             )
                             .with_for_update()
@@ -139,12 +152,13 @@ class PostgresSnapshotPublicationRepository:
                     decision = self._policy.decide(current, candidate)
                     if decision is not RevisionDecision.ACTIVATE:
                         return self._record(
-                            session, "ALREADY_PUBLISHED", active, project.active_snapshot_id
+                            session, "ALREADY_PUBLISHED", active, environment.current_snapshot_id
                         )
 
                     project.name = snapshot.project.name
                     project.metadata_json = snapshot.project.metadata.to_dict()
                     rows = self._mapper.map(snapshot, tenant_id, payload_hash, project.id)
+                    rows.snapshot.environment_id = environment.id
                     session.add(rows.snapshot)
                     session.flush()
                     session.add_all(rows.entities)
@@ -153,7 +167,7 @@ class PostgresSnapshotPublicationRepository:
                     session.flush()
                     session.add_all(rows.evidence)
                     session.flush()
-                    project.active_snapshot_id = rows.snapshot.id
+                    environment.current_snapshot_id = rows.snapshot.id
                     session.flush()
                     return self._record(session, "ACTIVATED", rows.snapshot, rows.snapshot.id)
         except (RevisionConflict, StaleRevision, PersistenceFailure, IntegrityError):

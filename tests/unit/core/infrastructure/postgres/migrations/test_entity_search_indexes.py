@@ -23,6 +23,6 @@ def test_entity_search_migration_is_reversible_and_targets_only_documented_index
         "ix_entities_tenant_type_active_search",
         "ix_entities_tenant_name_prefix_search",
     }
-    assert "ix_projects_tenant_active_snapshot" in {
+    assert "ix_projects_tenant_active_snapshot" not in {
         index.name for index in Project.__table__.indexes
     }

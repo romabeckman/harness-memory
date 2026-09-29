@@ -26,66 +26,7 @@ edges:
 updated: 2026-09-27
 ---
 ```graph
-{
-  "node_id": "feature:project-links",
-  "domain": "project_links",
-  "implements": [
-    "adr:architecture"
-  ],
-  "tested_by": [
-    "adr:tests"
-  ],
-  "entrypoints": [
-    "web/src/components/project-link-panel.tsx",
-    "api/adapters/http/project_link_routes.py",
-    "harness_memory_mcp/tools/search_projects.py"
-  ],
-  "registration_files": [
-    "api/server/app.py",
-    "web/src/app/actions/project-links.ts"
-  ],
-  "reference_files": [
-    "core/domain/project_link/entities/project_link.py",
-    "core/domain/project_link/value_objects/canonical_project_pair.py",
-    "core/infrastructure/postgres/repositories/project_link_repository.py"
-  ],
-  "code_files": [
-    "core/domain/project_link/events/project_linked.py",
-    "core/domain/project_link/events/project_unlinked.py",
-    "core/infrastructure/postgres/models/project_link.py",
-    "migrations/versions/005_project_links.py",
-    "core/application/entity_discovery/contracts/project_link_item.py",
-    "core/application/entity_discovery/contracts/project_search_item.py",
-    "core/infrastructure/postgres/repositories/knowledge_read_repository.py",
-    "api/application/ports/project_link_repository.py",
-    "api/application/services/project_link_management_service.py",
-    "api/adapters/http/schemas/project_link_create.py",
-    "api/adapters/http/schemas/project_link_response.py",
-    "web/src/application/ports/harness-api-client.port.ts",
-    "web/src/infrastructure/api/rest-harness-api-client.ts",
-    "web/src/components/project-table.tsx"
-  ],
-  "test_files": [
-    "tests/unit/core/domain/project_link/value_objects/test_canonical_project_pair.py",
-    "tests/unit/core/domain/project_link/entities/test_project_link.py",
-    "tests/integration/core/infrastructure/postgres/models/test_project_link_model.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_project_link_repository.py",
-    "tests/unit/api/application/services/test_project_link_management_service.py",
-    "tests/unit/api/adapters/http/test_project_link_routes.py",
-    "tests/e2e/test_project_links_api.py",
-    "tests/unit/core/application/entity_discovery/contracts/test_project_link_item.py",
-    "tests/unit/core/application/entity_discovery/contracts/test_project_search_item.py",
-    "tests/integration/core/infrastructure/postgres/repositories/test_knowledge_read_repository_search_projects_links.py",
-    "tests/unit/mcp/tools/test_search_projects.py",
-    "tests/e2e/test_mcp_search_projects_links.py",
-    "web/tests/unit/domain/project-link-types.test.ts",
-    "web/tests/unit/infrastructure/rest-harness-api-client-project-links.test.ts",
-    "web/tests/unit/application/project-links.action.test.ts",
-    "web/tests/unit/components/project-link-panel.test.tsx",
-    "web/tests/unit/components/project-table-links.test.tsx",
-    "web/tests/e2e/project-links.spec.ts"
-  ]
-}
+{"node_id":"feature:project-links","domain":"project_links","implements":["adr:architecture"],"tested_by":["adr:tests"],"entrypoints":["web/src/components/project-link-panel.tsx","api/adapters/http/project_link_routes.py","harness_memory_mcp/tools/search_projects.py"],"registration_files":["api/server/app.py","web/src/app/actions/project-links.ts"],"reference_files":["core/domain/project_link/entities/project_link.py","core/domain/project_link/value_objects/canonical_project_pair.py","core/infrastructure/postgres/repositories/project_link_repository.py"],"code_files":["core/domain/project_link/events/project_linked.py","core/domain/project_link/events/project_unlinked.py","core/infrastructure/postgres/models/project_link.py","migrations/versions/001_foundation.py","migrations/versions/002_indexes_and_relationships.py","core/application/entity_discovery/contracts/project_link_item.py","core/application/entity_discovery/contracts/project_search_item.py","core/infrastructure/postgres/repositories/knowledge_read_repository.py","api/application/ports/project_link_repository.py","api/application/services/project_link_management_service.py","api/adapters/http/schemas/project_link_create.py","api/adapters/http/schemas/project_link_response.py","web/src/application/ports/harness-api-client.port.ts","web/src/infrastructure/api/rest-harness-api-client.ts","web/src/components/project-table.tsx"],"test_files":["tests/unit/core/domain/project_link/value_objects/test_canonical_project_pair.py","tests/unit/core/domain/project_link/entities/test_project_link.py","tests/integration/core/infrastructure/postgres/models/test_project_link_model.py","tests/integration/core/infrastructure/postgres/repositories/test_project_link_repository.py","tests/unit/api/application/services/test_project_link_management_service.py","tests/unit/api/adapters/http/test_project_link_routes.py","tests/e2e/test_project_links_api.py","tests/unit/core/application/entity_discovery/contracts/test_project_link_item.py","tests/unit/core/application/entity_discovery/contracts/test_project_search_item.py","tests/integration/core/infrastructure/postgres/repositories/test_knowledge_read_repository_search_projects_links.py","tests/unit/mcp/tools/test_search_projects.py","tests/e2e/test_mcp_search_projects_links.py","web/tests/unit/domain/project-link-types.test.ts","web/tests/unit/infrastructure/rest-harness-api-client-project-links.test.ts","web/tests/unit/application/project-links.action.test.ts","web/tests/unit/components/project-link-panel.test.tsx","web/tests/unit/components/project-table-links.test.tsx","web/tests/e2e/project-links.spec.ts"]}
 ```
 
 # Project Links

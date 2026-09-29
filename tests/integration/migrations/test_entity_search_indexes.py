@@ -28,7 +28,6 @@ def test_f003_upgrade_creates_four_search_indexes_without_replacing_foundation_i
         "ix_entities_tenant_key_active_search",
         "ix_entities_tenant_type_active_search",
         "ix_entities_tenant_name_prefix_search",
-        "ix_projects_tenant_active_snapshot",
         "ix_entities_snapshot_key",
         "ix_projects_tenant_key",
     } <= indexes

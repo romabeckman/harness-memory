@@ -40,7 +40,7 @@ projections; prompts render guidance only.
 - **Project resource**: Read the active snapshot at `memory://projects/{project_key}` and decode one URI segment once.
 - **Snapshot resource**: Read a tenant-owned historical snapshot at `memory://snapshots/{snapshot_id}` without activation or raw payload exposure.
 - **Prompt and environment surfaces**: Confirm projects with `search_projects`; prompts guide existing tools. Environment comparisons return added, removed, modified, and unchanged entity fingerprints.
-- **Current-first guidance**: Use each environment's `current_snapshot_id`; use `Project.active_snapshot_id` only when no environment records exist. Search history only on request.
+- **Current-first guidance**: Use each environment's `current_snapshot_id`. Search history only on request.
 
 ## HOW TO READ
 

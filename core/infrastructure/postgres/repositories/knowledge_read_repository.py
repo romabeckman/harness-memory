@@ -2,7 +2,7 @@ from collections.abc import Callable
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select, union_all
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
 from core.application.entity_discovery.contracts.project_environment_item import (
@@ -79,7 +79,7 @@ class KnowledgeReadRepository:
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict]:
-        statement = select(Project)
+        statement = select(Project).options(selectinload(Project.environments))
         if tenant_id is not None:
             statement = statement.where(Project.tenant_id == UUID(tenant_id))
         if key is not None:

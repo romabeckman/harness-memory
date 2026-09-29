@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from api.application.ports.tenant_project_management_repository import (
     TenantProjectManagementRepository,
@@ -147,7 +147,7 @@ class PostgresTenantProjectManagementRepository(TenantProjectManagementRepositor
         limit: int = 100,
         offset: int = 0,
     ) -> dict:
-        stmt = select(Project)
+        stmt = select(Project).options(selectinload(Project.environments))
         count_stmt = select(func.count(Project.id))
         if tenant_id is not None:
             stmt = stmt.where(Project.tenant_id == tenant_id)

@@ -36,7 +36,8 @@ async def test_load_corporate_context_renders_guidance_without_io():
     assert "Environment.current_snapshot_id exposed by" in text
     assert "Pin get_context with entity_id and snapshot_id" in text
     assert "newest current occurrence" in text
-    assert "Do not use the project pointer in place of environment current pointers" in text
+    assert "report no current environment data" in text
+    assert "Project.active_snapshot_id" not in text
     assert "comparison" in text
     observable.assert_not_called()
 

@@ -526,7 +526,6 @@ def test_project_search_uses_current_snapshot_from_each_environment():
         session.flush()
         production.current_snapshot_id = production_current.id
         staging.current_snapshot_id = staging_current.id
-        project.active_snapshot_id = production_old.id
         for snapshot, key in (
             (production_old, "production-old"),
             (production_current, "production-current"),
@@ -557,7 +556,7 @@ def test_project_search_uses_current_snapshot_from_each_environment():
     assert all(item.is_current_snapshot for item in result.items)
 
 
-def test_unpublished_environment_does_not_fall_back_to_project_active_snapshot():
+def test_unpublished_environment_does_not_expose_past_snapshot():
     session_factory, _ = _repository()
     with session_factory() as session:
         project = Project(tenant_id="tenant-a", key="catalog")
@@ -579,7 +578,6 @@ def test_unpublished_environment_does_not_fall_back_to_project_active_snapshot()
         )
         session.add(snapshot)
         session.flush()
-        project.active_snapshot_id = snapshot.id
         session.add(
             Entity(
                 tenant_id="tenant-a",

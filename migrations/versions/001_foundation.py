@@ -46,7 +46,6 @@ def upgrade() -> None:
         sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
         sa.Column("key", sa.String(length=255), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=True),
-        sa.Column("active_snapshot_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("metadata", _json_object(), server_default=sa.text("'{}'"), nullable=False),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
@@ -220,7 +219,7 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
-        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("tenant_id", sa.Uuid(as_uuid=True), nullable=True),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -318,8 +317,25 @@ def upgrade() -> None:
         _metadata_check("ck_knowledge_publications_metadata_object"),
     )
 
+    op.create_table(
+        "project_links",
+        sa.Column("id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("project_a_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("project_b_id", sa.Uuid(as_uuid=True), nullable=False),
+        sa.Column("created_by", sa.Uuid(as_uuid=True), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("project_a_id", "project_b_id", name="uq_project_links_a_b"),
+        sa.CheckConstraint(
+            "project_a_id <> project_b_id", name="ck_project_links_distinct_projects"
+        ),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table("project_links")
     op.drop_table("knowledge_publications")
     op.drop_table("environments")
     op.drop_table("service_accounts")

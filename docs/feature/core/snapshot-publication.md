@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:platform-foundation"
     read: must
-updated: 2026-09-26
+updated: 2026-09-29
 ---
 # Snapshot Publication
 Publish a complete immutable project snapshot and switch its active pointer atomically.
@@ -35,7 +35,7 @@ Validate a complete schema `1.0` payload, build an immutable domain aggregate, c
 
 - **Complete snapshot**: Validate same-snapshot references; derive tenant from trusted `PublicationContext`.
 - **Revision policy**: Activate higher revisions; return `ALREADY_PUBLISHED` for matching revision/hash; reject stale or conflicting revisions.
-- **Persistence**: Switch `projects.active_snapshot_id`; retain history and reconstruct REST/SDK payloads from normalized rows.
+- **Persistence**: Environment pointers reference snapshots from the same project. Direct publication assigns its snapshot to production and promotes that environment's pointer. History remains available.
 
 ## HOW TO PUBLISH
 

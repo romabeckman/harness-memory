@@ -1,4 +1,4 @@
-from sqlalchemy import and_, exists, or_, select
+from sqlalchemy import exists, select
 
 from ..models.entity import Entity
 from ..models.environment import Environment
@@ -15,16 +15,4 @@ def current_snapshot_predicate():
         )
         .correlate(Project, Entity)
     )
-    project_has_environments = exists(
-        select(Environment.id)
-        .where(
-            Environment.project_id == Project.id,
-            Environment.tenant_id == Project.tenant_id,
-        )
-        .correlate(Project)
-    )
-    legacy_project_current = and_(
-        Project.active_snapshot_id == Entity.snapshot_id,
-        ~project_has_environments,
-    )
-    return or_(environment_current, legacy_project_current)
+    return environment_current
