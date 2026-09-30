@@ -71,8 +71,8 @@ describe('Service Accounts Server Actions', () => {
   it('lists global service accounts with the default page', async () => {
     vi.mocked(mockClient.listServiceAccounts!).mockResolvedValueOnce([])
 
-    await expect(listServiceAccountsAction({ limit: 20, offset: 0 })).resolves.toEqual({ data: [] })
-    expect(mockClient.listServiceAccounts).toHaveBeenCalledWith({ limit: 20, offset: 0 })
+    await expect(listServiceAccountsAction()).resolves.toEqual({ data: [] })
+    expect(mockClient.listServiceAccounts).toHaveBeenCalledWith({ limit: 100, offset: 0 })
   })
 
   it('lists service accounts for the selected organization and forwards pagination', async () => {

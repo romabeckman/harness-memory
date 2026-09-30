@@ -238,7 +238,7 @@ export class RestHarnessApiClient implements HarnessApiClientPort {
     const params = new URLSearchParams({
       tenant_id: reference.tenantId,
       project_key: reference.projectKey,
-      limit: '500',
+      limit: '100',
       offset: '0',
     })
     return this.request<EnvironmentDto[]>(`/v1/environments?${params.toString()}`, {

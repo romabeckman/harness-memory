@@ -2,6 +2,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 from fastmcp import FastMCP
+import pytest
 
 from harness_memory_mcp.services.tenant_context import TenantContextProvider
 from harness_memory_mcp.tools.get_history import register_get_history
@@ -14,6 +15,7 @@ def test_get_history_scopes_request_to_authenticated_tenant():
 
     assert tool("catalog", "production") == {"snapshots": []}
     assert handler.execute.call_args.args[0].tenant_id == "tenant-a"
+    assert handler.execute.call_args.args[0].limit == 100
     assert (
         tool("catalog", "production", tenant_id="tenant-b")["error"]["code"] == "INVALID_ARGUMENT"
     )
@@ -50,3 +52,24 @@ def test_get_history_forwards_query_and_rejects_blank_terms():
     assert tool("catalog", "production", query="authentication") == {"snapshots": []}
     assert handler.execute.call_args.args[0].query == "authentication"
     assert tool("catalog", "production", query=" ")["error"]["code"] == "INVALID_ARGUMENT"
+
+
+@pytest.mark.parametrize("snapshot_id", [None, uuid4()])
+def test_get_history_accepts_500_results_for_snapshot_and_change_pages(snapshot_id):
+    handler = Mock()
+    handler.execute.return_value = {"snapshots": []}
+    tool = register_get_history(FastMCP("test"), handler, TenantContextProvider("tenant-a"))
+
+    assert tool("catalog", "production", snapshot_id=snapshot_id, limit=500) == {"snapshots": []}
+    request = handler.execute.call_args.args[0]
+    assert request.limit == 500
+    assert request.snapshot_id == snapshot_id
+
+
+@pytest.mark.parametrize("limit", [0, 501, True, "500"])
+def test_get_history_rejects_limits_outside_strict_1_to_500_contract(limit):
+    handler = Mock()
+    tool = register_get_history(FastMCP("test"), handler, TenantContextProvider("tenant-a"))
+
+    assert tool("catalog", "production", limit=limit)["error"]["code"] == "INVALID_ARGUMENT"
+    handler.execute.assert_not_called()

@@ -10,7 +10,7 @@ import { listTenantsAction } from '@/app/actions/tenants'
 import { listUsersAction } from '@/app/actions/users'
 import { TenantDto, ProjectDto, UserDto } from '@/application/ports/harness-api-client.port'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectDto[]>([])

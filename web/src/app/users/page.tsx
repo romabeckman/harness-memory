@@ -11,7 +11,7 @@ import { UserTable } from '@/components/user-table'
 import { TenantDto, UserDto } from '@/application/ports/harness-api-client.port'
 import { UserTokenOwner } from '@/domain/user-token-owner'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserDto[]>([])

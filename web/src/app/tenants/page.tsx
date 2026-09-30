@@ -8,7 +8,7 @@ import { TenantDialog } from '@/components/tenant-dialog'
 import { listTenantsAction } from '@/app/actions/tenants'
 import { TenantDto } from '@/application/ports/harness-api-client.port'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100
 
 export default function TenantsPage() {
   const [tenants, setTenants] = useState<TenantDto[]>([])

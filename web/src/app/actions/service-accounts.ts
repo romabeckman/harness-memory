@@ -30,7 +30,7 @@ function safeError(error: unknown, fallback: string): string {
 function normalizeListQuery(query: ServiceAccountListQuery): ServiceAccountListQuery {
   return {
     ...query,
-    limit: query.limit ?? 20,
+    limit: query.limit ?? 100,
     offset: query.offset ?? 0,
   }
 }

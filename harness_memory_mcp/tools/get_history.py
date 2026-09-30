@@ -47,10 +47,10 @@ def register_get_history(
             StrictInt,
             Field(
                 ge=1,
-                le=100,
-                description="Maximum snapshots or entity keys per category, from 1 to 100.",
+                le=500,
+                description="Maximum snapshots or entity keys per category, from 1 to 500.",
             ),
-        ] = 20,
+        ] = 100,
         offset: Annotated[
             StrictInt,
             Field(

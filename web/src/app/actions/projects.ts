@@ -53,7 +53,7 @@ export async function listAllProjectsAction(): Promise<{
 }> {
   try {
     const client = ClientFactory.getHarnessClient()
-    const pageSize = 500
+    const pageSize = 100
     const projects: ProjectDto[] = []
     let offset = 0
 

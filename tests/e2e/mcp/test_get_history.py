@@ -22,6 +22,7 @@ async def test_history_query_round_trip_and_scope_validation():
                 "project_key": "catalog",
                 "environment": "production",
                 "query": "authentication",
+                "limit": 500,
             },
         )
         invalid = await client.call_tool(
@@ -34,6 +35,7 @@ async def test_history_query_round_trip_and_scope_validation():
         )
     assert result.data["total_snapshots"] == 0
     assert handler.execute.call_args.args[0].query == "authentication"
+    assert handler.execute.call_args.args[0].limit == 500
     assert handler.execute.call_args.args[0].tenant_id == "tenant-a"
     assert invalid.data["error"]["code"] == "INVALID_ARGUMENT"
     assert handler.execute.call_count == 1

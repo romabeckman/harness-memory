@@ -141,7 +141,7 @@ describe('RestHarnessApiClient - Tenants and Projects Management', () => {
 
     expect(result).toEqual(environments)
     expect(fetchSpy).toHaveBeenCalledWith(
-      'http://api:8080/v1/environments?tenant_id=tenant-1&project_key=catalog&limit=500&offset=0',
+      'http://api:8080/v1/environments?tenant_id=tenant-1&project_key=catalog&limit=100&offset=0',
       {
         method: 'GET',
         headers: {

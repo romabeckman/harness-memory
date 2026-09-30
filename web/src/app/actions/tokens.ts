@@ -21,8 +21,8 @@ export interface DashboardData {
   page: number
 }
 
-const CATALOG_PAGE_SIZE = 500
-const REVIEW_PAGE_SIZE = 50
+const CATALOG_PAGE_SIZE = 100
+const REVIEW_PAGE_SIZE = 100
 
 interface CredentialReviewCatalogs {
   tokens: TokenMetadataDto[]
@@ -50,7 +50,7 @@ export async function loadAllCredentialReviewCatalogs(
   client: HarnessApiClientPort,
   pageSize = CATALOG_PAGE_SIZE
 ): Promise<CredentialReviewCatalogs> {
-  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > CATALOG_PAGE_SIZE) {
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) {
     throw new Error('Credential review page size is invalid')
   }
 

@@ -9,7 +9,7 @@ class GetHistoryInput(BaseModel):
     tenant_id: StrictStr | None = Field(default=None, max_length=255)
     snapshot_id: UUID | None = None
     query: StrictStr | None = Field(default=None, max_length=255)
-    limit: StrictInt = Field(default=20, ge=1, le=100)
+    limit: StrictInt = Field(default=100, ge=1, le=500)
     offset: StrictInt = Field(default=0, ge=0, le=10000)
 
     model_config = ConfigDict(frozen=True, extra="forbid")

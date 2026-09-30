@@ -50,6 +50,7 @@ def _relation(entity: EntityContextItem) -> RelationView:
 
 
 def test_relationship_bounds_accept_valid_limits_and_defaults():
+    assert RelationshipQueryBounds().limit == 100
     assert RelationshipQueryBounds(limit=25, evidence_limit=5).limit == 25
     assert RelationshipQueryBounds().evidence_limit == 5
     assert GetContextInput(entity_id=uuid4()).limit == 100

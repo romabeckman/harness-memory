@@ -56,7 +56,7 @@ def register_get_dependencies(
         limit: Annotated[
             StrictInt,
             Field(ge=1, le=100, description="Maximum relationships to return, from 1 to 100."),
-        ] = 25,
+        ] = 100,
         evidence_limit: Annotated[
             StrictInt,
             Field(

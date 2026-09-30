@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:entity-discovery"
     read: must
-updated: 2026-09-26
+updated: 2026-09-30
 ---
 # Relationship Context
 Return bounded context for selected entities and direct dependency views for one entity.
@@ -55,6 +55,8 @@ Return bounded context for selected entities and direct dependency views for one
 | `direction` | `inbound`, `outbound`, or `both`; dependencies only. |
 | `limit`, `offset` | Context page size 1?500; offset 0?10,000. Dependency limit 1?100. |
 | `result_limit`, `evidence_limit` | Relations 1?25; evidence per relation 0?20. |
+
+Context and dependency query pages default to **100 items**. Explicit limits retain their existing bounds.
 
 ## BEST PRACTICES
 

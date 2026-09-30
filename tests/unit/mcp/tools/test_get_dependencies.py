@@ -24,4 +24,5 @@ def test_get_dependencies_accepts_direction_and_uses_trusted_scope():
     assert result == {"ok": True}
     request, scope = handler.execute.call_args.args
     assert request.direction is RelationshipDirection.INBOUND
+    assert request.limit == 100
     assert scope == TenantScope("tenant-a")

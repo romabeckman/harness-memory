@@ -19,7 +19,7 @@ import {
 } from '@/application/ports/harness-api-client.port'
 import { ServiceAccountTokenOwner as TokenOwner } from '@/domain/access-token-order'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100
 
 function toTokenOwner(account: ServiceAccountDto, organizations: TenantDto[]): TokenOwner {
   const organization = organizations.find((item) => item.id === account.tenant_id)

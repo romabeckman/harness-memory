@@ -138,7 +138,7 @@ describe('token server action', () => {
     await loadDashboardDataAction(2)
 
     expect(client.listTokens).toHaveBeenCalledTimes(1)
-    expect(client.listTokens).toHaveBeenCalledWith(51, 100)
+    expect(client.listTokens).toHaveBeenCalledWith(101, 200)
   })
 
   it('revalidates only after successful revocation', async () => {
