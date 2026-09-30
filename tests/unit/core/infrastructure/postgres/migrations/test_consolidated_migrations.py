@@ -62,6 +62,9 @@ def test_foundation_creates_final_tables_without_indexes_relationships_or_data(m
     assert tables["tokens"].c.user_id.nullable
     assert tables["tokens"].c.service_account_id.nullable
     assert tables["tokens"].c.expires_at.nullable
+    assert "ck_token_expiration_window" not in {
+        constraint.name for constraint in tables["tokens"].constraints
+    }
     assert tables["service_accounts"].c.tenant_id.nullable
     assert tables["users"].c.tenant_id.nullable
     assert not tables["projects"].c.tenant_id.nullable

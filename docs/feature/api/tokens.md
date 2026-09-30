@@ -18,7 +18,7 @@ edges:
     target: "feature:mcp-token-authentication"
     read: optional
     when: "Read when changing bearer verification, token ownership mapping, or MCP tenant context."
-updated: 2026-09-26
+updated: 2026-09-29
 ---
 # API Tokens
 Issue and revoke scoped opaque credentials while keeping plaintext outside persistence.
@@ -61,6 +61,10 @@ REQUIRED: Set exactly one owner: `user_id` or `service_account_id`.
 REQUIRED: Require `expires_at` for user tokens.
 REQUIRED: Allow a null `expires_at` only for service-account tokens.
 REQUIRED: Keep finite user-token lifetimes between one second and 365 days from issuance. Keep finite service-account lifetimes between one second and 90 days.
+REQUIRED: Enforce expiration rules in the API through `TokenExpirationPolicy`; PostgreSQL does not enforce an expiration-window constraint in the foundation migration.
+
+Existing databases retain previously applied constraints. Editing `001_foundation.py` does not remove them. To align an existing database without a new migration, an operator must execute `ALTER TABLE tokens DROP CONSTRAINT IF EXISTS ck_token_expiration_window;`. Preserve token rows and the owner constraint.
+
 REQUIRED: Generate opaque plaintext with the `hm_` prefix.
 REQUIRED: Persist and return only explicitly requested valid scopes.
 REQUIRED: Persist only the 64-character SHA-256 digest.

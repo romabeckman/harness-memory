@@ -248,10 +248,6 @@ def upgrade() -> None:
             "(user_id IS NOT NULL AND service_account_id IS NULL) OR (user_id IS NULL AND service_account_id IS NOT NULL)",
             name="ck_token_owner_exactly_one",
         ),
-        sa.CheckConstraint(
-            "expires_at IS NULL OR (expires_at > created_at AND expires_at <= created_at + INTERVAL '90 days')",
-            name="ck_token_expiration_window",
-        ),
     )
 
     op.create_table(
