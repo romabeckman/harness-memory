@@ -13,6 +13,15 @@ from core.domain.snapshot_publication.value_objects.project_key import ProjectKe
 
 
 class FakeEnvironmentRepository:
+    def get_entity_summary(self, snapshot_id: UUID, tenant_id: str | None) -> dict:
+        return {
+            "snapshot_id": str(snapshot_id),
+            "total_entities": 0,
+            "counts_by_type": {},
+            "items": [],
+            "has_more": False,
+        }
+
     def __init__(self, environments: list[Environment], default_tenant: str = "default") -> None:
         self.environments: dict[tuple[str, str, str], Environment] = {
             (env.project_key.value, env.name.value, default_tenant): env for env in environments
@@ -50,6 +59,8 @@ class TestGetEnvironment:
         assert output.environment_name == "staging"
         assert output.environment_type == "staging"
         assert output.current_snapshot_id == snap_id
+        assert output.entity_summary["snapshot_id"] == str(snap_id)
+        assert output.entity_summary["total_entities"] == 0
 
     def test_returns_not_found_when_environment_does_not_exist(self) -> None:
         repo = FakeEnvironmentRepository([])
@@ -63,6 +74,7 @@ class TestGetEnvironment:
 
         assert output.found is False
         assert output.environment_id is None
+        assert output.entity_summary is None
 
     def test_enforces_tenant_isolation(self) -> None:
         env = Environment(

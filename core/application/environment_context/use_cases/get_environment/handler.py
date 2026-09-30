@@ -28,4 +28,9 @@ class GetEnvironmentHandler:
             environment_name=env.name.value,
             environment_type=env.environment_type.value,
             current_snapshot_id=env.current_snapshot_id,
+            entity_summary=self._environment_repository.get_entity_summary(
+                env.current_snapshot_id, input.tenant_id
+            )
+            if env.current_snapshot_id is not None
+            else None,
         )

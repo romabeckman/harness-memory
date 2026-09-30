@@ -9,3 +9,4 @@ class GetEnvironmentOutput:
     environment_name: str | None = None
     environment_type: str | None = None
     current_snapshot_id: UUID | None = None
+    entity_summary: dict | None = None
