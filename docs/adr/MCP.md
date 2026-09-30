@@ -70,6 +70,7 @@ Keep one public tool per file under `harness_memory_mcp/tools/`. Register module
 | `analyze_impact` | `memory:impact` | Analyze downstream consumers of a proposed change. | Target entity UUID from any supported field; supplied targets must agree. Optional structured change and analysis limits. | Direct and indirect consumers, affected projects/teams, paths, evidence, and unknowns. |
 | `get_environment` | `memory:read` | Read an environment and its active snapshot. | Project key and environment name. | Environment metadata and active snapshot. |
 | `compare_environments` | `memory:read` | Compare active entity fingerprints between environments. | Project key and two environment names. | Added, removed, modified, and unchanged entities. |
+| `get_history` | `memory:read` | Search one environment's snapshot and entity changes. | Project key and environment; optional literal case-insensitive query, snapshot ID, limit, offset, and tenant selector. | Filtered revision page or added/removed/modified entities, totals, and before/after references against the preceding revision. |
 
 REQUIRED: Document each tool's purpose, scope, arguments, and result bounds in its FastMCP schema.
 REQUIRED: Keep tools thin over one use case; keep services focused on MCP boundaries.

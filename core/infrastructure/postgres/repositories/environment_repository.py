@@ -1,7 +1,7 @@
 from collections.abc import Callable
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -81,19 +81,6 @@ class PostgresEnvironmentRepository:
             row = rows[0]
 
             return self._to_domain(row, project_key)
-
-    def promote_active_snapshot(self, env_id: UUID, snap_id: UUID, tenant_id: str) -> None:
-        with self._session_factory() as session:
-            stmt = (
-                update(ModelEnvironment)
-                .where(
-                    ModelEnvironment.id == env_id,
-                    ModelEnvironment.tenant_id == tenant_id,
-                )
-                .values(current_snapshot_id=snap_id)
-            )
-            session.execute(stmt)
-            session.commit()
 
     def resolve_or_create(self, project_key: str, name: str, tenant_id: str) -> DomainEnvironment:
         existing = self.resolve(project_key, name, tenant_id)

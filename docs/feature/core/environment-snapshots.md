@@ -31,17 +31,18 @@ Contextualize knowledge by environment, publish complete snapshots through REST 
 
 ## OVERVIEW
 
-Contextualize knowledge by environment. Pipelines publish complete snapshots through authenticated REST, including through the TypeScript SDK CLI. MCP supports bounded environment reads and comparisons.
+Publish complete environment snapshots through REST or the SDK CLI. Read current state, comparisons, and history through MCP.
 
 ## FOLDER STRUCTURE
 
-- `core/{domain,application,infrastructure}/`: environment rules, use cases, and PostgreSQL persistence; `api/` and `sdk/`: writers; `harness_memory_mcp/`: readers.
+- `core/`: environment rules and persistence; `api/` and `sdk/`: writers; `harness_memory_mcp/`: readers.
 
 ## HOW TO PUBLISH AND COMPARE
 
-1. Authenticate MCP reads; use `memory:publish` for writes. Admin publication needs body `tenant_id`; scoped tokens default to owner tenant.
-2. Publish through `POST /v1/knowledge-publications` or `hrns-memo`. REST may create a project/environment; SDK preflight requires the project but permits a missing environment.
-3. Read with `get_environment`; compare named environments with `compare_environments` and retain returned snapshot IDs.
+1. Use `memory:publish` for writes; admin publication requires body `tenant_id`.
+2. Publish through `POST /v1/knowledge-publications` or `hrns-memo`.
+3. Read current state with `get_environment`; compare two environments with `compare_environments`.
+4. Read past revisions and entity changes with `get_history`.
 
 ## PARAMETERS / CONFIGURATIONS
 
@@ -52,18 +53,16 @@ Contextualize knowledge by environment. Pipelines publish complete snapshots thr
 | `tenant_id` | Admin publication must specify it; scoped publisher defaults to owner tenant. |
 | `source_environment`, `target_environment` | Names of environments to compare. |
 | `limit`, `offset` | Comparison page bounds: up to 500 results per category and offset up to 10,000. |
+| `get_history` `snapshot_id`, `limit`, `offset` | Optional selected revision; list or change pages of 1–100 items with offset up to 10,000. |
 
 ## BEST PRACTICES
 
-REQUIRED: Separate CI/CD writes (REST/CLI) from interactive agent exploration (MCP read).
-REQUIRED: Verify the required scope and use the selected tenant as the publication destination.
-REQUIRED: Sanitize database errors and stack traces before returning responses.
-PROHIBITED: Treat payload tenant fields as authorization; require `memory:publish` before using body `tenant_id` as the write destination.
-PROHIBITED: Unbounded in-memory diffing without pagination or stream limits.
+REQUIRED: Publish through REST or CLI; read through MCP.
+REQUIRED: Enforce scope and tenant destination; sanitize database errors.
+REQUIRED: Treat `environments.current_snapshot_id` as the latest published revision for that environment; label older snapshots as historical.
+PROHIBITED: Treat payload tenant fields as authorization or diff without bounds.
 
-Comparison pages return both snapshot IDs. Repeat if either environment pointer changes between pages. REST validates bearer identity, scope, activity, and owner before selecting the destination tenant.
-
-## TIPS
+Comparison pages return both snapshot IDs. Restart paging if either environment pointer changes.
 
 ## REFERENCES
 
@@ -73,3 +72,4 @@ Comparison pages return both snapshot IDs. Repeat if either environment pointer 
 - [**API.md**](../../adr/API.md): FastAPI routes and auth handoff.
 - [**knowledge-publication.md**](../api/knowledge-publication.md): Exact REST publication request and response contract.
 - [**snapshot-publication.md**](./snapshot-publication.md): Snapshot aggregate and storage.
+- [**environment-history.md**](./environment-history.md): Snapshot revision and entity change reads.

@@ -38,6 +38,7 @@ from core.infrastructure.postgres.schema_compatibility_checker import SchemaComp
 from core.infrastructure.postgres.verify_startup_schema import VerifyStartupSchema
 from core.infrastructure.telemetry.telemetry_tracer import TelemetryTracer
 from harness_memory_mcp.config import RuntimeSettings
+from harness_memory_mcp.guidance import MCP_SCOPE_GUIDANCE
 from harness_memory_mcp.prompts import register_mcp_guidance_prompts
 from harness_memory_mcp.resources.entity_resource import register_entity_resource
 from harness_memory_mcp.resources.project_resource import register_project_resource
@@ -66,6 +67,7 @@ from harness_memory_mcp.tools.find_integration_paths import register_find_integr
 from harness_memory_mcp.tools.get_context import register_get_context
 from harness_memory_mcp.tools.get_dependencies import register_get_dependencies
 from harness_memory_mcp.tools.get_environment import register_get_environment
+from harness_memory_mcp.tools.get_history import register_get_history
 from harness_memory_mcp.tools.search_entities import register_search_entities
 from harness_memory_mcp.tools.search_projects import register_search_projects
 
@@ -103,6 +105,7 @@ def create_mcp_server(
     snapshot_handler=None,
     environment_repository=None,
     get_environment_handler=None,
+    get_history_handler=None,
     compare_environments_handler=None,
     token_verifier=None,
     auth_provider=None,
@@ -198,28 +201,7 @@ def create_mcp_server(
 
     server = FastMCP(
         name="harness-memory",
-        instructions=(
-            "Discover project records with search_projects. Use key for an exact project "
-            "key or query for a partial key or name. Environment.current_snapshot_id is "
-            "the current snapshot for that environment. For generic project questions, inspect all "
-            "environments' current_snapshot_id values and search each non-null snapshot; "
-            "label findings by environment. For a named environment, use only its current "
-            "snapshot. If no environment has a current snapshot, report no current "
-            "environment data. Use get_environment for "
-            "environment metadata. For facts, use search_entities "
-            "with the exact project key and a short query phrase; query searches entity "
-            "keys, names, and metadata content, including document sections. Pin get_context "
-            "with entity_id and snapshot_id from the same search result. Without snapshot_id, "
-            "get_context resolves the newest current occurrence. search_entities reads "
-            "current snapshots by default. For a comparison of environments, "
-            "compare_environments reads their current snapshots. If current search has no "
-            "match, refine the current query or report no match in current snapshots. Do "
-            "not search historical snapshots unless the user explicitly asks for history, "
-            "past state, comparison, or changes. For those requests, establish the current "
-            "baseline first, then use search_entities with include_past_snapshots=true and "
-            "inspect historical snapshot_id values with get_context. Never call an older "
-            "snapshot current."
-        ),
+        instructions=MCP_SCOPE_GUIDANCE,
         auth=auth_provider,
         lifespan=lifespan_manager.lifespan if lifespan_manager is not None else None,
     )
@@ -262,6 +244,17 @@ def create_mcp_server(
             )
 
             environment_repository = PostgresEnvironmentRepository(engine=engine)
+        if get_history_handler is None:
+            from core.application.environment_context.use_cases.get_history.handler import (
+                GetHistoryHandler,
+            )
+            from core.infrastructure.postgres.repositories.environment_history_repository import (
+                PostgresEnvironmentHistoryRepository,
+            )
+
+            get_history_handler = GetHistoryHandler(
+                PostgresEnvironmentHistoryRepository(engine=engine)
+            )
     if (
         project_search_repository is None
         and settings is not None
@@ -407,6 +400,8 @@ def create_mcp_server(
         get_environment_handler = GetEnvironmentHandler(environment_repository)
     if get_environment_handler is not None:
         register_get_environment(server, get_environment_handler, context)
+    if get_history_handler is not None:
+        register_get_history(server, get_history_handler, context)
 
     if (
         compare_environments_handler is None

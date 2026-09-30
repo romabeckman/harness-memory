@@ -22,23 +22,17 @@ async def test_load_corporate_context_renders_guidance_without_io():
     text = str(result)
     assert "search_entities" in text
     assert "search_projects" in text
-    assert "query" in text
     assert "get_context" in text
-    assert "memory://snapshots" in text
-    assert "exact project key" in text
-    assert "current snapshots" in text
-    assert "Do not search past snapshots unless the user explicitly asks" in text
-    assert "include_past_snapshots" in text
-    assert "publication_version" in text
-    assert "is_current_snapshot" in text
-    assert "Environment.current_snapshot_id" in text
-    assert "get_environment" in text
-    assert "Environment.current_snapshot_id exposed by" in text
-    assert "Pin get_context with entity_id and snapshot_id" in text
-    assert "newest current occurrence" in text
-    assert "report no current environment data" in text
+    assert "get_history" in text
+    assert "exact key" in text
+    assert "current_snapshot_id" in text
+    assert "entity_id and snapshot_id from the same search result" in text
+    assert "Only current_snapshot_id is current" in text
     assert "Project.active_snapshot_id" not in text
-    assert "comparison" in text
+    assert "compare_environments" in text
+    assert "Ask the user to choose the project/tenant" in text
+    assert "Ask the user to choose an environment" in text
+    assert "Do not answer project facts before scope is resolved" in text
     observable.assert_not_called()
 
 
@@ -55,6 +49,7 @@ async def test_analyze_integration_renders_workflow_without_computing_path():
     assert "find_integration_paths" in text
     assert "ownership" in text
     assert "provenance" in text
+    assert "Ask the user to choose an environment" in text
     observable.assert_not_called()
 
 
@@ -72,4 +67,5 @@ async def test_review_change_impact_mentions_existing_impact_contract_without_io
     assert "analyze_impact" in text
     assert "unknown" in text
     assert "truncat" in text
+    assert "Ask the user to choose an environment" in text
     observable.assert_not_called()

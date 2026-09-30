@@ -46,8 +46,20 @@ The server verifies the token against the database and derives its subject and t
 | `analyze_impact` | Identify known direct and indirect effects of a structured change. |
 | `get_environment` | Read an environment and its current snapshot. |
 | `compare_environments` | Compare active entity fingerprints between environments. |
+| `get_history` | Search one environment's snapshot and entity changes by terms, with before/after references. |
 
 MCP clients cannot publish or make arbitrary graph edits. Impact results come from stored relationships and evidence; the server does not guess missing relationships.
+
+Use this call order for accurate context:
+
+1. Resolve project/tenant with `search_projects`. Ask for missing or ambiguous scope and an environment unless explicitly established in the conversation. Inspect multiple environments only when requested.
+2. Call `get_environment` for the selected environment's `current_snapshot_id`. This pointer identifies its latest version. Report no current data if null.
+3. Pin `search_entities` to this snapshot and project/tenant; call `get_context` with entity and snapshot IDs from the same result. Use relationship tools for deeper analysis and `analyze_impact` for proposed changes.
+4. For past changes, call `get_history` with project, tenant, environment, and `query`; inspect a returned revision with the same query and `snapshot_id`. Read non-null before/after references with `get_context`. Compare current environments with `compare_environments` after selecting both.
+
+`get_history.query` matches a case-insensitive literal substring in entity keys, names, and metadata before or after changes, including removals. Filtering precedes totals and pagination; unchanged revisions are excluded only when searching. Detail compares against the preceding revision, or empty initial state. Each category has its own `limit`/`offset`; `entity_changes` includes entity, occurrence, and snapshot IDs on both sides. Only `current_snapshot_id` is current.
+
+Scope clarification is agent guidance in server instructions and prompts; tools validate selectors and trusted tenant scope.
 
 ### Resources
 

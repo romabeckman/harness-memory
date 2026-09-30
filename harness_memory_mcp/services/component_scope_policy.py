@@ -32,6 +32,7 @@ class ComponentScopePolicy:
         ("tool", "get_dependencies"): MemoryScope.READ.value,
         ("tool", "find_integration_paths"): MemoryScope.READ.value,
         ("tool", "get_environment"): MemoryScope.READ.value,
+        ("tool", "get_history"): MemoryScope.READ.value,
         ("tool", "compare_environments"): MemoryScope.READ.value,
         ("resource", "memory://entities/{entity_id}"): MemoryScope.READ.value,
         ("resource", "memory://projects/{project_key}"): MemoryScope.READ.value,

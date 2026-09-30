@@ -165,31 +165,6 @@ class TestPostgresEnvironmentRepository:
         assert checkout.id != catalog.id
         assert repo.resolve("checkout", "staging", tenant_id="tenant-b") is None
 
-    def test_promotes_active_snapshot(self) -> None:
-        engine = create_engine("sqlite://")
-        Base.metadata.create_all(engine)
-        proj = _seed_project(engine, "tenant-a", "checkout")
-        env_id = uuid4()
-        new_snap_id = uuid4()
-
-        with Session(engine) as session:
-            env_model = ModelEnvironment(
-                id=env_id,
-                tenant_id="tenant-a",
-                project_id=proj.id,
-                name="staging",
-                type="staging",
-            )
-            session.add(env_model)
-            session.commit()
-
-        repo = PostgresEnvironmentRepository(engine=engine)
-        repo.promote_active_snapshot(env_id, new_snap_id, tenant_id="tenant-a")
-
-        with Session(engine) as session:
-            updated = session.get(ModelEnvironment, env_id)
-            assert updated.current_snapshot_id == new_snap_id
-
     def test_create_for_project_trims_name_and_maps_standard_and_custom_types(self) -> None:
         engine = create_engine("sqlite://")
         Base.metadata.create_all(engine)

@@ -3,7 +3,7 @@ from collections import defaultdict
 from hashlib import sha256
 from typing import Callable
 
-from sqlalchemy import and_, case, func, literal, or_, select, union_all
+from sqlalchemy import Uuid, and_, func, literal, select
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from core.application.entity_discovery.contracts.tenant_scope import TenantScope
@@ -35,6 +35,7 @@ from ..models.project import Project
 from ..models.relation import Relation
 from ..models.snapshot import Snapshot
 from .tenant_scope_predicate import tenant_scope_predicate
+from .snapshot_entity_comparison import snapshot_entity_comparison
 
 
 class PostgresMemoryResourceRepository:
@@ -67,41 +68,11 @@ class PostgresMemoryResourceRepository:
         offset: int,
         limit: int,
     ) -> dict[str, tuple[str, ...] | int]:
-        source = aliased(Entity, name="comparison_source")
-        target = aliased(Entity, name="comparison_target")
-        same_key = and_(
-            source.entity_key == target.entity_key,
-            source.tenant_id == target.tenant_id,
-            source.project_id == target.project_id,
-        )
-        changed = or_(
-            source.entity_type != target.entity_type,
-            source.name.is_distinct_from(target.name),
-            source.metadata_json != target.metadata_json,
-        )
-        source_rows = (
-            select(
-                source.entity_key.label("entity_key"),
-                case(
-                    (target.id.is_(None), "added"),
-                    (changed, "modified"),
-                    else_="unchanged",
-                ).label("status"),
-            )
-            .select_from(source)
-            .outerjoin(target, and_(same_key, target.snapshot_id == target_snapshot_id))
-            .where(source.snapshot_id == source_snapshot_id)
-        )
-        target_only = (
-            select(target.entity_key.label("entity_key"), literal("removed").label("status"))
-            .select_from(target)
-            .outerjoin(source, and_(same_key, source.snapshot_id == source_snapshot_id))
-            .where(target.snapshot_id == target_snapshot_id, source.id.is_(None))
-        )
-        if tenant_id is not None:
-            source_rows = source_rows.where(source.tenant_id == tenant_id)
-            target_only = target_only.where(target.tenant_id == tenant_id)
-        comparisons = union_all(source_rows, target_only).subquery()
+        pairs = select(
+            literal(source_snapshot_id, type_=Uuid).label("after_snapshot_id"),
+            literal(target_snapshot_id, type_=Uuid).label("before_snapshot_id"),
+        ).subquery()
+        comparisons = snapshot_entity_comparison(pairs, tenant_id)
         with self._session_factory() as session:
             with session.begin():
                 counts = dict(
