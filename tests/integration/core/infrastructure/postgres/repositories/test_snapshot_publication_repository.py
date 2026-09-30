@@ -13,9 +13,13 @@ from core.domain.snapshot_publication.errors.stale_revision import StaleRevision
 from core.infrastructure.postgres.models.base import Base
 from core.infrastructure.postgres.models.entity import Entity
 from core.infrastructure.postgres.models.project import Project
+from core.infrastructure.postgres.models.environment import Environment
 from core.infrastructure.postgres.models.snapshot import Snapshot
 from core.infrastructure.postgres.repositories.snapshot_publication_repository import (
     PostgresSnapshotPublicationRepository,
+)
+from core.infrastructure.postgres.repositories.knowledge_publication_repository import (
+    PostgresKnowledgePublicationRepository,
 )
 from tests.unit.core.application.snapshot_publication.helpers import valid_payload
 
@@ -49,6 +53,14 @@ def test_repository_persists_immutable_graph_switches_pointer_and_is_idempotent(
             == second.snapshot_id
         )
         assert session.scalar(select(func.count()).select_from(Entity)) == 2
+        environment = session.scalar(
+            select(Environment).where(Environment.project_id == session.scalar(select(Project.id)))
+        )
+        assert session.get(Snapshot, second.snapshot_id).environment_id == environment.id
+    baseline = PostgresKnowledgePublicationRepository(sessionmaker(bind=engine)).load_latest_graph(
+        "payments", "production", "tenant-a"
+    )
+    assert baseline["snapshot_id"] == str(second.snapshot_id)
 
 
 def test_repository_rejects_divergent_and_stale_publications_without_new_rows():

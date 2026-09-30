@@ -29,6 +29,7 @@ async def test_all_registered_tools_and_arguments_have_descriptions():
         impact_repository=Mock(),
         get_environment_handler=Mock(),
         compare_environments_handler=Mock(),
+        get_history_handler=Mock(),
         tenant_context=TenantContextProvider("tenant-a"),
     )
 
@@ -44,6 +45,7 @@ async def test_all_registered_tools_and_arguments_have_descriptions():
         "analyze_impact",
         "get_environment",
         "compare_environments",
+        "get_history",
     }
     assert {tool.name for tool in tools} == expected_tools
 
@@ -63,6 +65,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         impact_repository=Mock(),
         get_environment_handler=Mock(),
         compare_environments_handler=Mock(),
+        get_history_handler=Mock(),
         tenant_context=TenantContextProvider("tenant-a"),
     )
 
@@ -75,6 +78,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
             "at least one filter",
             "search_projects",
             "current environment snapshots",
+            "get_history",
         ),
         "get_context": ("search_entities", "snapshot_id", "newest current occurrence"),
         "get_dependencies": ("search_entities", "depends_on"),
@@ -82,6 +86,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         "analyze_impact": ("search_entities", "same entity"),
         "get_environment": ("search_projects", "current snapshot"),
         "compare_environments": ("search_projects", "current snapshots"),
+        "get_history": ("search_projects", "current_snapshot_id", "preceding revision"),
     }
     for name, phrases in guidance.items():
         description = tools[name].description.lower()
@@ -89,7 +94,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
             assert phrase in description, (name, phrase)
 
     assert "current_snapshot_id" in tools["search_projects"].description
-    assert "explicit historical request" in tools["search_entities"].description
+    assert "get_history" in tools["search_entities"].description
     assert "search_projects.environments" in tools["get_environment"].description
 
     field_guidance = {
@@ -103,7 +108,7 @@ async def test_catalog_explains_filter_and_identifier_dependencies():
         ("find_integration_paths", "target_entity_id"): "search_entities",
         ("analyze_impact", "change"): "entity_id",
         ("get_environment", "project_key"): "search_projects",
-        ("compare_environments", "source_environment"): "get_environment",
+        ("compare_environments", "source_environment"): "search_projects.environments",
         ("compare_environments", "target_environment"): "search_projects.environments",
     }
     for (tool_name, field_name), phrase in field_guidance.items():

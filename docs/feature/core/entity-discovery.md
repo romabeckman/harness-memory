@@ -14,7 +14,7 @@ edges:
   - relation: depends_on
     target: "feature:snapshot-publication"
     read: must
-updated: 2026-09-26
+updated: 2026-09-29
 ---
 # Entity Discovery
 Find projects and bounded Entity identities through tenant-scoped MCP search tools.
@@ -24,6 +24,8 @@ Find projects and bounded Entity identities through tenant-scoped MCP search too
 ```
 
 ## OVERVIEW
+
+Use **search_projects** environment types and batched snapshot entity counts. Counts include historical facts; absent counts mean unpublished environments. Use **get_environment** for previews; **search_entities** accepts project/snapshot IDs.
 
 `search_projects` discovers projects with tenant and environment attribution. `search_entities` searches each environment's current snapshot by default. Historical occurrences appear only when the caller explicitly selects history or a snapshot.
 

@@ -6,17 +6,20 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
-    ForeignKeyConstraint,
     Index,
     String,
     UniqueConstraint,
     Uuid,
     func,
+    case,
+    select,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
+from .environment import Environment
 from .tenant_id import TenantId
 from .types import JSON_OBJECT
 
@@ -35,22 +38,7 @@ class Project(Base):
             "substr(CAST(metadata AS TEXT), 1, 1) = '{'",
             name="ck_projects_metadata_object",
         ),
-        ForeignKeyConstraint(
-            ["active_snapshot_id", "id", "tenant_id"],
-            ["snapshots.id", "snapshots.project_id", "snapshots.tenant_id"],
-            name="fk_projects_active_snapshot",
-            deferrable=True,
-            initially="DEFERRED",
-            ondelete="SET NULL",
-        ),
         Index("ix_projects_tenant_key", "tenant_id", "key"),
-        Index(
-            "ix_projects_tenant_active_snapshot",
-            "tenant_id",
-            "active_snapshot_id",
-            "id",
-            postgresql_where=text("active_snapshot_id IS NOT NULL"),
-        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -61,7 +49,40 @@ class Project(Base):
     )
     key: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    active_snapshot_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    environments: Mapped[list[Environment]] = relationship(Environment)
+
+    @hybrid_property
+    def active_snapshot_id(self) -> UUID | None:
+        """Resolve the preferred current environment snapshot for legacy callers."""
+        environments = sorted(
+            self.environments,
+            key=lambda env: (env.current_snapshot_id is None, env.type != "production", env.name),
+        )
+        return environments[0].current_snapshot_id if environments else None
+
+    @active_snapshot_id.setter
+    def active_snapshot_id(self, snapshot_id: UUID | None) -> None:
+        environment = next((env for env in self.environments if env.name == "production"), None)
+        if environment is None:
+            environment = Environment(name="production", type="production", metadata_json={})
+            self.environments.append(environment)
+        environment.current_snapshot_id = snapshot_id
+
+    @active_snapshot_id.expression
+    def active_snapshot_id(cls):
+        return (
+            select(Environment.current_snapshot_id)
+            .where(Environment.project_id == cls.id, Environment.tenant_id == cls.tenant_id)
+            .order_by(
+                case((Environment.current_snapshot_id.is_not(None), 0), else_=1),
+                case((Environment.type == "production", 0), else_=1),
+                Environment.name,
+            )
+            .limit(1)
+            .correlate(cls)
+            .scalar_subquery()
+        )
+
     metadata_json: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSON_OBJECT, nullable=False, default=dict, server_default=text("'{}'")
     )

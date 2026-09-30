@@ -20,7 +20,12 @@ def register_get_environment(
     @server.tool(
         name="get_environment",
         description=(
-            "Read a named environment's metadata, type, and current snapshot ID. "
+            "Read a named environment's metadata, type, current snapshot ID, and entity summary. "
+            "Summary includes counts by type and up to 10 entity references ordered by key. "
+            "Counts include historical and removed facts stored in that snapshot; "
+            "set include_history=true in search_entities to inspect those facts. "
+            "Use its snapshot_id in search_entities or with entity_id in get_context. "
+            "entity_summary is null when no snapshot is published. "
             "Find the project key and available environments with "
             "search_projects.environments. "
             "Project key and environment are required; use tenant_id when a key repeats "
@@ -75,6 +80,7 @@ def register_get_environment(
                 "current_snapshot_id": str(result.current_snapshot_id)
                 if result.current_snapshot_id
                 else None,
+                "entity_summary": result.entity_summary,
             }
         except Exception as error:
             error_str = str(error).lower()

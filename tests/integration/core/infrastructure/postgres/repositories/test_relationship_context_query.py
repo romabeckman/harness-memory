@@ -528,7 +528,6 @@ def test_context_listing_uses_current_snapshot_from_each_environment():
         session.flush()
         production.current_snapshot_id = production_current.id
         staging.current_snapshot_id = staging_current.id
-        project.active_snapshot_id = production_old.id
         for snapshot, key in (
             (production_old, "production-old"),
             (production_current, "production-current"),

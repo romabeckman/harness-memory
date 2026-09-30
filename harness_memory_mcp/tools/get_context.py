@@ -23,14 +23,15 @@ def register_get_context(
         name="get_context",
         description=(
             "Read project, owner, relationship, dependency, and evidence context. "
+            "Resolve the project/tenant and environment before answering project questions; "
+            "pin snapshot_id to that environment's current_snapshot_id for current facts. "
             "Provide at least one of entity_id, snapshot_id, project_id, or tenant_id. "
             "With entity_id, return one matching entity context. Without entity_id, "
             "return a bounded page of current environment snapshots ordered newest to "
             "oldest. Without snapshot_id, entity_id resolves the newest current "
             "occurrence. Snapshot_id pins an immutable snapshot, including historical "
             "snapshots. Get entity_id and snapshot_id from the same search_entities result "
-            "to pin context. Projects without environment records use the legacy active "
-            "snapshot. Requires memory:read."
+            "to pin context. Requires memory:read."
         ),
     )
     def get_context(

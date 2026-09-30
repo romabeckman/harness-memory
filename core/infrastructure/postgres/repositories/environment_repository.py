@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from uuid import UUID, uuid4
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import IntegrityError
@@ -13,9 +13,46 @@ from core.domain.environment.value_objects.environment_type import EnvironmentTy
 from core.domain.snapshot_publication.value_objects.project_key import ProjectKey
 from core.infrastructure.postgres.models.environment import Environment as ModelEnvironment
 from core.infrastructure.postgres.models.project import Project as ModelProject
+from core.infrastructure.postgres.models.entity import Entity
 
 
 class PostgresEnvironmentRepository:
+    def get_entity_summary(self, snapshot_id: UUID, tenant_id: str | None) -> dict:
+        predicates = [Entity.snapshot_id == snapshot_id]
+        if tenant_id is not None:
+            predicates.append(Entity.tenant_id == tenant_id)
+        with self._session_factory() as session:
+            counts = dict(
+                session.execute(
+                    select(Entity.entity_type, func.count(Entity.id))
+                    .where(*predicates)
+                    .group_by(Entity.entity_type)
+                    .order_by(Entity.entity_type)
+                ).all()
+            )
+            rows = session.execute(
+                select(
+                    func.coalesce(Entity.identity_id, Entity.id),
+                    Entity.entity_key,
+                    Entity.name,
+                    Entity.entity_type,
+                )
+                .where(*predicates)
+                .order_by(Entity.entity_key, Entity.id)
+                .limit(10)
+            ).all()
+        total = sum(counts.values())
+        return {
+            "snapshot_id": str(snapshot_id),
+            "total_entities": total,
+            "counts_by_type": counts,
+            "items": [
+                {"entity_id": str(entity_id), "key": key, "name": name, "type": entity_type}
+                for entity_id, key, name, entity_type in rows
+            ],
+            "has_more": total > len(rows),
+        }
+
     def __init__(
         self,
         session_factory: Callable[[], Session] | None = None,
@@ -81,19 +118,6 @@ class PostgresEnvironmentRepository:
             row = rows[0]
 
             return self._to_domain(row, project_key)
-
-    def promote_active_snapshot(self, env_id: UUID, snap_id: UUID, tenant_id: str) -> None:
-        with self._session_factory() as session:
-            stmt = (
-                update(ModelEnvironment)
-                .where(
-                    ModelEnvironment.id == env_id,
-                    ModelEnvironment.tenant_id == tenant_id,
-                )
-                .values(current_snapshot_id=snap_id)
-            )
-            session.execute(stmt)
-            session.commit()
 
     def resolve_or_create(self, project_key: str, name: str, tenant_id: str) -> DomainEnvironment:
         existing = self.resolve(project_key, name, tenant_id)

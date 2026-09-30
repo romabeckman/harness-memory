@@ -22,6 +22,7 @@ Index of project technical documentation for **harness-memory**. Use the links b
 | [**tokens.md**](./feature/api/tokens.md) | Opaque token issuance, storage, revocation, and MCP handoff. | Optional |
 | [**users.md**](./feature/api/users.md) | User identity, normalization, tenant derivation, and CRUD contract. | Optional |
 | [**entity-discovery.md**](./feature/core/entity-discovery.md) | Project listing, filtered lookup, and bounded entity discovery from current environment snapshots. | Optional |
+| [**environment-history.md**](./feature/core/environment-history.md) | MCP snapshot revision and entity change history for one environment. | Optional |
 | [**environment-snapshots.md**](./feature/core/environment-snapshots.md) | Environment context, pipeline publication, and snapshot comparison. | Optional |
 | [**impact-analysis.md**](./feature/core/impact-analysis.md) | Structured change-impact analysis over bounded consumers. | Optional |
 | [**integration-paths.md**](./feature/core/integration-paths.md) | Bounded dependency path discovery with provenance. | Optional |

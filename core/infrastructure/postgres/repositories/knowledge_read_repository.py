@@ -1,8 +1,8 @@
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select, union_all
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, or_, select, union_all
+from sqlalchemy.orm import Session, selectinload
 
 from core.application.entity_discovery.contracts.entity_search_criteria import EntitySearchCriteria
 from core.application.entity_discovery.contracts.project_environment_item import (
@@ -79,7 +79,7 @@ class KnowledgeReadRepository:
         limit: int = 100,
         offset: int = 0,
     ) -> list[dict]:
-        statement = select(Project)
+        statement = select(Project).options(selectinload(Project.environments))
         if tenant_id is not None:
             statement = statement.where(Project.tenant_id == UUID(tenant_id))
         if key is not None:
@@ -145,15 +145,37 @@ class KnowledgeReadRepository:
                         Environment.project_id,
                         Environment.name,
                         Environment.current_snapshot_id,
+                        Environment.type,
                     )
                     .where(Environment.project_id.in_(project_ids))
                     .order_by(Environment.project_id, Environment.name)
                 ).all()
-                for project_id, name, current_snapshot_id in rows:
+                snapshot_ids = [
+                    row.current_snapshot_id for row in rows if row.current_snapshot_id is not None
+                ]
+                counts = (
+                    dict(
+                        session.execute(
+                            select(Entity.snapshot_id, func.count(Entity.id))
+                            .where(
+                                Entity.snapshot_id.in_(snapshot_ids),
+                                Entity.project_id.in_(project_ids),
+                            )
+                            .group_by(Entity.snapshot_id)
+                        ).all()
+                    )
+                    if snapshot_ids
+                    else {}
+                )
+                for project_id, name, current_snapshot_id, environment_type in rows:
                     environments[project_id].append(
                         ProjectEnvironmentItem(
                             name=name,
                             current_snapshot_id=current_snapshot_id,
+                            environment_type=environment_type,
+                            entity_count=counts.get(current_snapshot_id, 0)
+                            if current_snapshot_id is not None
+                            else None,
                         )
                     )
 

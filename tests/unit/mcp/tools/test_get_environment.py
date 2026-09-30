@@ -21,6 +21,13 @@ def test_get_environment_returns_environment_details() -> None:
         environment_name="staging",
         environment_type="staging",
         current_snapshot_id=snap_id,
+        entity_summary={
+            "snapshot_id": str(snap_id),
+            "total_entities": 2,
+            "counts_by_type": {"service": 2},
+            "items": [],
+            "has_more": True,
+        },
     )
     tenant = TenantContextProvider("tenant-a")
 
@@ -30,6 +37,8 @@ def test_get_environment_returns_environment_details() -> None:
     assert result["found"] is True
     assert result["environment_name"] == "staging"
     assert result["current_snapshot_id"] == str(snap_id)
+    assert result["entity_summary"]["total_entities"] == 2
+    assert result["entity_summary"]["snapshot_id"] == str(snap_id)
     assert handler.execute.call_args[0][0].tenant_id == "tenant-a"
 
 
@@ -42,6 +51,20 @@ def test_get_environment_selector_cannot_widen_trusted_tenant() -> None:
 
     assert result["error"]["code"] == "INVALID_ARGUMENT"
     handler.execute.assert_not_called()
+
+
+def test_get_environment_without_publication_has_no_summary() -> None:
+    handler = Mock()
+    handler.execute.return_value = GetEnvironmentOutput(
+        found=True, environment_name="staging", environment_type="staging"
+    )
+    tool = register_get_environment(
+        FastMCP(name="test"), handler, TenantContextProvider("tenant-a")
+    )
+    result = tool(project_key="catalog", environment="staging")
+    assert result["found"] is True
+    assert result["current_snapshot_id"] is None
+    assert result["entity_summary"] is None
 
 
 def test_get_environment_maps_missing_tenant_context() -> None:

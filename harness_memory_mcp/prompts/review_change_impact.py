@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastmcp import FastMCP
 from pydantic import Field, StrictStr
+from harness_memory_mcp.guidance import MCP_CONTEXT_SCOPE_GUIDANCE
 
 from ._guidance import input_data, message
 
@@ -19,7 +20,8 @@ def register_review_change_impact_prompt(server: FastMCP, _observable=None):
         return message(
             f"Review change for entity {input_data(entity_id)}. "
             f"Change type: {input_data(change_type)}. Description: {input_data(description)}. "
-            "Call the existing analyze_impact tool with memory:impact authorization. "
+            + MCP_CONTEXT_SCOPE_GUIDANCE
+            + "Call the existing analyze_impact tool with memory:impact authorization. "
             "Inspect returned evidence and truncation flags. "
             "Review unknowns before proposing action. "
             "This prompt does not execute impact analysis or infer impact conclusions."

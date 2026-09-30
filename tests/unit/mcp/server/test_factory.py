@@ -19,16 +19,17 @@ def test_create_mcp_server_is_named_and_database_independent():
 def test_server_instructions_prioritize_current_scope_and_allow_requested_history():
     instructions = create_mcp_server().instructions
 
-    assert "Environment.current_snapshot_id" in instructions
+    assert "environments.current_snapshot_id" in instructions
     assert "get_environment" in instructions
-    assert "include_past_snapshots=true" in instructions
-    assert "all environments' current_snapshot_id values" in instructions
-    assert "Do not search historical snapshots unless the user explicitly asks" in instructions
-    assert "Pin get_context with entity_id and snapshot_id" in instructions
-    assert "compare_environments reads their current snapshots" in instructions
-    assert "establish the current baseline first" in instructions
+    assert "get_history" in instructions
+    assert "Ask the user to choose the project/tenant" in instructions
+    assert "Ask the user to choose an environment" in instructions
+    assert "Do not answer project facts before scope is resolved" in instructions
+    assert "query" in instructions
+    assert "get_context with entity_id and snapshot_id from the same search result" in instructions
+    assert "compare_environments" in instructions
     assert "historical" in instructions
-    assert "comparison" in instructions
+    assert "two current environments" in instructions
 
 
 def test_create_mcp_server_uses_api_token_repository_in_database_auth_mode():

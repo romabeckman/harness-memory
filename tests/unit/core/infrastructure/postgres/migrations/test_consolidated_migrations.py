@@ -23,14 +23,13 @@ TABLES = {
     "service_accounts",
     "environments",
     "knowledge_publications",
+    "project_links",
 }
 
 
 def test_history_contains_ordered_revisions():
     scripts = ScriptDirectory.from_config(Config("alembic.ini"))
     assert [(item.revision, item.down_revision) for item in scripts.walk_revisions()] == [
-        ("005", "004"),
-        ("004", "003"),
         ("003", "002"),
         ("002", "001"),
         ("001", None),
@@ -50,6 +49,7 @@ def test_foundation_creates_final_tables_without_indexes_relationships_or_data(m
     }
     assert all(not table.foreign_keys and not table.indexes for table in tables.values())
     assert "payload" not in tables["snapshots"].c
+    assert "active_snapshot_id" not in tables["projects"].c
     for table, columns in {
         "snapshots": {"project_key", "generated_at"},
         "entities": {"graph_position"},
@@ -62,8 +62,11 @@ def test_foundation_creates_final_tables_without_indexes_relationships_or_data(m
     assert tables["tokens"].c.user_id.nullable
     assert tables["tokens"].c.service_account_id.nullable
     assert tables["tokens"].c.expires_at.nullable
+    assert "ck_token_expiration_window" not in {
+        constraint.name for constraint in tables["tokens"].constraints
+    }
     assert tables["service_accounts"].c.tenant_id.nullable
-    assert not tables["users"].c.tenant_id.nullable
+    assert tables["users"].c.tenant_id.nullable
     assert not tables["projects"].c.tenant_id.nullable
     operations.reset_mock()
     migration.downgrade()
@@ -83,7 +86,8 @@ def test_relationships_and_indexes_are_reversible_postgresql_ddl(monkeypatch):
     assert "CREATE TABLE" not in sql
     assert "INSERT INTO" not in sql
     assert "FOREIGN KEY" in sql
-    assert "DEFERRABLE INITIALLY DEFERRED" in sql
+    assert "FOREIGN KEY(current_snapshot_id, project_id, tenant_id)" in sql
+    assert "fk_projects_active_snapshot" not in sql
     assert "ON DELETE RESTRICT" in sql
     assert "gin_trgm_ops" in sql
     assert "ix_projects_key_tenant_id" in sql
@@ -110,9 +114,9 @@ def test_full_chain_renders_upgrade_and_downgrade_without_a_database(monkeypatch
     command.upgrade(config, "head", sql=True)
 
     sql = output.getvalue()
-    assert sql.count("CREATE TABLE ") == len(TABLES) + 2  # Alembic version table and project_links.
-    assert sql.count(" FOREIGN KEY(") == 28
-    assert sql.count("CREATE INDEX ") == 36
+    assert sql.count("CREATE TABLE ") == len(TABLES) + 1  # Alembic version table.
+    assert sql.count(" FOREIGN KEY(") == 27
+    assert sql.count("CREATE INDEX ") == 35
     assert sql.count("INSERT INTO tenants ") == 1
     assert sql.count("INSERT INTO users ") == 1
     assert sql.count("INSERT INTO projects ") == 1
@@ -129,7 +133,7 @@ def test_full_chain_renders_upgrade_and_downgrade_without_a_database(monkeypatch
     sql = output.getvalue()
     assert sql.count("DROP TABLE ") == len(TABLES)
     assert "DELETE FROM alembic_version" in sql
-    assert sql.count("DROP INDEX ") == 34
-    assert sql.count("DROP CONSTRAINT ") == 25
+    assert sql.count("DROP INDEX ") == 35
+    assert sql.count("DROP CONSTRAINT ") == 27
     assert sql.index("DELETE FROM tenants") < sql.index("DROP INDEX")
     assert sql.index("DROP CONSTRAINT") < sql.index("DROP TABLE")

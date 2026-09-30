@@ -45,10 +45,10 @@ class Environment(Base):
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
-            ["current_snapshot_id", "tenant_id"],
-            ["snapshots.id", "snapshots.tenant_id"],
+            ["current_snapshot_id", "project_id", "tenant_id"],
+            ["snapshots.id", "snapshots.project_id", "snapshots.tenant_id"],
             name="fk_environments_current_snapshot",
-            ondelete="SET NULL",
+            ondelete="RESTRICT",
         ),
         Index("ix_environments_tenant_project_name", "tenant_id", "project_id", "name"),
     )

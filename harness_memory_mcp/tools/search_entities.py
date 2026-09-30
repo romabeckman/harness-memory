@@ -24,17 +24,14 @@ def register_search_entities(
     @server.tool(
         name="search_entities",
         description=(
-            "Find entities in current environment snapshots by default. A search without "
-            "environment or snapshot_id includes each environment's current snapshot; "
-            "projects without environment records use the legacy active snapshot. Set "
-            "include_past_snapshots only for an explicit historical request. Each match "
-            "identifies its snapshot, environment, and publication version when known. "
-            "Confirm the project "
-            "with search_projects when its key is unknown. A request with at least one "
-            "filter or tenant/project/snapshot/environment selector is required. Combine "
-            "filters to narrow results; use next_cursor with unchanged filters for later "
-            "pages. Results include entity_id, project_id, and snapshot_id for context "
-            "reads. Requires memory:read."
+            "Find entities in current environment snapshots. Use search_projects to "
+            "resolve the project/tenant and ask for an environment when unspecified. "
+            "Pin snapshot_id to the selected environment's current_snapshot_id, which is that "
+            "environment's latest version. Supply at least one filter or tenant, project, "
+            "environment, or snapshot selector. For past changes, use get_history first, "
+            "then search by its returned snapshot_id. Use next_cursor with unchanged "
+            "filters to page results. Each result includes entity_id, project_id, and "
+            "snapshot_id for pinned get_context reads. Requires memory:read."
         ),
     )
     def search_entities(

@@ -30,7 +30,9 @@ def register_search_projects(
             "Omit key and query to list accessible projects; supply both to combine filters. "
             "Use key for an exact, case-sensitive key or query for a case-insensitive "
             "substring of a key or name. Returns tenant and project IDs, environments "
-            "with each name and current_snapshot_id, associated project links, and active snapshot status. "
+            "with each name, type, current_snapshot_id, and published snapshot entity_count, "
+            "associated project links, and active snapshot status. "
+            "Use get_environment for counts by entity type and a bounded entity preview. "
             "Use these values in later entity or "
             "environment calls. Requires memory:read."
         ),

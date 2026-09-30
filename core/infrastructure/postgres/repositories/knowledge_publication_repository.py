@@ -315,14 +315,7 @@ class PostgresKnowledgePublicationRepository:
                 session.add(model)
                 session.flush()
 
-                previous_environment_snapshot_id = env.current_snapshot_id
                 env.current_snapshot_id = rows.snapshot.id
-                if (
-                    env.type == "production"
-                    or proj.active_snapshot_id is None
-                    or proj.active_snapshot_id == previous_environment_snapshot_id
-                ):
-                    proj.active_snapshot_id = rows.snapshot.id
                 session.flush()
 
                 return rows.snapshot.id

@@ -21,8 +21,7 @@ def register_compare_environments(
         name="compare_environments",
         description=(
             "Compare current snapshots of two environments in one project. Find the "
-            "project key and environments with search_projects; use get_environment "
-            "to inspect either current snapshot first. Returns added, removed, modified, "
+            "project key and environments with search_projects. Returns added, removed, modified, "
             "and unchanged entity keys with per-list totals and pagination. Project key "
             "and both environment names are required. Requires memory:read."
         ),
@@ -41,8 +40,7 @@ def register_compare_environments(
             str,
             Field(
                 description=(
-                    "Required source environment name from search_projects.environments[].name; "
-                    "inspect its current snapshot with get_environment."
+                    "Required source environment name from search_projects.environments[].name."
                 )
             ),
         ],
@@ -50,8 +48,7 @@ def register_compare_environments(
             str,
             Field(
                 description=(
-                    "Required target environment name from search_projects.environments[].name; "
-                    "inspect its current snapshot with get_environment."
+                    "Required target environment name from search_projects.environments[].name."
                 )
             ),
         ],

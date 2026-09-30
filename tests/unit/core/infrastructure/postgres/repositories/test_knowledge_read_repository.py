@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -41,6 +41,29 @@ def test_project_search_supports_exact_key_and_partial_name_without_snapshot():
     assert [project.key for project in by_name] == ["send"]
     assert [project.key for project in unfiltered] == ["sender"]
     assert exact[0].has_active_snapshot is False
+
+
+def test_project_listing_batches_environment_reads():
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    session_factory = sessionmaker(bind=engine)
+    tenant_id = uuid4()
+    with session_factory() as session:
+        session.add(Tenant(id=tenant_id, key="tenant", name="Tenant"))
+        session.add_all(Project(tenant_id=tenant_id, key=f"project-{index}") for index in range(3))
+        session.commit()
+
+    statements = []
+
+    @event.listens_for(engine, "before_cursor_execute")
+    def count_statements(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().startswith("SELECT"):
+            statements.append(statement)
+
+    projects = KnowledgeReadRepository(session_factory).projects(str(tenant_id))
+
+    assert len(projects) == 3
+    assert len(statements) <= 2
 
 
 def test_project_discovery_attributes_tenants_and_lists_environments():
@@ -120,7 +143,6 @@ def test_project_discovery_reports_each_environment_current_snapshot_not_project
             ]
         )
         session.flush()
-        project.active_snapshot_id = staging_snapshot_id
         session.add_all(
             [
                 Environment(

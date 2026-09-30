@@ -32,5 +32,8 @@ def test_migration_adds_service_accounts_and_optional_token_expiration():
         assert "ck_token_owner_exactly_one" in {
             item["name"] for item in inspector.get_check_constraints("tokens")
         }
+        assert "ck_token_expiration_window" not in {
+            item["name"] for item in inspector.get_check_constraints("tokens")
+        }
     finally:
         runtime.engine.dispose()
