@@ -13,6 +13,8 @@ Publication reads docs/ inside --repository. Tags where that directory or its
 docs/ directory does not exist are reported and skipped.
 Older documentation without the current memory layout is imported as source
 documents, preserving its text and commit provenance without inventing content.
+LLM prompts compare current documents with active baseline documents. Stored
+document revisions remain in reconciliation and are excluded from LLM prompts.
 
 $env:HISTORY_DATABASE_URL='postgresql+psycopg2://harness_memory:harness_memory@localhost:5432/harness_memory'
 """
@@ -38,8 +40,23 @@ ROOT = Path(__file__).resolve().parents[1]
 # snapshot per release. Historical metadata participates in the payload hash.
 RUNNER = """
 import { CliApp, ProjectMemoryWorkflow, RestPublicationClient, GraphValidator,
-  GraphValidationError } from SDK_URL;
+  GraphValidationError, LocalLlmRunner } from SDK_URL;
 import { createHash } from 'node:crypto';
+const runLlm = LocalLlmRunner.prototype.run;
+LocalLlmRunner.prototype.run = function (options) {
+  if (!options.baselineGraph) return runLlm.call(this, options);
+  // Revision history belongs to reconciliation, not the model comparison.
+  const baseline = options.baselineGraph;
+  const entities = baseline.entities.filter(entity =>
+    ['adr', 'feature', 'document'].includes(entity.type) && entity.metadata?.lifecycle !== 'removed');
+  const keys = new Set(entities.map(entity => entity.key));
+  const relations = baseline.relations.filter(relation =>
+    keys.has(relation.source_entity_key) && keys.has(relation.target_entity_key));
+  const refs = new Set(relations.map(relation => relation.ref));
+  const evidence = baseline.evidence.filter(item => !item.relation_ref || refs.has(item.relation_ref));
+  return runLlm.call(this, { ...options,
+    baselineGraph: { ...baseline, entities, relations, evidence } });
+};
 const { MemoryGraph } = await import(new URL('./application/memory/memory-graph.js', SDK_URL));
 const reconcile = MemoryGraph.prototype.reconcile;
 MemoryGraph.prototype.reconcile = function (proposed, local, previous, ...options) {
